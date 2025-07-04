@@ -1,5 +1,4 @@
 import ProductCard from "./ProductCard";
-import { useToast } from "@/hooks/use-toast";
 
 // Import product images
 import amethystImage from "@/assets/product-amethyst.jpg";
@@ -10,11 +9,10 @@ import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
 import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
 const ProductGrid = () => {
-  const { toast } = useToast();
 
   const products = [
     {
-      id: 1,
+      id: "amethyst-cluster",
       image: amethystImage,
       name: "Amethyst Cluster",
       description: "Divine Protection & Peace - Enhance your spiritual connection",
@@ -23,7 +21,7 @@ const ProductGrid = () => {
       rating: 5
     },
     {
-      id: 2,
+      id: "angel-oracle-cards",
       image: angelCardsImage,
       name: "Angel Oracle Cards",
       description: "Celestial Guidance - Connect with your guardian angels",
@@ -32,7 +30,7 @@ const ProductGrid = () => {
       rating: 5
     },
     {
-      id: 3,
+      id: "healing-candle",
       image: candleImage,
       name: "Healing Candle",
       description: "Lavender Serenity - Aromatherapy for mind & soul",
@@ -41,7 +39,7 @@ const ProductGrid = () => {
       rating: 5
     },
     {
-      id: 4,
+      id: "chakra-journal",
       image: journalImage,
       name: "Chakra Journal",
       description: "Sacred Writing - Manifest your dreams & intentions",
@@ -50,7 +48,7 @@ const ProductGrid = () => {
       rating: 5
     },
     {
-      id: 5,
+      id: "rose-quartz-heart",
       image: roseQuartzImage,
       name: "Rose Quartz Heart",
       description: "Unconditional Love - Open your heart chakra",
@@ -59,7 +57,7 @@ const ProductGrid = () => {
       rating: 5
     },
     {
-      id: 6,
+      id: "chakra-stone-set",
       image: chakraKitImage,
       name: "Chakra Stone Set",
       description: "Complete Balance - Seven sacred stones for alignment",
@@ -68,14 +66,6 @@ const ProductGrid = () => {
       rating: 5
     }
   ];
-
-  const handleOrderClick = (productName: string) => {
-    toast({
-      title: "✨ Ready to Order",
-      description: `${productName} will be available soon! We'll notify you when checkout is ready.`,
-      duration: 5000,
-    });
-  };
 
   return (
     <section id="products" className="py-16 px-6 bg-gradient-hero">
@@ -93,13 +83,13 @@ const ProductGrid = () => {
           {products.map((product) => (
             <ProductCard
               key={product.id}
+              id={product.id}
               image={product.image}
               name={product.name}
               description={product.description}
               price={product.price}
               originalPrice={product.originalPrice}
               rating={product.rating}
-              onOrderClick={() => handleOrderClick(product.name)}
             />
           ))}
         </div>
