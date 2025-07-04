@@ -61,7 +61,29 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom Angelic Colors
+				angelic: {
+					lavender: 'hsl(var(--angelic-lavender))',
+					rose: 'hsl(var(--angelic-rose))',
+					gold: 'hsl(var(--angelic-gold))',
+					ivory: 'hsl(var(--angelic-ivory))',
+					deep: 'hsl(var(--angelic-deep))'
 				}
+			},
+			fontFamily: {
+				playfair: ['Playfair Display', 'serif'],
+				lato: ['Lato', 'sans-serif'],
+			},
+			backgroundImage: {
+				'gradient-divine': 'var(--gradient-divine)',
+				'gradient-hero': 'var(--gradient-hero)',
+				'gradient-card': 'var(--gradient-card)',
+			},
+			boxShadow: {
+				'divine': 'var(--shadow-divine)',
+				'glow': 'var(--shadow-glow)',
+				'soft': 'var(--shadow-soft)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

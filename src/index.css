@@ -2,41 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Angels On Earth - Divine Design System
+All colors MUST be HSL. Angelic, healing, and mystical theme.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Divine Background Colors */
+    --background: 0 0% 99%;
+    --foreground: 280 8% 20%;
 
+    /* Card and Surface Colors */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 280 8% 20%;
 
+    /* Popover Colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 280 8% 20%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Angelic Primary Colors - Soft Lavender */
+    --primary: 280 25% 65%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Divine Secondary - Blush Rose */
+    --secondary: 340 35% 90%;
+    --secondary-foreground: 280 15% 35%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted Tones */
+    --muted: 280 15% 95%;
+    --muted-foreground: 280 8% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Golden Shimmer */
+    --accent: 45 80% 85%;
+    --accent-foreground: 280 15% 35%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive Colors */
+    --destructive: 0 65% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders and Inputs */
+    --border: 280 15% 90%;
+    --input: 280 15% 95%;
+    --ring: 280 25% 65%;
 
-    --radius: 0.5rem;
+    /* Custom Angelic Colors */
+    --angelic-lavender: 280 40% 88%;
+    --angelic-rose: 340 50% 92%;
+    --angelic-gold: 45 85% 75%;
+    --angelic-ivory: 45 20% 98%;
+    --angelic-deep: 280 15% 25%;
+
+    /* Gradients */
+    --gradient-divine: linear-gradient(135deg, hsl(280, 40%, 95%) 0%, hsl(340, 50%, 95%) 50%, hsl(45, 80%, 95%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(280, 30%, 96%) 0%, hsl(340, 40%, 97%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(280, 20%, 98%) 100%);
+
+    /* Shadows */
+    --shadow-divine: 0 8px 32px hsl(280, 25%, 65% / 0.1);
+    --shadow-glow: 0 0 20px hsl(280, 40%, 80% / 0.3);
+    --shadow-soft: 0 4px 16px hsl(280, 15%, 80% / 0.15);
+
+    --radius: 1rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,41 +82,55 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode maintains the angelic theme with deeper tones */
+    --background: 280 15% 8%;
+    --foreground: 280 10% 90%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 280 15% 10%;
+    --card-foreground: 280 10% 90%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 280 15% 10%;
+    --popover-foreground: 280 10% 90%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 280 30% 75%;
+    --primary-foreground: 280 15% 15%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 280 15% 15%;
+    --secondary-foreground: 280 10% 85%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 280 15% 12%;
+    --muted-foreground: 280 8% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 45 60% 70%;
+    --accent-foreground: 280 15% 15%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 280 15% 18%;
+    --input: 280 15% 15%;
+    --ring: 280 30% 75%;
+
+    /* Custom Dark Angelic Colors */
+    --angelic-lavender: 280 25% 25%;
+    --angelic-rose: 340 30% 20%;
+    --angelic-gold: 45 60% 50%;
+    --angelic-ivory: 280 10% 15%;
+    --angelic-deep: 280 10% 85%;
+
+    /* Dark Gradients */
+    --gradient-divine: linear-gradient(135deg, hsl(280, 20%, 12%) 0%, hsl(340, 25%, 10%) 50%, hsl(45, 30%, 15%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(280, 15%, 10%) 0%, hsl(340, 20%, 8%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(280, 15%, 12%) 0%, hsl(280, 12%, 10%) 100%);
+
+    --sidebar-background: 280 15% 8%;
+    --sidebar-foreground: 280 10% 85%;
+    --sidebar-primary: 280 30% 70%;
+    --sidebar-primary-foreground: 280 15% 10%;
+    --sidebar-accent: 280 15% 12%;
+    --sidebar-accent-foreground: 280 10% 85%;
+    --sidebar-border: 280 15% 15%;
+    --sidebar-ring: 280 30% 75%;
   }
 }
 
@@ -100,6 +140,94 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-lato;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-playfair;
+  }
+}
+
+@layer components {
+  /* Divine Button Variants */
+  .btn-divine {
+    @apply bg-gradient-to-r from-primary/90 to-accent/80 text-primary-foreground;
+    @apply hover:from-primary to-accent hover:shadow-lg hover:scale-105;
+    @apply transition-all duration-300 ease-out;
+    @apply rounded-full px-8 py-3 font-medium;
+    @apply shadow-md hover:shadow-xl;
+  }
+
+  .btn-angelic {
+    @apply bg-white/80 text-primary border-2 border-primary/30;
+    @apply hover:bg-primary/10 hover:border-primary/50;
+    @apply transition-all duration-300 ease-out;
+    @apply rounded-full px-6 py-2.5 font-medium;
+    @apply backdrop-blur-sm;
+  }
+
+  /* Product Card Styling */
+  .product-card {
+    @apply bg-white/90 backdrop-blur-sm rounded-2xl p-6;
+    @apply border border-white/50 shadow-soft;
+    @apply hover:shadow-divine hover:scale-105;
+    @apply transition-all duration-300 ease-out;
+    @apply relative overflow-hidden;
+  }
+
+  .product-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5;
+    @apply opacity-0 hover:opacity-100 transition-opacity duration-300;
+  }
+
+  /* Mystical Glow Effects */
+  .divine-glow {
+    @apply relative;
+  }
+
+  .divine-glow::after {
+    content: '';
+    @apply absolute inset-0 rounded-inherit;
+    @apply bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20;
+    @apply blur-xl opacity-0 hover:opacity-100;
+    @apply transition-opacity duration-500;
+    @apply -z-10;
+  }
+
+  /* Floating Animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { 
+      transform: translateY(0px); 
+    }
+    50% { 
+      transform: translateY(-10px); 
+    }
+  }
+
+  /* Shimmer Effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer::before {
+    content: '';
+    @apply absolute inset-0;
+    @apply bg-gradient-to-r from-transparent via-white/30 to-transparent;
+    @apply transform -translate-x-full;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(200%);
+    }
   }
 }
