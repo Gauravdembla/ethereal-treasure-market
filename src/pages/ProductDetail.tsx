@@ -607,15 +607,15 @@ const ProductDetail = () => {
         </div>
 
         {/* Related Products Section */}
-        <div className="mt-16">
+        <div className="mt-16 mx-16">
           <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
             Customers Also Bought
           </h2>
-          <div className="relative group px-12">
-            {/* Slider Navigation - Outside the product area */}
+          <div className="relative group">
+            {/* Slider Navigation - Completely outside the container */}
             <button
               onClick={prevRelatedProducts}
-              className="absolute -left-2 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
+              className="absolute -left-16 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
               aria-label="Previous products"
               disabled={relatedProductsStartIndex === 0}
             >
@@ -624,7 +624,7 @@ const ProductDetail = () => {
 
             <button
               onClick={nextRelatedProducts}
-              className="absolute -right-2 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
+              className="absolute -right-16 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
               aria-label="Next products"
               disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
             >
