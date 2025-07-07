@@ -141,7 +141,7 @@ const ProductCard = ({
           <Button
             variant="link"
             size="sm"
-            className="p-0 h-auto text-primary hover:text-primary/80 text-sm"
+            className="px-2 py-1 h-auto text-primary hover:text-primary/80 text-sm font-medium"
           >
             Read More →
           </Button>
