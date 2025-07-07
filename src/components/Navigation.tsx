@@ -3,11 +3,15 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, User, Package } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import CartDialog from "./CartDialog";
+import LoginDialog from "./LoginDialog";
 
 const Navigation = () => {
   const { totalItems } = useCart();
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [showPreviousOrders, setShowPreviousOrders] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-white/50 shadow-soft">
@@ -24,7 +28,12 @@ const Navigation = () => {
           <div className="flex items-center gap-4">
             {/* Cart */}
             <div className="relative">
-              <Button variant="ghost" size="icon" className="relative">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative"
+                onClick={() => setShowCart(true)}
+              >
                 <ShoppingCart className="w-5 h-5 text-angelic-deep" />
                 {totalItems > 0 && (
                   <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -65,7 +74,7 @@ const Navigation = () => {
               <Button
                 variant="angelic"
                 size="sm"
-                onClick={login}
+                onClick={() => setShowLogin(true)}
               >
                 Login
               </Button>
@@ -73,6 +82,9 @@ const Navigation = () => {
           </div>
         </div>
       </div>
+      
+      <CartDialog open={showCart} onOpenChange={setShowCart} />
+      <LoginDialog open={showLogin} onOpenChange={setShowLogin} />
     </nav>
   );
 };

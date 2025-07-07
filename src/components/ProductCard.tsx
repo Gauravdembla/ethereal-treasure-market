@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingCart, Star } from "lucide-react";
+import { ShoppingCart, Star, Plus, Minus } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 
 interface ProductCardProps {
@@ -22,10 +23,17 @@ const ProductCard = ({
   originalPrice, 
   rating = 5
 }: ProductCardProps) => {
-  const { addItem } = useCart();
+  const { addItem, items, updateQuantity } = useCart();
+  const [quantity, setQuantity] = useState(1);
+  
+  const cartItem = items.find(item => item.id === id);
 
   const handleAddToCart = () => {
     addItem({ id, name, price, image });
+  };
+
+  const handleQuantityChange = (newQuantity: number) => {
+    setQuantity(Math.max(1, newQuantity));
   };
   return (
     <Card className="product-card group cursor-pointer">
@@ -62,13 +70,34 @@ const ProductCard = ({
           )}
         </div>
         
+        {/* Quantity Controls */}
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleQuantityChange(quantity - 1)}
+            className="w-8 h-8 p-0"
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+          <span className="w-8 text-center font-medium">{quantity}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleQuantityChange(quantity + 1)}
+            className="w-8 h-8 p-0"
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
+
         <Button 
           onClick={handleAddToCart}
           variant="angelic"
           className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
         >
           <ShoppingCart className="w-4 h-4 mr-2" />
-          Add to Cart
+          Add to Cart {cartItem && `(${cartItem.quantity})`}
         </Button>
       </div>
     </Card>
