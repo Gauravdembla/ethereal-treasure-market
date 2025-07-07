@@ -11,6 +11,7 @@ import { Users, Package, Coins, Settings, LogOut, Menu } from "lucide-react";
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [credentials, setCredentials] = useState({ username: "", password: "" });
+  const [activeSection, setActiveSection] = useState("users");
 
   // Mock data
   const mockUsers = [
@@ -76,7 +77,6 @@ const Admin = () => {
     );
   }
 
-  const [activeSection, setActiveSection] = useState("users");
 
   const menuItems = [
     { id: "users", label: "Users", icon: Users },
