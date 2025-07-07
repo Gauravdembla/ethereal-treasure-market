@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingCart, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, Star, ChevronLeft, ChevronRight, Plus, Minus } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 
 // Import banner images for mockups
@@ -33,7 +33,7 @@ const ProductCard = ({
   originalPrice,
   rating = 5
 }: ProductCardProps) => {
-  const { addItem, items } = useCart();
+  const { addItem, removeItem, items } = useCart();
 
   const cartItem = items.find(item => item.id === id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -49,6 +49,24 @@ const ProductCard = ({
 
   const handleAddToCart = () => {
     addItem({ id, name, price, image }, 1);
+  };
+
+  const handleQuantityIncrease = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentQuantity = cartItem?.quantity || 0;
+    addItem({ id, name, price, image }, currentQuantity + 1);
+  };
+
+  const handleQuantityDecrease = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentQuantity = cartItem?.quantity || 0;
+    if (currentQuantity > 1) {
+      addItem({ id, name, price, image }, currentQuantity - 1);
+    } else {
+      removeItem(id);
+    }
   };
 
   const nextImage = (e: React.MouseEvent) => {
@@ -158,14 +176,39 @@ const ProductCard = ({
           )}
         </div>
         
-        <Button 
-          onClick={handleAddToCart}
-          variant="angelic"
-          className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
-        >
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          Add to Cart
-        </Button>
+        {/* Dynamic Add to Cart / Quantity Controls */}
+        {cartItem && cartItem.quantity > 0 ? (
+          <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-3 py-2 w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-8 h-8 p-0 hover:bg-primary-foreground/20 text-primary-foreground"
+              onClick={handleQuantityDecrease}
+            >
+              <Minus className="w-4 h-4" />
+            </Button>
+            <span className="font-medium px-3 min-w-[30px] text-center text-primary-foreground">
+              {cartItem.quantity}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-8 h-8 p-0 hover:bg-primary-foreground/20 text-primary-foreground"
+              onClick={handleQuantityIncrease}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={handleAddToCart}
+            variant="angelic"
+            className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Add to Cart
+          </Button>
+        )}
       </div>
     </Card>
   );
