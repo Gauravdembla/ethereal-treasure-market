@@ -137,13 +137,15 @@ const ProductCard = ({
           {description}
         </p>
         
-        <Link to={`/product/${id}`}>
+        <Link to={`/product/${id}`} className="inline-block group/readmore">
           <Button
             variant="link"
             size="sm"
-            className="p-0 h-auto text-primary hover:text-primary/80 text-sm"
+            className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-3 hover:py-1 hover:rounded-full text-sm transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg cursor-pointer relative overflow-hidden"
           >
-            Read More →
+            <span className="relative z-10">Read More</span>
+            <span className="ml-1 transition-transform duration-300 group-hover/readmore:translate-x-1">→</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 transform scale-x-0 group-hover/readmore:scale-x-100 transition-transform duration-300 origin-left"></div>
           </Button>
         </Link>
         

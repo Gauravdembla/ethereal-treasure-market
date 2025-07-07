@@ -17,7 +17,7 @@ import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { addItem, items } = useCart();
+  const { addItem, removeItem, items } = useCart();
   const [quantity, setQuantity] = useState(0);
 
   // Extract product ID from URL format: product_name_sku
@@ -224,8 +224,14 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (quantity > 0) {
+      // Add items to cart
       addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, quantity);
-      // Don't reset quantity - keep it as is
+    } else if (quantity === 0) {
+      // Remove item from cart when quantity is 0
+      const existingItem = items.find(item => item.id === actualProductId);
+      if (existingItem) {
+        removeItem(product.id);
+      }
     }
   };
 
@@ -305,10 +311,12 @@ const ProductDetail = () => {
               variant="divine"
               size="lg"
               className="w-full"
-              disabled={quantity === 0}
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              {quantity === 0 ? 'Select Quantity' : `Add ${quantity} to Cart`}
+              {quantity === 0
+                ? (items.find(item => item.id === actualProductId) ? 'Remove from Cart' : 'Select Quantity First')
+                : `Add ${quantity} to Cart`
+              }
             </Button>
           </div>
         </div>
