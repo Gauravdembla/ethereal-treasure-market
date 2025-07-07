@@ -137,11 +137,11 @@ const ProductCard = ({
           {description}
         </p>
         
-        <Link to={`/product/${id}`}>
+        <Link to={`/product/${id}`} className="inline-block">
           <Button
             variant="link"
             size="sm"
-            className="px-2 py-1 h-auto text-primary hover:text-primary/80 text-sm font-medium"
+            className="px-2 py-1 h-auto text-primary hover:text-primary/80 text-sm font-medium cursor-pointer transition-all duration-300 hover:scale-105 hover:underline underline-offset-2"
           >
             Read More →
           </Button>
