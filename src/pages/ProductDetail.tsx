@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
@@ -85,7 +85,34 @@ const ProductDetail = () => {
         "Origin": "Brazil",
         "Chakra": "Crown & Third Eye",
         "Element": "Air"
-      }
+      },
+      testimonials: [
+        {
+          id: 1,
+          name: "Sarah M.",
+          rating: 5,
+          review: "This amethyst cluster has completely transformed my meditation space. The energy is incredible and I feel so much more peaceful since placing it in my room. Highly recommend!",
+          date: "2 weeks ago",
+          verified: true
+        },
+        {
+          id: 2,
+          name: "Michael R.",
+          rating: 5,
+          review: "Beautiful piece! The purple color is stunning and the energy is very calming. I've been sleeping much better since I got this. Worth every penny.",
+          date: "1 month ago",
+          verified: true
+        },
+        {
+          id: 3,
+          name: "Luna K.",
+          rating: 4,
+          review: "Gorgeous amethyst cluster. Arrived safely packaged and exactly as described. The spiritual energy is amazing for my daily meditation practice.",
+          date: "3 weeks ago",
+          verified: true
+        }
+      ],
+      relatedProducts: ["angel-oracle-cards", "chakra-journal", "rose-quartz-heart"]
     },
     "angel-oracle-cards": {
       id: "angel-oracle-cards",
@@ -133,7 +160,26 @@ const ProductDetail = () => {
         "Fragrance": "Pure Lavender Essential Oil",
         "Size": "3 x 4 inches",
         "Weight": "300g"
-      }
+      },
+      testimonials: [
+        {
+          id: 1,
+          name: "Emma L.",
+          rating: 5,
+          review: "The most relaxing candle I've ever owned! The lavender scent is pure and not overpowering. Perfect for my evening meditation routine.",
+          date: "1 week ago",
+          verified: true
+        },
+        {
+          id: 2,
+          name: "David P.",
+          rating: 5,
+          review: "Amazing quality! Burns evenly and the scent fills the entire room. Has really helped with my sleep quality. Will definitely buy again.",
+          date: "2 weeks ago",
+          verified: true
+        }
+      ],
+      relatedProducts: ["amethyst-cluster", "chakra-journal", "rose-quartz-heart"]
     },
     "chakra-journal": {
       id: "chakra-journal",
@@ -207,6 +253,43 @@ const ProductDetail = () => {
         "Total Weight": "200-250g"
       }
     }
+  };
+
+  // Helper function to get testimonials for products that don't have them
+  const getTestimonials = (productId: string) => {
+    const defaultTestimonials = [
+      {
+        id: 1,
+        name: "Jessica T.",
+        rating: 5,
+        review: "Absolutely love this product! The quality is amazing and the spiritual energy is exactly what I was looking for. Highly recommend!",
+        date: "1 week ago",
+        verified: true
+      },
+      {
+        id: 2,
+        name: "Mark S.",
+        rating: 4,
+        review: "Great quality and fast shipping. This has become an essential part of my daily spiritual practice. Very satisfied with my purchase.",
+        date: "2 weeks ago",
+        verified: true
+      },
+      {
+        id: 3,
+        name: "Sophia R.",
+        rating: 5,
+        review: "Beautiful craftsmanship and powerful energy. I can feel the positive vibrations immediately. Worth every penny!",
+        date: "3 weeks ago",
+        verified: true
+      }
+    ];
+    return defaultTestimonials;
+  };
+
+  // Helper function to get related products
+  const getRelatedProducts = (currentProductId: string) => {
+    const allProductIds = Object.keys(products);
+    return allProductIds.filter(id => id !== currentProductId).slice(0, 3);
   };
 
   const product = products[actualProductId as keyof typeof products];
@@ -449,8 +532,100 @@ const ProductDetail = () => {
             </Card>
           </div>
         </div>
+
+        {/* Testimonials Section */}
+        <div className="mt-16">
+          <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
+            Customer Reviews
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(product.testimonials || getTestimonials(actualProductId)).map((testimonial) => (
+              <Card key={testimonial.id} className="p-6 hover:shadow-lg transition-shadow duration-300">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
+                    ))}
+                  </div>
+                  {testimonial.verified && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                      Verified Purchase
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative mb-4">
+                  <Quote className="w-6 h-6 text-primary/20 absolute -top-2 -left-1" />
+                  <p className="text-angelic-deep/80 leading-relaxed pl-4">
+                    {testimonial.review}
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-angelic-deep">{testimonial.name}</span>
+                  <span className="text-angelic-deep/60">{testimonial.date}</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Related Products Section */}
+        <div className="mt-16">
+          <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
+            Customers Also Bought
+          </h2>
+          <div className="relative">
+            <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
+              {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
+                const relatedProduct = products[relatedId as keyof typeof products];
+                if (!relatedProduct) return null;
+
+                return (
+                  <Link
+                    key={relatedId}
+                    to={`/product/${relatedId}`}
+                    className="flex-shrink-0 w-64 group"
+                  >
+                    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-105">
+                      <div className="relative">
+                        <img
+                          src={relatedProduct.image}
+                          alt={relatedProduct.name}
+                          className="w-full h-48 object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-1 mb-2">
+                          {[...Array(relatedProduct.rating)].map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                          ))}
+                        </div>
+                        <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors">
+                          {relatedProduct.name}
+                        </h3>
+                        <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2">
+                          {relatedProduct.description}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                          {relatedProduct.originalPrice && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              ₹{relatedProduct.originalPrice}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
-      
+
       <AngelicFooter />
     </div>
   );
