@@ -365,15 +365,15 @@ const ProductDetail = () => {
     ];
   };
 
-  // Related products slider functions
+  // Related products slider functions (non-cyclic, max 4 visible)
   const nextRelatedProducts = () => {
     const relatedProducts = product.relatedProducts || getRelatedProducts(actualProductId);
-    setRelatedProductsStartIndex((prev) => (prev + 1) % relatedProducts.length);
+    const maxStartIndex = Math.max(0, relatedProducts.length - 4);
+    setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
   };
 
   const prevRelatedProducts = () => {
-    const relatedProducts = product.relatedProducts || getRelatedProducts(actualProductId);
-    setRelatedProductsStartIndex((prev) => (prev - 1 + relatedProducts.length) % relatedProducts.length);
+    setRelatedProductsStartIndex((prev) => Math.max(prev - 1, 0));
   };
 
   // Related product image slider functions
@@ -611,27 +611,29 @@ const ProductDetail = () => {
           <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
             Customers Also Bought
           </h2>
-          <div className="relative group">
-            {/* Slider Navigation */}
+          <div className="relative group px-12">
+            {/* Slider Navigation - Outside the product area */}
             <button
               onClick={prevRelatedProducts}
-              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="absolute -left-2 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
               aria-label="Previous products"
+              disabled={relatedProductsStartIndex === 0}
             >
               <ChevronLeft className="w-5 h-5 text-gray-700" />
             </button>
 
             <button
               onClick={nextRelatedProducts}
-              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="absolute -right-2 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
               aria-label="Next products"
+              disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
             >
               <ChevronRight className="w-5 h-5 text-gray-700" />
             </button>
 
             <div className="overflow-hidden">
               <div className="flex gap-6 transition-transform duration-300" style={{
-                transform: `translateX(-${relatedProductsStartIndex * (100 / 3)}%)`
+                transform: `translateX(-${relatedProductsStartIndex * (100 / 4)}%)`
               }}>
                 {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
                 const relatedProduct = products[relatedId as keyof typeof products];
@@ -640,7 +642,7 @@ const ProductDetail = () => {
                 return (
                   <div
                     key={relatedId}
-                    className="flex-shrink-0 w-64 group"
+                    className="flex-shrink-0 w-60 group"
                   >
                     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
                       {/* Image Slider for Related Product */}

@@ -36,6 +36,7 @@ const ProductCard = ({
   const { addItem, removeItem, items } = useCart();
 
   const cartItem = items.find(item => item.id === id);
+  const currentQuantity = cartItem?.quantity || 0;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Create 5 mockup images - using the main image and banner images as variations
@@ -54,17 +55,15 @@ const ProductCard = ({
   const handleQuantityIncrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const currentQuantity = cartItem?.quantity || 0;
     addItem({ id, name, price, image }, currentQuantity + 1);
   };
 
   const handleQuantityDecrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const currentQuantity = cartItem?.quantity || 0;
     if (currentQuantity > 1) {
       addItem({ id, name, price, image }, currentQuantity - 1);
-    } else {
+    } else if (currentQuantity === 1) {
       removeItem(id);
     }
   };
@@ -177,7 +176,7 @@ const ProductCard = ({
         </div>
         
         {/* Dynamic Add to Cart / Quantity Controls */}
-        {cartItem && cartItem.quantity > 0 ? (
+        {currentQuantity > 0 ? (
           <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-3 py-2 w-full">
             <Button
               variant="ghost"
@@ -188,7 +187,7 @@ const ProductCard = ({
               <Minus className="w-4 h-4" />
             </Button>
             <span className="font-medium px-3 min-w-[30px] text-center text-primary-foreground">
-              {cartItem.quantity}
+              {currentQuantity}
             </span>
             <Button
               variant="ghost"
