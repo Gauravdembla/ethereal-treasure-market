@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,8 +17,50 @@ import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { addItem } = useCart();
-  const [quantity, setQuantity] = useState(1);
+  const { addItem, items } = useCart();
+  const [quantity, setQuantity] = useState(0);
+
+  // Extract product ID from URL format: product_name_sku
+  const getProductIdFromUrl = (urlId: string) => {
+    if (!urlId) return null;
+
+    // Split by underscore and take all parts except the last one (which is SKU)
+    const parts = urlId.split('_');
+    if (parts.length < 2) return urlId; // fallback to original if no SKU
+
+    // Remove the last part (SKU) and rejoin with hyphens
+    const productParts = parts.slice(0, -1); // Remove last element (SKU)
+    const productId = productParts.join('-'); // rejoin with hyphens
+
+    return productId;
+  };
+
+  const actualProductId = id; // Simplified for testing
+
+  // Debug logging
+  console.log('=== PRODUCT DETAIL DEBUG ===');
+  console.log('Raw URL ID:', id);
+  console.log('Parsed Product ID:', actualProductId);
+  console.log('Available products:', Object.keys({
+    "amethyst-cluster": true,
+    "angel-oracle-cards": true,
+    "healing-candle": true,
+    "chakra-journal": true,
+    "rose-quartz-heart": true,
+    "chakra-stone-set": true
+  }));
+
+  // Sync quantity with existing cart item
+  useEffect(() => {
+    if (actualProductId) {
+      const existingItem = items.find(item => item.id === actualProductId);
+      if (existingItem) {
+        setQuantity(existingItem.quantity);
+      } else {
+        setQuantity(0);
+      }
+    }
+  }, [actualProductId, items]);
 
   const products = {
     "amethyst-cluster": {
@@ -167,7 +209,7 @@ const ProductDetail = () => {
     }
   };
 
-  const product = products[id as keyof typeof products];
+  const product = products[actualProductId as keyof typeof products];
 
   if (!product) {
     return (
@@ -176,6 +218,12 @@ const ProductDetail = () => {
         <div className="max-w-4xl mx-auto px-6 py-16">
           <div className="text-center">
             <h1 className="text-2xl font-playfair text-angelic-deep mb-4">Product Not Found</h1>
+            <div className="bg-gray-100 p-4 rounded mb-4">
+              <p><strong>Debug Info:</strong></p>
+              <p>Raw URL ID: {id}</p>
+              <p>Parsed Product ID: {actualProductId}</p>
+              <p>Available Products: {Object.keys(products).join(', ')}</p>
+            </div>
             <Link to="/">
               <Button variant="angelic">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -190,12 +238,14 @@ const ProductDetail = () => {
   }
 
   const handleQuantityChange = (newQuantity: number) => {
-    setQuantity(Math.max(1, newQuantity));
+    setQuantity(Math.max(0, newQuantity));
   };
 
   const handleAddToCart = () => {
-    addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, quantity);
-    setQuantity(1);
+    if (quantity > 0) {
+      addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, quantity);
+      // Don't reset quantity - keep it as is
+    }
   };
 
   return (
@@ -269,14 +319,15 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <Button 
+            <Button
               onClick={handleAddToCart}
               variant="divine"
               size="lg"
               className="w-full"
+              disabled={quantity === 0}
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              Add to Cart
+              {quantity === 0 ? 'Select Quantity' : `Add ${quantity} to Cart`}
             </Button>
           </div>
         </div>

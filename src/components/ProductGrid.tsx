@@ -13,6 +13,7 @@ const ProductGrid = () => {
   const products = [
     {
       id: "amethyst-cluster",
+      sku: "654567652",
       image: amethystImage,
       name: "Amethyst Cluster",
       description: "Divine Protection & Peace - Enhance your spiritual connection",
@@ -22,6 +23,7 @@ const ProductGrid = () => {
     },
     {
       id: "angel-oracle-cards",
+      sku: "789123456",
       image: angelCardsImage,
       name: "Angel Oracle Cards",
       description: "Celestial Guidance - Connect with your guardian angels",
@@ -31,6 +33,7 @@ const ProductGrid = () => {
     },
     {
       id: "healing-candle",
+      sku: "321987654",
       image: candleImage,
       name: "Healing Candle",
       description: "Lavender Serenity - Aromatherapy for mind & soul",
@@ -40,6 +43,7 @@ const ProductGrid = () => {
     },
     {
       id: "chakra-journal",
+      sku: "456789123",
       image: journalImage,
       name: "Chakra Journal",
       description: "Sacred Writing - Manifest your dreams & intentions",
@@ -49,6 +53,7 @@ const ProductGrid = () => {
     },
     {
       id: "rose-quartz-heart",
+      sku: "987654321",
       image: roseQuartzImage,
       name: "Rose Quartz Heart",
       description: "Unconditional Love - Open your heart chakra",
@@ -58,6 +63,7 @@ const ProductGrid = () => {
     },
     {
       id: "chakra-stone-set",
+      sku: "147258369",
       image: chakraKitImage,
       name: "Chakra Stone Set",
       description: "Complete Balance - Seven sacred stones for alignment",
@@ -84,6 +90,7 @@ const ProductGrid = () => {
             <ProductCard
               key={product.id}
               id={product.id}
+              sku={product.sku}
               image={product.image}
               name={product.name}
               description={product.description}
