@@ -138,7 +138,18 @@ const ProductDetail = () => {
         "Material": "High-quality cardstock",
         "Guidebook": "128-page instruction manual",
         "Language": "English"
-      }
+      },
+      testimonials: [
+        {
+          id: 1,
+          name: "Rebecca M.",
+          rating: 5,
+          review: "These oracle cards are absolutely beautiful! The messages are always spot on and provide such clarity. I use them daily for guidance.",
+          date: "1 week ago",
+          verified: true
+        }
+      ],
+      relatedProducts: ["amethyst-cluster", "chakra-journal", "rose-quartz-heart"]
     },
     "healing-candle": {
       id: "healing-candle",
@@ -205,7 +216,18 @@ const ProductDetail = () => {
         "Cover": "Hardcover with chakra symbols",
         "Paper": "120gsm cream paper",
         "Binding": "Lay-flat binding"
-      }
+      },
+      testimonials: [
+        {
+          id: 1,
+          name: "Maya S.",
+          rating: 5,
+          review: "This journal has completely changed my manifestation practice! The chakra-aligned pages help me focus my intentions perfectly.",
+          date: "1 week ago",
+          verified: true
+        }
+      ],
+      relatedProducts: ["amethyst-cluster", "angel-oracle-cards", "rose-quartz-heart"]
     },
     "rose-quartz-heart": {
       id: "rose-quartz-heart",
@@ -229,7 +251,18 @@ const ProductDetail = () => {
         "Origin": "Madagascar",
         "Chakra": "Heart",
         "Element": "Water"
-      }
+      },
+      testimonials: [
+        {
+          id: 1,
+          name: "Grace L.",
+          rating: 5,
+          review: "This rose quartz heart has brought so much love and peace into my life. The energy is absolutely beautiful and calming.",
+          date: "2 weeks ago",
+          verified: true
+        }
+      ],
+      relatedProducts: ["amethyst-cluster", "chakra-journal", "chakra-stone-set"]
     },
     "chakra-stone-set": {
       id: "chakra-stone-set",
@@ -253,7 +286,18 @@ const ProductDetail = () => {
         "Packaging": "Velvet pouch included",
         "Guide": "Chakra healing instruction card",
         "Total Weight": "200-250g"
-      }
+      },
+      testimonials: [
+        {
+          id: 1,
+          name: "Alex K.",
+          rating: 5,
+          review: "This chakra stone set is absolutely perfect! Each stone has such powerful energy and the instruction card is very helpful. My energy feels so much more balanced.",
+          date: "1 week ago",
+          verified: true
+        }
+      ],
+      relatedProducts: ["amethyst-cluster", "rose-quartz-heart", "angel-oracle-cards"]
     }
   };
 
@@ -615,7 +659,7 @@ const ProductDetail = () => {
           {/* Slider Navigation - OUTSIDE the product container */}
           <button
             onClick={prevRelatedProducts}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-20 opacity-0 hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
             aria-label="Previous products"
             disabled={relatedProductsStartIndex === 0}
           >
@@ -624,7 +668,7 @@ const ProductDetail = () => {
 
           <button
             onClick={nextRelatedProducts}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-20 opacity-0 hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
             aria-label="Next products"
             disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
           >
