@@ -175,51 +175,64 @@ const ProductCard = ({
           )}
         </div>
         
-        {/* Dynamic Add to Cart / Quantity Controls */}
-        {currentQuantity > 0 ? (
-          <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-3 py-2 w-full">
+        {/* Dynamic Add to Cart / Quantity Controls - EXACT COPY FROM WORKING VERSION */}
+        {(() => {
+          const cartItem = items.find(item => item.id === id);
+          const currentQuantity = cartItem?.quantity || 0;
+
+          return currentQuantity > 0 ? (
+            <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-2 py-1.5 w-full">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (currentQuantity > 1) {
+                    addItem({
+                      id: id,
+                      name: name,
+                      price: price,
+                      image: image
+                    }, currentQuantity - 1);
+                  } else {
+                    removeItem(id);
+                  }
+                }}
+              >
+                <Minus className="w-3 h-3" />
+              </Button>
+              <span className="text-xs font-medium px-2 min-w-[20px] text-center text-primary-foreground">{currentQuantity}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addItem({
+                    id: id,
+                    name: name,
+                    price: price,
+                    image: image
+                  }, currentQuantity + 1);
+                }}
+              >
+                <Plus className="w-3 h-3" />
+              </Button>
+            </div>
+          ) : (
             <Button
-              variant="ghost"
-              size="sm"
-              className="w-8 h-8 p-0 hover:bg-primary-foreground/20 text-primary-foreground"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (currentQuantity > 1) {
-                  addItem({ id, name, price, image }, currentQuantity - 1);
-                } else {
-                  removeItem(id);
-                }
-              }}
+              onClick={handleAddToCart}
+              variant="angelic"
+              className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
             >
-              <Minus className="w-4 h-4" />
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Add to Cart
             </Button>
-            <span className="font-medium px-3 min-w-[30px] text-center text-primary-foreground">
-              {currentQuantity}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-8 h-8 p-0 hover:bg-primary-foreground/20 text-primary-foreground"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                addItem({ id, name, price, image }, currentQuantity + 1);
-              }}
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-        ) : (
-          <Button
-            onClick={handleAddToCart}
-            variant="angelic"
-            className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
-          >
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            Add to Cart
-          </Button>
-        )}
+          );
+        })()}
       </div>
     </Card>
   );

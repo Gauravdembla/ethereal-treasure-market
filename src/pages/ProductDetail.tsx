@@ -607,29 +607,32 @@ const ProductDetail = () => {
         </div>
 
         {/* Related Products Section */}
-        <div className="mt-16">
+        <div className="mt-16 relative">
           <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
             Customers Also Bought
           </h2>
-          <div className="relative group mx-20">
-            {/* Slider Navigation - Completely outside the container */}
-            <button
-              onClick={prevRelatedProducts}
-              className="absolute -left-20 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
-              aria-label="Previous products"
-              disabled={relatedProductsStartIndex === 0}
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-700" />
-            </button>
 
-            <button
-              onClick={nextRelatedProducts}
-              className="absolute -right-20 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
-              aria-label="Next products"
-              disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
-            >
-              <ChevronRight className="w-5 h-5 text-gray-700" />
-            </button>
+          {/* Slider Navigation - OUTSIDE the product container */}
+          <button
+            onClick={prevRelatedProducts}
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-20 opacity-0 hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
+            aria-label="Previous products"
+            disabled={relatedProductsStartIndex === 0}
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-700" />
+          </button>
+
+          <button
+            onClick={nextRelatedProducts}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-20 opacity-0 hover:opacity-100 transition-opacity duration-300 disabled:opacity-30"
+            aria-label="Next products"
+            disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
+          >
+            <ChevronRight className="w-5 h-5 text-gray-700" />
+          </button>
+
+          <div className="px-16">
+            <div className="relative group">
 
             <div className="overflow-hidden">
               <div className="flex gap-6 transition-transform duration-300" style={{
@@ -809,6 +812,7 @@ const ProductDetail = () => {
               })}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
