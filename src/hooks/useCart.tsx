@@ -11,7 +11,7 @@ interface CartItem {
 interface CartStore {
   items: CartItem[];
   totalItems: number;
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -20,20 +20,20 @@ interface CartStore {
 export const useCart = create<CartStore>((set, get) => ({
   items: [],
   totalItems: 0,
-  addItem: (item) => {
+  addItem: (item, quantity = 1) => {
     const { items } = get();
     const existingItem = items.find(i => i.id === item.id);
     
     if (existingItem) {
       const updatedItems = items.map(i =>
-        i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i
       );
       set({ 
         items: updatedItems,
         totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0)
       });
     } else {
-      const newItems = [...items, { ...item, quantity: 1 }];
+      const newItems = [...items, { ...item, quantity }];
       set({ 
         items: newItems,
         totalItems: newItems.reduce((sum, item) => sum + item.quantity, 0)

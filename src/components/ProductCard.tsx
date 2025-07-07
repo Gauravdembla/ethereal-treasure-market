@@ -29,9 +29,8 @@ const ProductCard = ({
   const cartItem = items.find(item => item.id === id);
 
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addItem({ id, name, price, image });
-    }
+    addItem({ id, name, price, image }, quantity);
+    setQuantity(1); // Reset quantity after adding to cart
   };
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -62,6 +61,15 @@ const ProductCard = ({
         <p className="text-sm text-angelic-deep/70 leading-relaxed">
           {description}
         </p>
+        
+        <Button
+          variant="link"
+          size="sm"
+          className="p-0 h-auto text-primary hover:text-primary/80 text-sm"
+          onClick={() => window.location.href = `/product/${id}`}
+        >
+          Read More →
+        </Button>
         
         <div className="flex items-center gap-2 mb-4">
           <span className="font-semibold text-primary text-lg">₹{price}</span>
