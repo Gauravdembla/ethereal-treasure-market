@@ -9,6 +9,7 @@ import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import LoginDialog from "@/components/LoginDialog";
 
 const Checkout = () => {
   const { items, updateQuantity, removeItem, clearCart } = useCart();
@@ -17,6 +18,7 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState("");
   const [angelCoinsToRedeem, setAngelCoinsToRedeem] = useState([0]);
   const [discount, setDiscount] = useState(0);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
   
   // Admin settings - in real app, these would come from API/context
   const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
@@ -49,7 +51,16 @@ const Checkout = () => {
   };
 
   const handleCheckout = () => {
+    if (!user) {
+      setShowLoginDialog(true);
+      return;
+    }
     console.log("Navigating to address page...");
+    navigate("/address");
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginDialog(false);
     navigate("/address");
   };
 
@@ -247,6 +258,12 @@ const Checkout = () => {
           </div>
         </div>
       </div>
+      
+      <LoginDialog 
+        open={showLoginDialog} 
+        onOpenChange={setShowLoginDialog}
+        onLoginSuccess={handleLoginSuccess}
+      />
     </div>
   );
 };

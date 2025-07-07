@@ -10,9 +10,10 @@ import { useAuth } from "@/hooks/useAuth";
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onLoginSuccess?: () => void;
 }
 
-const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
+const LoginDialog = ({ open, onOpenChange, onLoginSuccess }: LoginDialogProps) => {
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [activeTab, setActiveTab] = useState("email");
@@ -26,6 +27,7 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
     // Mock login - OTP will be implemented later
     login();
     onOpenChange(false);
+    onLoginSuccess?.();
   };
 
   const handleMobileLogin = () => {
@@ -36,6 +38,7 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
     // Mock login - WhatsApp OTP will be implemented later
     login();
     onOpenChange(false);
+    onLoginSuccess?.();
   };
 
   return (
