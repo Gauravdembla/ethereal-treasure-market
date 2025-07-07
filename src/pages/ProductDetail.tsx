@@ -286,10 +286,10 @@ const ProductDetail = () => {
     return defaultTestimonials;
   };
 
-  // Helper function to get related products
+  // Helper function to get related products (all products except current one)
   const getRelatedProducts = (currentProductId: string) => {
     const allProductIds = Object.keys(products);
-    return allProductIds.filter(id => id !== currentProductId).slice(0, 3);
+    return allProductIds.filter(id => id !== currentProductId);
   };
 
   const product = products[actualProductId as keyof typeof products];
@@ -608,13 +608,44 @@ const ProductDetail = () => {
                         <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2">
                           {relatedProduct.description}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mb-3">
                           <span className="font-bold text-primary">₹{relatedProduct.price}</span>
                           {relatedProduct.originalPrice && (
                             <span className="text-sm text-muted-foreground line-through">
                               ₹{relatedProduct.originalPrice}
                             </span>
                           )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <Link to={`/product/${relatedId}`} className="flex-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-xs hover:bg-primary hover:text-white transition-colors"
+                            >
+                              Read More
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="flex-1 text-xs"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              addItem({
+                                id: relatedProduct.id,
+                                name: relatedProduct.name,
+                                price: relatedProduct.price,
+                                image: relatedProduct.image
+                              }, 1);
+                            }}
+                          >
+                            <ShoppingCart className="w-3 h-3 mr-1" />
+                            Add to Cart
+                          </Button>
                         </div>
                       </div>
                     </Card>

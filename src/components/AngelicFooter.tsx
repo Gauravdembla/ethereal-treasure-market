@@ -1,6 +1,36 @@
+import { useState, useEffect } from "react";
 import { Heart, Sparkles } from "lucide-react";
 
 const AngelicFooter = () => {
+  const [currentTextIndex, setCurrentTextIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
+
+  const blessedTexts = [
+    "Every item here carries high-vibrational energy to support your healing journey. May you be guided to what your soul needs most today.",
+    "These sacred treasures are blessed with divine light and love. Trust your intuition as you choose what resonates with your spirit.",
+    "Each piece has been carefully selected to bring peace, healing, and spiritual awakening into your life. You are exactly where you need to be.",
+    "The universe has guided you here for a reason. Allow these mystical tools to support your transformation and inner growth.",
+    "Infused with angelic energy and pure intentions, these items are here to elevate your vibration and connect you with your higher self.",
+    "May these divine gifts bring clarity to your path and illuminate the magic that already exists within you. You are deeply loved.",
+    "These healing treasures carry the wisdom of ancient traditions and the power of modern spiritual awakening. Choose with your heart.",
+    "Every crystal, card, and sacred item here vibrates with love and light. Trust the process and embrace your spiritual journey.",
+    "You are a beautiful soul on a sacred path. These tools are here to remind you of your own divine nature and infinite potential.",
+    "The angels have whispered their blessings upon each item. May they bring you the peace, love, and healing you seek."
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsVisible(false);
+
+      setTimeout(() => {
+        setCurrentTextIndex((prev) => (prev + 1) % blessedTexts.length);
+        setIsVisible(true);
+      }, 500); // Half second for fade out
+
+    }, 4000); // Change text every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [blessedTexts.length]);
   return (
     <footer className="py-16 px-6 bg-gradient-to-t from-angelic-lavender/20 to-transparent">
       <div className="max-w-4xl mx-auto text-center">
@@ -15,10 +45,15 @@ const AngelicFooter = () => {
             Blessed with Divine Energy
           </h3>
           
-          <p className="text-angelic-deep/80 leading-relaxed max-w-2xl mx-auto text-lg">
-            Every item here carries high-vibrational energy to support your healing journey. 
-            May you be guided to what your soul needs most today.
-          </p>
+          <div className="relative min-h-[4rem] flex items-center justify-center">
+            <p
+              className={`text-angelic-deep/80 leading-relaxed max-w-2xl mx-auto text-lg transition-opacity duration-500 ${
+                isVisible ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              {blessedTexts[currentTextIndex]}
+            </p>
+          </div>
           
           <div className="flex justify-center gap-2 mt-6">
             <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
