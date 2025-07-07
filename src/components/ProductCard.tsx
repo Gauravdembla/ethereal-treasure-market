@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ShoppingCart, Star, Plus, Minus } from "lucide-react";
@@ -62,14 +63,15 @@ const ProductCard = ({
           {description}
         </p>
         
-        <Button
-          variant="link"
-          size="sm"
-          className="p-0 h-auto text-primary hover:text-primary/80 text-sm"
-          onClick={() => window.location.href = `/product/${id}`}
-        >
-          Read More →
-        </Button>
+        <Link to={`/product/${id}`}>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 h-auto text-primary hover:text-primary/80 text-sm"
+          >
+            Read More →
+          </Button>
+        </Link>
         
         <div className="flex items-center gap-2 mb-4">
           <span className="font-semibold text-primary text-lg">₹{price}</span>
