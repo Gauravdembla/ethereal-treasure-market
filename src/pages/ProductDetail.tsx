@@ -737,11 +737,11 @@ const ProductDetail = () => {
                             const currentQuantity = cartItem?.quantity || 0;
 
                             return currentQuantity > 0 ? (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-2 py-1.5">
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  className="w-8 h-8 p-0 text-xs"
+                                  className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -759,11 +759,11 @@ const ProductDetail = () => {
                                 >
                                   <Minus className="w-3 h-3" />
                                 </Button>
-                                <span className="text-xs font-medium px-2">{currentQuantity}</span>
+                                <span className="text-xs font-medium px-2 min-w-[20px] text-center text-primary-foreground">{currentQuantity}</span>
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  className="w-8 h-8 p-0 text-xs"
+                                  className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
