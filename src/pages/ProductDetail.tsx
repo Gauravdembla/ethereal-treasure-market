@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingCart, Star, Plus, Minus, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
@@ -15,10 +15,23 @@ import journalImage from "@/assets/product-journal.jpg";
 import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
 import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
+// Import banner images for slider
+import banner1 from "@/assets/banner-1.jpg";
+import banner2 from "@/assets/banner-2.jpg";
+import banner3 from "@/assets/banner-3.jpg";
+import banner4 from "@/assets/banner-4.jpg";
+import banner5 from "@/assets/banner-5.jpg";
+
 const ProductDetail = () => {
   const { id } = useParams();
   const { addItem, removeItem, items } = useCart();
   const [quantity, setQuantity] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Scroll to top when component mounts or id changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   // Extract product ID from URL format: product_name_sku
   const getProductIdFromUrl = (urlId: string) => {
@@ -235,6 +248,38 @@ const ProductDetail = () => {
     }
   };
 
+  // Image slider functions
+  const nextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const images = getProductImages(product);
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const images = getProductImages(product);
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const selectImage = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex(index);
+  };
+
+  // Get images for the product (same as ProductCard)
+  const getProductImages = (product: any) => {
+    return [
+      product.image,   // Original product image
+      banner1, // Mockup 2 - lifestyle/banner image
+      banner2, // Mockup 3 - lifestyle/banner image
+      banner3, // Mockup 4 - lifestyle/banner image
+      banner4  // Mockup 5 - lifestyle/banner image
+    ];
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -246,14 +291,56 @@ const ProductDetail = () => {
         </Link>
         
         <div className="grid lg:grid-cols-2 gap-12">
-          {/* Product Image */}
+          {/* Product Image Slider */}
           <div className="space-y-4">
-            <div className="relative overflow-hidden rounded-xl">
-              <img 
-                src={product.image} 
-                alt={product.name}
-                className="w-full h-96 object-cover"
-              />
+            <div className="relative overflow-hidden rounded-xl group">
+              {/* Image Slider */}
+              <div className="relative">
+                <img
+                  src={getProductImages(product)[currentImageIndex]}
+                  alt={`${product.name} - Image ${currentImageIndex + 1}`}
+                  className="w-full h-96 object-cover transition-all duration-500 group-hover:scale-105"
+                  key={currentImageIndex}
+                />
+
+                {/* Image Counter */}
+                <div className="absolute top-4 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {currentImageIndex + 1}/{getProductImages(product).length}
+                </div>
+
+                {/* Slider Navigation */}
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 shadow-lg hover:shadow-xl"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
+                </button>
+
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 shadow-lg hover:shadow-xl"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
+                </button>
+
+                {/* Image Indicators */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {getProductImages(product).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={(e) => selectImage(index, e)}
+                      className={`w-3 h-3 rounded-full transition-all duration-200 ${
+                        index === currentImageIndex
+                          ? 'bg-white shadow-lg scale-110'
+                          : 'bg-white/60 hover:bg-white/80 hover:scale-105'
+                      }`}
+                      aria-label={`Go to image ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
           
