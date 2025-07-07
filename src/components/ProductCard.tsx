@@ -31,7 +31,6 @@ const ProductCard = ({
 
   const handleAddToCart = () => {
     addItem({ id, name, price, image }, quantity);
-    setQuantity(1); // Reset quantity after adding to cart
   };
 
   const handleQuantityChange = (newQuantity: number) => {

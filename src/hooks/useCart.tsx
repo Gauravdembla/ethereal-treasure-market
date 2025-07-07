@@ -26,7 +26,7 @@ export const useCart = create<CartStore>((set, get) => ({
     
     if (existingItem) {
       const updatedItems = items.map(i =>
-        i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i
+        i.id === item.id ? { ...i, quantity: quantity } : i
       );
       set({ 
         items: updatedItems,
