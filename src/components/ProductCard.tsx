@@ -136,7 +136,7 @@ const ProductCard = ({
         <p className="text-sm text-angelic-deep/70 leading-relaxed">
           {description}
         </p>
-        
+
         <Link to={`/product/${id}`} className="inline-block group/readmore">
           <Button
             variant="link"
