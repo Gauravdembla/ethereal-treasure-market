@@ -789,6 +789,12 @@ const ProductDetail = () => {
                             const cartItem = items.find(item => item.id === relatedId);
                             const currentQuantity = cartItem?.quantity || 0;
 
+                            console.log(`🛒 [Customers Also Bought] Product: ${relatedProduct.name} (ID: ${relatedId})`);
+                            console.log(`📊 Current cart item:`, cartItem);
+                            console.log(`🔢 Current quantity: ${currentQuantity}`);
+                            console.log(`🛍️ Total cart items:`, items.length);
+                            console.log(`📋 Full cart state:`, items);
+
                             return currentQuantity > 0 ? (
                               <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-2 py-1.5">
                                 <Button
@@ -798,7 +804,9 @@ const ProductDetail = () => {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    console.log(`➖ [DECREASE] ${relatedProduct.name} - Current: ${currentQuantity}`);
                                     if (currentQuantity > 1) {
+                                      console.log(`📝 Updating quantity from ${currentQuantity} to ${currentQuantity - 1}`);
                                       addItem({
                                         id: relatedProduct.id,
                                         name: relatedProduct.name,
@@ -806,6 +814,7 @@ const ProductDetail = () => {
                                         image: relatedProduct.image
                                       }, currentQuantity - 1);
                                     } else {
+                                      console.log(`🗑️ Removing item ${relatedProduct.name} from cart`);
                                       removeItem(relatedProduct.id);
                                     }
                                   }}
@@ -820,6 +829,8 @@ const ProductDetail = () => {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    console.log(`➕ [INCREASE] ${relatedProduct.name} - Current: ${currentQuantity}`);
+                                    console.log(`📝 Updating quantity from ${currentQuantity} to ${currentQuantity + 1}`);
                                     addItem({
                                       id: relatedProduct.id,
                                       name: relatedProduct.name,
@@ -839,6 +850,13 @@ const ProductDetail = () => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
+                                  console.log(`🛒 [ADD TO CART] ${relatedProduct.name} - Adding first item`);
+                                  console.log(`📦 Product details:`, {
+                                    id: relatedProduct.id,
+                                    name: relatedProduct.name,
+                                    price: relatedProduct.price,
+                                    image: relatedProduct.image
+                                  });
                                   addItem({
                                     id: relatedProduct.id,
                                     name: relatedProduct.name,
