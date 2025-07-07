@@ -49,10 +49,6 @@ const Checkout = () => {
   };
 
   const handleCheckout = () => {
-    if (!user) {
-      alert("Please login to continue");
-      return;
-    }
     console.log("Navigating to address page...");
     navigate("/address");
   };
@@ -233,15 +229,9 @@ const Checkout = () => {
 
               {/* Checkout Actions */}
               <div className="space-y-3 pt-6">
-                {!user && (
-                  <p className="text-center text-sm text-angelic-deep/70">
-                    Please login to continue with checkout
-                  </p>
-                )}
                 <Button 
                   onClick={handleCheckout} 
                   className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-                  disabled={!user}
                 >
                   Place Order
                 </Button>
