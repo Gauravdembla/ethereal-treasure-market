@@ -35,20 +35,7 @@ const ProductDetail = () => {
     return productId;
   };
 
-  const actualProductId = id; // Simplified for testing
-
-  // Debug logging
-  console.log('=== PRODUCT DETAIL DEBUG ===');
-  console.log('Raw URL ID:', id);
-  console.log('Parsed Product ID:', actualProductId);
-  console.log('Available products:', Object.keys({
-    "amethyst-cluster": true,
-    "angel-oracle-cards": true,
-    "healing-candle": true,
-    "chakra-journal": true,
-    "rose-quartz-heart": true,
-    "chakra-stone-set": true
-  }));
+  const actualProductId = id;
 
   // Sync quantity with existing cart item
   useEffect(() => {
@@ -218,12 +205,6 @@ const ProductDetail = () => {
         <div className="max-w-4xl mx-auto px-6 py-16">
           <div className="text-center">
             <h1 className="text-2xl font-playfair text-angelic-deep mb-4">Product Not Found</h1>
-            <div className="bg-gray-100 p-4 rounded mb-4">
-              <p><strong>Debug Info:</strong></p>
-              <p>Raw URL ID: {id}</p>
-              <p>Parsed Product ID: {actualProductId}</p>
-              <p>Available Products: {Object.keys(products).join(', ')}</p>
-            </div>
             <Link to="/">
               <Button variant="angelic">
                 <ArrowLeft className="w-4 h-4 mr-2" />
