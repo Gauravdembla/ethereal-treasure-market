@@ -25,9 +25,9 @@ const AngelicFooter = () => {
       setTimeout(() => {
         setCurrentTextIndex((prev) => (prev + 1) % blessedTexts.length);
         setIsVisible(true);
-      }, 500); // Half second for fade out
+      }, 800); // Slower fade transition
 
-    }, 4000); // Change text every 4 seconds
+    }, 8000); // Change text every 8 seconds
 
     return () => clearInterval(interval);
   }, [blessedTexts.length]);
@@ -47,7 +47,7 @@ const AngelicFooter = () => {
           
           <div className="relative min-h-[4rem] flex items-center justify-center">
             <p
-              className={`text-angelic-deep/80 leading-relaxed max-w-2xl mx-auto text-lg transition-opacity duration-500 ${
+              className={`text-angelic-deep/80 leading-relaxed max-w-2xl mx-auto text-lg transition-opacity duration-700 ${
                 isVisible ? 'opacity-100' : 'opacity-0'
               }`}
             >

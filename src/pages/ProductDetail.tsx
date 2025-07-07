@@ -27,6 +27,8 @@ const ProductDetail = () => {
   const { addItem, removeItem, items } = useCart();
   const [quantity, setQuantity] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [relatedProductsStartIndex, setRelatedProductsStartIndex] = useState(0);
+  const [relatedProductImageIndices, setRelatedProductImageIndices] = useState<{[key: string]: number}>({});
 
   // Scroll to top when component mounts or id changes
   useEffect(() => {
@@ -363,6 +365,40 @@ const ProductDetail = () => {
     ];
   };
 
+  // Related products slider functions
+  const nextRelatedProducts = () => {
+    const relatedProducts = product.relatedProducts || getRelatedProducts(actualProductId);
+    setRelatedProductsStartIndex((prev) => (prev + 1) % relatedProducts.length);
+  };
+
+  const prevRelatedProducts = () => {
+    const relatedProducts = product.relatedProducts || getRelatedProducts(actualProductId);
+    setRelatedProductsStartIndex((prev) => (prev - 1 + relatedProducts.length) % relatedProducts.length);
+  };
+
+  // Related product image slider functions
+  const nextRelatedProductImage = (productId: string) => {
+    const relatedProduct = products[productId as keyof typeof products];
+    if (relatedProduct) {
+      const images = getProductImages(relatedProduct);
+      setRelatedProductImageIndices(prev => ({
+        ...prev,
+        [productId]: ((prev[productId] || 0) + 1) % images.length
+      }));
+    }
+  };
+
+  const prevRelatedProductImage = (productId: string) => {
+    const relatedProduct = products[productId as keyof typeof products];
+    if (relatedProduct) {
+      const images = getProductImages(relatedProduct);
+      setRelatedProductImageIndices(prev => ({
+        ...prev,
+        [productId]: ((prev[productId] || 0) - 1 + images.length) % images.length
+      }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -575,25 +611,91 @@ const ProductDetail = () => {
           <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
             Customers Also Bought
           </h2>
-          <div className="relative">
-            <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
-              {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
+          <div className="relative group">
+            {/* Slider Navigation */}
+            <button
+              onClick={prevRelatedProducts}
+              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              aria-label="Previous products"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-700" />
+            </button>
+
+            <button
+              onClick={nextRelatedProducts}
+              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              aria-label="Next products"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-700" />
+            </button>
+
+            <div className="overflow-hidden">
+              <div className="flex gap-6 transition-transform duration-300" style={{
+                transform: `translateX(-${relatedProductsStartIndex * (100 / 3)}%)`
+              }}>
+                {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
                 const relatedProduct = products[relatedId as keyof typeof products];
                 if (!relatedProduct) return null;
 
                 return (
-                  <Link
+                  <div
                     key={relatedId}
-                    to={`/product/${relatedId}`}
                     className="flex-shrink-0 w-64 group"
                   >
-                    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-105">
-                      <div className="relative">
+                    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
+                      {/* Image Slider for Related Product */}
+                      <div className="relative group/image">
                         <img
-                          src={relatedProduct.image}
-                          alt={relatedProduct.name}
-                          className="w-full h-48 object-cover"
+                          src={getProductImages(relatedProduct)[relatedProductImageIndices[relatedId] || 0]}
+                          alt={`${relatedProduct.name} - Image ${(relatedProductImageIndices[relatedId] || 0) + 1}`}
+                          className="w-full h-48 object-cover transition-transform duration-300 group-hover/image:scale-105"
                         />
+
+                        {/* Image Navigation */}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            prevRelatedProductImage(relatedId);
+                          }}
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10"
+                        >
+                          <ChevronLeft className="w-3 h-3 text-gray-700" />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            nextRelatedProductImage(relatedId);
+                          }}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10"
+                        >
+                          <ChevronRight className="w-3 h-3 text-gray-700" />
+                        </button>
+
+                        {/* Image Indicators */}
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300">
+                          {getProductImages(relatedProduct).map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setRelatedProductImageIndices(prev => ({
+                                  ...prev,
+                                  [relatedId]: index
+                                }));
+                              }}
+                              className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${
+                                index === (relatedProductImageIndices[relatedId] || 0)
+                                  ? 'bg-white'
+                                  : 'bg-white/50 hover:bg-white/75'
+                              }`}
+                            />
+                          ))}
+                        </div>
+
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
                       <div className="p-4">
@@ -618,8 +720,8 @@ const ProductDetail = () => {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <Link to={`/product/${relatedId}`} className="flex-1">
+                        <div className="space-y-2">
+                          <Link to={`/product/${relatedId}`} className="block">
                             <Button
                               variant="outline"
                               size="sm"
@@ -628,30 +730,82 @@ const ProductDetail = () => {
                               Read More
                             </Button>
                           </Link>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="flex-1 text-xs"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              addItem({
-                                id: relatedProduct.id,
-                                name: relatedProduct.name,
-                                price: relatedProduct.price,
-                                image: relatedProduct.image
-                              }, 1);
-                            }}
-                          >
-                            <ShoppingCart className="w-3 h-3 mr-1" />
-                            Add to Cart
-                          </Button>
+
+                          {/* Quantity Controls for Related Product */}
+                          {(() => {
+                            const cartItem = items.find(item => item.id === relatedId);
+                            const currentQuantity = cartItem?.quantity || 0;
+
+                            return currentQuantity > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-8 h-8 p-0 text-xs"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (currentQuantity > 1) {
+                                      addItem({
+                                        id: relatedProduct.id,
+                                        name: relatedProduct.name,
+                                        price: relatedProduct.price,
+                                        image: relatedProduct.image
+                                      }, currentQuantity - 1);
+                                    } else {
+                                      removeItem(relatedProduct.id);
+                                    }
+                                  }}
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </Button>
+                                <span className="text-xs font-medium px-2">{currentQuantity}</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-8 h-8 p-0 text-xs"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    addItem({
+                                      id: relatedProduct.id,
+                                      name: relatedProduct.name,
+                                      price: relatedProduct.price,
+                                      image: relatedProduct.image
+                                    }, currentQuantity + 1);
+                                  }}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  addItem({
+                                    id: relatedProduct.id,
+                                    name: relatedProduct.name,
+                                    price: relatedProduct.price,
+                                    image: relatedProduct.image
+                                  }, 1);
+                                }}
+                              >
+                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                Add to Cart
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </div>
                     </Card>
-                  </Link>
+                  </div>
                 );
               })}
+              </div>
             </div>
           </div>
         </div>
