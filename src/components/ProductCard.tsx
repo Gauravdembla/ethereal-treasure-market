@@ -29,7 +29,9 @@ const ProductCard = ({
   const cartItem = items.find(item => item.id === id);
 
   const handleAddToCart = () => {
-    addItem({ id, name, price, image });
+    for (let i = 0; i < quantity; i++) {
+      addItem({ id, name, price, image });
+    }
   };
 
   const handleQuantityChange = (newQuantity: number) => {

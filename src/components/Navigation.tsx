@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, User, Package } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import CartDialog from "./CartDialog";
+
 import LoginDialog from "./LoginDialog";
 
 const Navigation = () => {
@@ -32,7 +32,7 @@ const Navigation = () => {
                 variant="ghost" 
                 size="icon" 
                 className="relative"
-                onClick={() => setShowCart(true)}
+                onClick={() => window.location.href = '/checkout'}
               >
                 <ShoppingCart className="w-5 h-5 text-angelic-deep" />
                 {totalItems > 0 && (
@@ -83,7 +83,6 @@ const Navigation = () => {
         </div>
       </div>
       
-      <CartDialog open={showCart} onOpenChange={setShowCart} />
       <LoginDialog open={showLogin} onOpenChange={setShowLogin} />
     </nav>
   );
