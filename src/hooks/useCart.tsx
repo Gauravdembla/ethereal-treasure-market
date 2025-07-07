@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface CartItem {
   id: string;
@@ -17,7 +18,9 @@ interface CartStore {
   clearCart: () => void;
 }
 
-export const useCart = create<CartStore>((set, get) => ({
+export const useCart = create<CartStore>()(
+  persist(
+    (set, get) => ({
   items: [],
   totalItems: 0,
   addItem: (item, quantity = 1) => {
@@ -59,4 +62,9 @@ export const useCart = create<CartStore>((set, get) => ({
     });
   },
   clearCart: () => set({ items: [], totalItems: 0 }),
-}));
+}),
+    {
+      name: 'cart-storage',
+    }
+  )
+);
