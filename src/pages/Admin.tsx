@@ -5,13 +5,18 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Users, Package, Coins, Settings, LogOut, Menu } from "lucide-react";
+import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart } from "lucide-react";
 
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [activeSection, setActiveSection] = useState("users");
+  
+  // Checkout settings state
+  const [showAngelCoins, setShowAngelCoins] = useState(true);
+  const [showCouponCode, setShowCouponCode] = useState(true);
 
   // Mock data
   const mockUsers = [
@@ -82,6 +87,7 @@ const Admin = () => {
     { id: "users", label: "Users", icon: Users },
     { id: "orders", label: "Orders", icon: Package },
     { id: "angelcoins", label: "Angel Coins", icon: Coins },
+    { id: "checkout", label: "Checkout Settings", icon: ShoppingCart },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -192,16 +198,62 @@ const Admin = () => {
               </div>
             </div>
             
-            <div className="mt-6 space-y-4">
-              <h3 className="font-medium">Checkout Page Controls</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <span>Show Angel Coins Section</span>
-                  <Button variant="outline" size="sm">Enabled</Button>
+          </Card>
+        );
+      case "checkout":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Checkout Page Settings</h2>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="font-medium">Checkout Features Control</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label className="text-base font-medium">Show Angel Coins Section</Label>
+                      <p className="text-sm text-muted-foreground">Allow customers to redeem Angel Coins during checkout</p>
+                    </div>
+                    <Switch
+                      checked={showAngelCoins}
+                      onCheckedChange={setShowAngelCoins}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label className="text-base font-medium">Show Coupon Code Section</Label>
+                      <p className="text-sm text-muted-foreground">Allow customers to apply coupon codes during checkout</p>
+                    </div>
+                    <Switch
+                      checked={showCouponCode}
+                      onCheckedChange={setShowCouponCode}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <span>Show Coupon Code Section</span>
-                  <Button variant="outline" size="sm">Enabled</Button>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="font-medium">Product Redirection Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Product Name</Label>
+                    <Input placeholder="Amethyst Cluster" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Redirect URL</Label>
+                    <Input placeholder="/product/amethyst-cluster" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Action</Label>
+                    <Button className="w-full">Update</Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Current Settings Status</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>Angel Coins: <Badge variant={showAngelCoins ? "default" : "secondary"}>{showAngelCoins ? "Enabled" : "Disabled"}</Badge></div>
+                  <div>Coupon Codes: <Badge variant={showCouponCode ? "default" : "secondary"}>{showCouponCode ? "Enabled" : "Disabled"}</Badge></div>
                 </div>
               </div>
             </div>

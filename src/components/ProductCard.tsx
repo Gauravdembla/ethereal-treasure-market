@@ -25,16 +25,18 @@ const ProductCard = ({
   rating = 5
 }: ProductCardProps) => {
   const { addItem, items, updateQuantity } = useCart();
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(0);
   
   const cartItem = items.find(item => item.id === id);
 
   const handleAddToCart = () => {
-    addItem({ id, name, price, image }, quantity);
+    if (quantity > 0) {
+      addItem({ id, name, price, image }, quantity);
+    }
   };
 
   const handleQuantityChange = (newQuantity: number) => {
-    setQuantity(Math.max(1, newQuantity));
+    setQuantity(Math.max(0, newQuantity));
   };
   return (
     <Card className="product-card group cursor-pointer">
@@ -81,13 +83,14 @@ const ProductCard = ({
           )}
         </div>
         
-        {/* Quantity Controls */}
+        {/* Quantity Controls - Now above Add to Cart */}
         <div className="flex items-center justify-center gap-3 mb-3">
           <Button
             size="sm"
             variant="outline"
             onClick={() => handleQuantityChange(quantity - 1)}
             className="w-8 h-8 p-0"
+            disabled={quantity <= 0}
           >
             <Minus className="w-3 h-3" />
           </Button>
@@ -106,9 +109,10 @@ const ProductCard = ({
           onClick={handleAddToCart}
           variant="angelic"
           className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
+          disabled={quantity <= 0}
         >
           <ShoppingCart className="w-4 h-4 mr-2" />
-          Add to Cart {cartItem && `(${cartItem.quantity})`}
+          {quantity > 0 ? `Add ${quantity} to Cart` : "Select Quantity"} {cartItem && `(${cartItem.quantity} in cart)`}
         </Button>
       </div>
     </Card>

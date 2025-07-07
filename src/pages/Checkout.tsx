@@ -17,6 +17,10 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState("");
   const [angelCoinsToRedeem, setAngelCoinsToRedeem] = useState([0]);
   const [discount, setDiscount] = useState(0);
+  
+  // Admin settings - in real app, these would come from API/context
+  const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
+  const [showCouponSection, setShowCouponSection] = useState(true);
 
   // Mock user angel coins - 10000 available
   const userAngelCoins = 10000;
@@ -49,6 +53,7 @@ const Checkout = () => {
       alert("Please login to continue");
       return;
     }
+    console.log("Navigating to address page...");
     navigate("/address");
   };
 
@@ -131,30 +136,33 @@ const Checkout = () => {
             <Card className="p-6">
               <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Summary</h2>
               
-              {/* Coupon Code */}
-              <div className="space-y-2 mb-4">
-                <Label className="flex items-center gap-2 text-angelic-deep">
-                  <Gift className="w-4 h-4" />
-                  Coupon Code
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter coupon code"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={applyCoupon} variant="outline">
-                    Apply
-                  </Button>
-                </div>
-                <p className="text-xs text-angelic-deep/60">Try: WELCOME10 or ANGEL20</p>
-              </div>
+              {/* Coupon Code - Only show if enabled by admin */}
+              {showCouponSection && (
+                <>
+                  <div className="space-y-2 mb-4">
+                    <Label className="flex items-center gap-2 text-angelic-deep">
+                      <Gift className="w-4 h-4" />
+                      Coupon Code
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter coupon code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button onClick={applyCoupon} variant="outline">
+                        Apply
+                      </Button>
+                    </div>
+                    <p className="text-xs text-angelic-deep/60">Try: WELCOME10 or ANGEL20</p>
+                  </div>
+                  <Separator className="my-4" />
+                </>
+              )}
 
-              <Separator className="my-4" />
-
-              {/* Angel Points Redemption - Only show if user has minimum coins */}
-              {canRedeemAngelCoins && (
+              {/* Angel Points Redemption - Only show if enabled by admin and user has minimum coins */}
+              {showAngelCoinsSection && canRedeemAngelCoins && (
                 <div className="space-y-4 mb-4">
                   <Label className="flex items-center gap-2 text-angelic-deep">
                     <Coins className="w-4 h-4" />
