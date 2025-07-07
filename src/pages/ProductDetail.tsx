@@ -679,7 +679,11 @@ const ProductDetail = () => {
             <div className="relative group">
 
             <div className="overflow-hidden">
-              <div className="flex gap-6 transition-transform duration-300" style={{
+              <div className={`flex gap-6 transition-transform duration-300 ${
+                (product.relatedProducts || getRelatedProducts(actualProductId)).length <= 3 
+                  ? 'justify-center' 
+                  : ''
+              }`} style={{
                 transform: `translateX(-${relatedProductsStartIndex * (100 / 4)}%)`
               }}>
                 {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
