@@ -49,22 +49,29 @@ const ProductCard = ({
   ];
 
   const handleAddToCart = () => {
+    console.log('🛒 Add to Cart clicked for:', { id, name, price });
     addItem({ id, name, price, image }, 1);
+    console.log('🛒 After addItem, current cart items:', items);
   };
 
   const handleQuantityIncrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('➕ Quantity increase clicked for:', id, 'current quantity:', currentQuantity);
     addItem({ id, name, price, image }, currentQuantity + 1);
+    console.log('➕ After increase, target quantity:', currentQuantity + 1);
   };
 
   const handleQuantityDecrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('➖ Quantity decrease clicked for:', id, 'current quantity:', currentQuantity);
     if (currentQuantity > 1) {
       addItem({ id, name, price, image }, currentQuantity - 1);
+      console.log('➖ After decrease, target quantity:', currentQuantity - 1);
     } else if (currentQuantity === 1) {
       removeItem(id);
+      console.log('➖ Removed item from cart');
     }
   };
 
