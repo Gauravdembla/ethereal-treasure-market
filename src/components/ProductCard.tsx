@@ -81,7 +81,7 @@ const ProductCard = ({
           className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
         >
           <ShoppingCart className="w-4 h-4 mr-2" />
-          Add to Cart {cartItem && `(${cartItem.quantity} in cart)`}
+          Add to Cart
         </Button>
       </div>
     </Card>
