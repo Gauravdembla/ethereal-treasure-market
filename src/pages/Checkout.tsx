@@ -23,7 +23,7 @@ const Checkout = () => {
   const minAngelCoinsRequired = 7500;
   const angelCoinValue = 0.05; // Rs.0.05 per coin
 
-  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
   
   // Calculate max redeemable amount (10% of order)
   const maxRedeemableAmount = subtotal * 0.1;
@@ -49,9 +49,7 @@ const Checkout = () => {
       alert("Please login to continue");
       return;
     }
-    alert("Order placed successfully! Checkout functionality will be implemented with payment gateway");
-    clearCart();
-    navigate("/");
+    navigate("/address");
   };
 
   if (items.length === 0) {
@@ -155,26 +153,20 @@ const Checkout = () => {
 
               <Separator className="my-4" />
 
-              {/* Angel Points Redemption */}
-              <div className="space-y-4 mb-4">
-                <Label className="flex items-center gap-2 text-angelic-deep">
-                  <Coins className="w-4 h-4" />
-                  Redeem Angel Coins
-                </Label>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span>Available Angel Coins:</span>
-                    <span className="font-medium">{userAngelCoins.toLocaleString()}</span>
-                  </div>
+              {/* Angel Points Redemption - Only show if user has minimum coins */}
+              {canRedeemAngelCoins && (
+                <div className="space-y-4 mb-4">
+                  <Label className="flex items-center gap-2 text-angelic-deep">
+                    <Coins className="w-4 h-4" />
+                    Redeem Angel Coins
+                  </Label>
                   
-                  {!canRedeemAngelCoins ? (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-800">
-                        Minimum {minAngelCoinsRequired.toLocaleString()} Angel Coins required for redemption.
-                      </p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span>Available Angel Coins:</span>
+                      <span className="font-medium">{userAngelCoins.toLocaleString()}</span>
                     </div>
-                  ) : (
+                    
                     <div className="space-y-3">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -200,9 +192,9 @@ const Checkout = () => {
                         1 Angel Coin = ₹{angelCoinValue} | Max 10% of order value
                       </p>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <Separator className="my-4" />
 
@@ -240,8 +232,7 @@ const Checkout = () => {
                 )}
                 <Button 
                   onClick={handleCheckout} 
-                  variant="divine" 
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
                   disabled={!user}
                 >
                   Place Order

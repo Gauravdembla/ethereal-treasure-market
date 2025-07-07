@@ -20,7 +20,7 @@ const CartDialog = ({ open, onOpenChange }: CartDialogProps) => {
   const [angelPoints, setAngelPoints] = useState(0);
   const [discount, setDiscount] = useState(0);
 
-  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
   const angelPointsDiscount = Math.min(angelPoints * 0.1, subtotal * 0.2); // 1 point = 0.1 rupee, max 20% of subtotal
   const total = subtotal - discount - angelPointsDiscount;
 

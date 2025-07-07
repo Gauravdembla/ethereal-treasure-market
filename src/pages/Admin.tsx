@@ -191,6 +191,20 @@ const Admin = () => {
                 <Button>Update Settings</Button>
               </div>
             </div>
+            
+            <div className="mt-6 space-y-4">
+              <h3 className="font-medium">Checkout Page Controls</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <span>Show Angel Coins Section</span>
+                  <Button variant="outline" size="sm">Enabled</Button>
+                </div>
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <span>Show Coupon Code Section</span>
+                  <Button variant="outline" size="sm">Enabled</Button>
+                </div>
+              </div>
+            </div>
           </Card>
         );
       case "settings":
