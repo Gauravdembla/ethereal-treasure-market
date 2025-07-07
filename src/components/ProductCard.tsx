@@ -50,8 +50,13 @@ const ProductCard = ({
 
   const handleAddToCart = () => {
     console.log('🛒 Add to Cart clicked for:', { id, name, price });
+    console.log('🖼️ Image parameter:', image);
+    console.log('📦 Full product object being added:', { id, name, price, image });
     addItem({ id, name, price, image }, 1);
-    console.log('🛒 After addItem, current cart items:', items);
+    // Note: items state won't update immediately due to React async state updates
+    setTimeout(() => {
+      console.log('🛒 Cart state after 100ms:', items);
+    }, 100);
   };
 
   const handleQuantityIncrease = (e: React.MouseEvent) => {
