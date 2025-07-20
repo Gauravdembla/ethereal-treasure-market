@@ -7,14 +7,7 @@ import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight, 
 import { useCart } from "@/hooks/useCart";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
-
-// Import product images
-import amethystImage from "@/assets/product-amethyst.jpg";
-import angelCardsImage from "@/assets/product-angel-cards.jpg";
-import candleImage from "@/assets/product-candle.jpg";
-import journalImage from "@/assets/product-journal.jpg";
-import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+import { supabase, type Product, productHelpers } from "@/integrations/supabase/client";
 
 // Import banner images for slider
 import banner1 from "@/assets/banner-1.jpg";
@@ -26,6 +19,10 @@ import banner5 from "@/assets/banner-5.jpg";
 const ProductDetail = () => {
   const { id } = useParams();
   const { addItem, removeItem, items } = useCart();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -37,6 +34,59 @@ const ProductDetail = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
+
+  // Fetch product data
+  useEffect(() => {
+    if (id) {
+      fetchProductData(id);
+    }
+  }, [id]);
+
+  const fetchProductData = async (productId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the actual product ID from URL format
+      const actualProductId = getProductIdFromUrl(productId);
+
+      // Fetch main product
+      const { data: productData, error: productError } = await supabase
+        .rpc('get_product_details', { product_identifier: actualProductId });
+
+      if (productError) {
+        console.error('Error fetching product:', productError);
+        setError('Product not found');
+        return;
+      }
+
+      if (!productData.success) {
+        setError(productData.message || 'Product not found');
+        return;
+      }
+
+      setProduct(productData.data);
+
+      // Fetch related products from same category
+      const { data: relatedData, error: relatedError } = await supabase
+        .from('product_details_view')
+        .select('*')
+        .eq('category', productData.data.category)
+        .neq('product_id', productData.data.product_id)
+        .eq('status', 'published')
+        .limit(6);
+
+      if (!relatedError && relatedData) {
+        setRelatedProducts(relatedData);
+      }
+
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Failed to load product');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Extract product ID from URL format: product_name_sku
   const getProductIdFromUrl = (urlId: string) => {
@@ -53,19 +103,58 @@ const ProductDetail = () => {
     return productId;
   };
 
-  const actualProductId = id;
-
   // Sync quantity with existing cart item
   useEffect(() => {
-    if (actualProductId) {
-      const existingItem = items.find(item => item.id === actualProductId);
+    if (product) {
+      const existingItem = items.find(item => item.id === product.product_id);
       if (existingItem) {
         setQuantity(existingItem.quantity);
       } else {
         setQuantity(0);
       }
     }
-  }, [actualProductId, items]);
+  }, [product, items]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-32 mb-6"></div>
+            <div className="grid lg:grid-cols-2 gap-12">
+              <div className="w-full h-96 bg-gray-200 rounded-xl"></div>
+              <div className="space-y-6">
+                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-6 bg-gray-200 rounded w-24"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <AngelicFooter />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-6xl mx-auto px-6 py-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Product Not Found</h1>
+          <p className="text-gray-600 mb-6">{error || 'The product you are looking for does not exist.'}</p>
+          <Link to="/" className="text-angelic-purple hover:underline">
+            Return to Home
+          </Link>
+        </div>
+        <AngelicFooter />
+      </div>
+    );
+  }
 
   const products = {
     "amethyst-cluster": {
@@ -336,12 +425,10 @@ const ProductDetail = () => {
   };
 
   // Helper function to get related products (all products except current one)
-  const getRelatedProducts = (currentProductId: string) => {
-    const allProductIds = Object.keys(products);
-    return allProductIds.filter(id => id !== currentProductId);
-  };
-
-  const product = products[actualProductId as keyof typeof products];
+  // Get product images for display
+  const productImages = product?.images || [];
+  const primaryImage = productHelpers.getPrimaryImageUrl(productImages);
+  const allImages = productImages.length > 0 ? productImages.map(img => img.url) : [primaryImage];
 
   // Static available quantity using product ID hash (same logic as ProductCard)
   const getAvailableQuantity = (productId: string) => {
@@ -376,6 +463,9 @@ const ProductDetail = () => {
 
 
   const handleAddToCart = () => {
+    if (!product) return;
+
+    const availableQuantity = product.available_quantity;
     if (selectedQuantity > availableQuantity) {
       alert(`Can't select quantity more than available. Available Quantity: ${availableQuantity}`);
       return;
@@ -383,7 +473,12 @@ const ProductDetail = () => {
 
     if (selectedQuantity > 0) {
       // Add items to cart
-      addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, selectedQuantity);
+      addItem({
+        id: product.product_id,
+        name: product.name,
+        price: product.price,
+        image: primaryImage
+      }, selectedQuantity);
     }
   };
 
@@ -391,15 +486,13 @@ const ProductDetail = () => {
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const images = getProductImages(product);
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const images = getProductImages(product);
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
   const selectImage = (index: number, e: React.MouseEvent) => {
