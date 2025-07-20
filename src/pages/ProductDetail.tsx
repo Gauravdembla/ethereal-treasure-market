@@ -827,17 +827,17 @@ const ProductDetail = () => {
 
                             return (
                               <div className="space-y-2">
-                                {/* Quantity Dropdown - Same Line */}
-                                <div className="flex items-center gap-2">
+                                {/* Quantity Dropdown - Same Line - Centered */}
+                                <div className="flex items-center justify-center gap-2">
                                   <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
                                   <Select
-                                    value={selectedQuantity.toString()}
+                                    value={(currentQuantity || selectedQuantity).toString()}
                                     onValueChange={(value) => setRelatedProductQuantities(prev => ({
                                       ...prev,
                                       [relatedId]: parseInt(value)
                                     }))}
                                   >
-                                    <SelectTrigger className="flex-1 h-8 text-xs">
+                                    <SelectTrigger className="w-16 h-8 text-xs">
                                       <SelectValue placeholder="1" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -869,7 +869,7 @@ const ProductDetail = () => {
                                 {/* Available Quantity Info */}
                                 <div className="text-center">
                                   <span className="text-xs text-angelic-deep/70">
-                                    Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                    Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
                                   </span>
                                 </div>
                               </div>

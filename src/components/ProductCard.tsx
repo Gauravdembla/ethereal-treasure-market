@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +51,13 @@ const ProductCard = ({
     return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
   const availableQuantity = getAvailableQuantity(id);
+
+  // Sync selectedQuantity with cart quantity
+  useEffect(() => {
+    if (currentQuantity > 0) {
+      setSelectedQuantity(currentQuantity);
+    }
+  }, [currentQuantity]);
 
   // Create 5 mockup images - using the main image and banner images as variations
   const images = [
@@ -207,11 +214,11 @@ const ProductCard = ({
         
         {/* New Quantity Controls Design */}
         <div className="space-y-3">
-          {/* Quantity Dropdown - Same Line */}
-          <div className="flex items-center gap-3">
+          {/* Quantity Dropdown - Same Line - Centered */}
+          <div className="flex items-center justify-center gap-3">
             <label className="text-sm font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
-            <Select value={selectedQuantity.toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
-              <SelectTrigger className="flex-1">
+            <Select value={(currentQuantity || selectedQuantity).toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
+              <SelectTrigger className="w-20">
                 <SelectValue placeholder="Select quantity" />
               </SelectTrigger>
               <SelectContent>
@@ -242,7 +249,7 @@ const ProductCard = ({
           {/* Available Quantity Info */}
           <div className="text-center">
             <span className="text-xs text-angelic-deep/70">
-              Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+              Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
             </span>
           </div>
         </div>
