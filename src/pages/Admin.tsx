@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare, ChevronDown, ChevronRight, Contact, CreditCard, GraduationCap, Radio, Video } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 // AngelThon Components
 import FacilitatorsManagement from "@/components/angelthon/FacilitatorsManagement";
@@ -32,14 +33,27 @@ import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
 import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
 const Admin = () => {
-  const { user, isAuthenticated, loading, login, logout } = useAuth();
+  const { user, isAuthenticated, loading, login, logout, initialize } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
-  const [activeSection, setActiveSection] = useState("dashboard");
   const [loginError, setLoginError] = useState("");
+
+  // Get active section from URL params, default to dashboard
+  const activeSection = searchParams.get('section') || 'dashboard';
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
     angelthon: false,
     shop: false
   });
+
+  // Initialize auth on component mount
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Function to handle section changes with URL updates
+  const handleSectionChange = (sectionId: string) => {
+    setSearchParams({ section: sectionId });
+  };
   
   // Checkout settings state
   const [showAngelCoins, setShowAngelCoins] = useState(true);
@@ -170,12 +184,18 @@ const Admin = () => {
         updated_at: new Date().toISOString()
       } as any;
 
-      // Manually set the auth state for demo
+      // Manually set the auth state for demo with persistence
       useAuth.setState({
         user: demoUser,
         isAuthenticated: true,
         loading: false
       });
+
+      // Also store in localStorage for persistence
+      localStorage.setItem('demo-auth', JSON.stringify({
+        user: demoUser,
+        isAuthenticated: true
+      }));
       return;
     }
 
@@ -1110,7 +1130,7 @@ const Admin = () => {
                     <SidebarMenuItem key={item.id}>
                       {item.type === "single" ? (
                         <SidebarMenuButton
-                          onClick={() => setActiveSection(item.id)}
+                          onClick={() => handleSectionChange(item.id)}
                           className={`w-full justify-start ${
                             activeSection === item.id ? "bg-primary text-primary-foreground" : ""
                           }`}
@@ -1139,7 +1159,7 @@ const Admin = () => {
                               {item.children.map((child) => (
                                 <SidebarMenuButton
                                   key={child.id}
-                                  onClick={() => setActiveSection(child.id)}
+                                  onClick={() => handleSectionChange(child.id)}
                                   className={`w-full justify-start text-sm ${
                                     activeSection === child.id ? "bg-primary text-primary-foreground" : ""
                                   }`}

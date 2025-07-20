@@ -23,10 +23,42 @@ export const useFacilitators = () => {
       setFacilitators(data || []);
     } catch (error) {
       console.error('Error fetching facilitators:', error);
+
+      // Fallback to demo data for demo purposes
+      const demoFacilitators = [
+        {
+          id: 'demo-1',
+          name: 'Dr. Sarah Johnson',
+          role: 'Lead Facilitator',
+          bio: 'Experienced transformation coach with 10+ years in mindfulness and personal development.',
+          email: 'sarah@angelthon.com',
+          phone: '+1234567890',
+          expertise: ['Mindfulness', 'Leadership', 'Personal Growth'],
+          image: '/placeholder.svg',
+          is_visible: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'demo-2',
+          name: 'Michael Chen',
+          role: 'Senior Facilitator',
+          bio: 'Expert in organizational psychology and team dynamics with a focus on innovative methodologies.',
+          email: 'michael@angelthon.com',
+          phone: '+1234567891',
+          expertise: ['Team Building', 'Psychology', 'Innovation'],
+          image: '/placeholder.svg',
+          is_visible: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+
+      setFacilitators(demoFacilitators as any);
+
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch facilitators"
+        title: "Demo Mode",
+        description: "Using demo data for facilitators"
       });
     } finally {
       setLoading(false);

@@ -34,12 +34,39 @@ export const useSectionToggles = () => {
       setDataLoaded(true);
     } catch (error) {
       console.error('Error fetching section toggles:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch section toggles"
-      });
+
+      // Fallback to demo data
+      const demoToggles = [
+        {
+          id: 'demo-toggle-1',
+          section_name: 'facilitators',
+          is_enabled: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'demo-toggle-2',
+          section_name: 'resources',
+          is_enabled: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'demo-toggle-3',
+          section_name: 'achievements',
+          is_enabled: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+
+      setToggles(demoToggles as any);
       setDataLoaded(true);
+
+      toast({
+        title: "Demo Mode",
+        description: "Using demo data for section toggles"
+      });
     } finally {
       setLoading(false);
     }

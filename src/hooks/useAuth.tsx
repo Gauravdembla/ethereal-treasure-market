@@ -46,6 +46,7 @@ export const useAuth = create<AuthStore>()(
       logout: async () => {
         try {
           await supabase.auth.signOut();
+          localStorage.removeItem('demo-auth');
           set({ user: null, isAuthenticated: false });
         } catch (error) {
           console.error('Logout error:', error);
@@ -53,6 +54,22 @@ export const useAuth = create<AuthStore>()(
       },
 
       initialize: () => {
+        // Check for demo auth first
+        const demoAuth = localStorage.getItem('demo-auth');
+        if (demoAuth) {
+          try {
+            const { user, isAuthenticated } = JSON.parse(demoAuth);
+            set({
+              user,
+              isAuthenticated,
+              loading: false
+            });
+            return;
+          } catch (error) {
+            localStorage.removeItem('demo-auth');
+          }
+        }
+
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
           set({
