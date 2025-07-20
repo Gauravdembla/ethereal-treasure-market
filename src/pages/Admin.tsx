@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye } from "lucide-react";
+import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 // Import product images
 import amethystImage from "@/assets/product-amethyst.jpg";
@@ -21,9 +22,10 @@ import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
 import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
 const Admin = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [credentials, setCredentials] = useState({ username: "", password: "" });
-  const [activeSection, setActiveSection] = useState("users");
+  const { user, isAuthenticated, loading, login, logout } = useAuth();
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [loginError, setLoginError] = useState("");
   
   // Checkout settings state
   const [showAngelCoins, setShowAngelCoins] = useState(true);
@@ -137,11 +139,17 @@ const Admin = () => {
     { id: "ORD003", customer: "Mary Grace", total: 2499, status: "completed", angelCoinsRedeemed: 500 },
   ];
 
-  const handleLogin = () => {
-    if (credentials.username === "admin" && credentials.password === "divine123") {
-      setIsLoggedIn(true);
-    } else {
-      alert("Invalid credentials! Try admin/divine123");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+
+    try {
+      const success = await login(credentials.email, credentials.password);
+      if (!success) {
+        setLoginError("Invalid email or password. Please try again.");
+      }
+    } catch (error) {
+      setLoginError("Login failed. Please try again.");
     }
   };
 
@@ -233,23 +241,35 @@ const Admin = () => {
     }
   };
 
-  if (!isLoggedIn) {
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <Card className="w-full max-w-md p-8">
           <div className="text-center mb-6">
-            <h1 className="font-playfair text-2xl font-bold text-slate-800 mb-2">Admin Dashboard</h1>
-            <p className="text-slate-600">Angels On Earth</p>
+            <h1 className="font-playfair text-2xl font-bold text-slate-800 mb-2">Unified Admin Dashboard</h1>
+            <p className="text-slate-600">AngelThon & Ethereal Treasure Market</p>
           </div>
-          
-          <div className="space-y-4">
+
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                placeholder="Enter username"
-                value={credentials.username}
-                onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={credentials.email}
+                onChange={(e) => setCredentials({...credentials, email: e.target.value})}
+                required
               />
             </div>
             <div>
@@ -257,20 +277,22 @@ const Admin = () => {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter password"
+                placeholder="Enter your password"
                 value={credentials.password}
                 onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                required
               />
             </div>
-            <Button onClick={handleLogin} className="w-full">
-              Login
+            {loginError && (
+              <p className="text-sm text-red-600 text-center">{loginError}</p>
+            )}
+            <Button type="submit" className="w-full">
+              Sign In
             </Button>
-            <div className="text-center text-sm text-slate-500 space-y-1">
-              <p><strong>Demo Credentials:</strong></p>
-              <p>Username: admin</p>
-              <p>Password: divine123</p>
-            </div>
-          </div>
+            <p className="text-sm text-slate-500 text-center">
+              Use your Supabase account credentials
+            </p>
+          </form>
         </Card>
       </div>
     );
@@ -278,16 +300,170 @@ const Admin = () => {
 
 
   const menuItems = [
-    { id: "users", label: "Users", icon: Users },
-    { id: "orders", label: "Orders", icon: Package },
-    { id: "products", label: "Products", icon: Package },
-    { id: "angelcoins", label: "Angel Coins", icon: Coins },
-    { id: "checkout", label: "Checkout Settings", icon: ShoppingCart },
-    { id: "settings", label: "Settings", icon: Settings },
+    // Dashboard
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, section: "main" },
+
+    // AngelThon Section
+    { id: "leaderboard", label: "Leaderboard", icon: Trophy, section: "angelthon" },
+    { id: "participants", label: "Participants", icon: Users, section: "angelthon" },
+    { id: "achievements", label: "Achievements", icon: Trophy, section: "angelthon" },
+    { id: "resources", label: "Resources", icon: FileText, section: "angelthon" },
+    { id: "events", label: "Events", icon: Calendar, section: "angelthon" },
+    { id: "facilitators", label: "Facilitators", icon: Users, section: "angelthon" },
+
+    // Shop Section (Ethereal Treasure Market)
+    { id: "shop-products", label: "Products", icon: Package, section: "shop" },
+    { id: "shop-orders", label: "Orders", icon: ShoppingCart, section: "shop" },
+    { id: "shop-customers", label: "Customers", icon: Users, section: "shop" },
+    { id: "shop-angelcoins", label: "Angel Coins", icon: Coins, section: "shop" },
+    { id: "shop-reviews", label: "Reviews", icon: MessageSquare, section: "shop" },
+    { id: "shop-settings", label: "Shop Settings", icon: Settings, section: "shop" },
+
+    // General Settings
+    { id: "settings", label: "System Settings", icon: Settings, section: "main" },
   ];
 
   const renderContent = () => {
     switch (activeSection) {
+      case "dashboard":
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Total Users</p>
+                    <p className="text-2xl font-bold">1,234</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-600" />
+                </div>
+              </Card>
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Total Orders</p>
+                    <p className="text-2xl font-bold">567</p>
+                  </div>
+                  <ShoppingCart className="h-8 w-8 text-green-600" />
+                </div>
+              </Card>
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Angel Coins Issued</p>
+                    <p className="text-2xl font-bold">89,123</p>
+                  </div>
+                  <Coins className="h-8 w-8 text-yellow-600" />
+                </div>
+              </Card>
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Active Products</p>
+                    <p className="text-2xl font-bold">45</p>
+                  </div>
+                  <Package className="h-8 w-8 text-purple-600" />
+                </div>
+              </Card>
+            </div>
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded">
+                  <span>New user registration: Sarah Angel</span>
+                  <span className="text-sm text-slate-500">2 minutes ago</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded">
+                  <span>Order completed: #ORD001</span>
+                  <span className="text-sm text-slate-500">5 minutes ago</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded">
+                  <span>Product added: Crystal Healing Set</span>
+                  <span className="text-sm text-slate-500">10 minutes ago</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+
+      case "leaderboard":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">AngelThon Leaderboard</h2>
+            <p className="text-slate-600 mb-4">Manage leaderboard rankings and points</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will integrate with the AngelThon leaderboard system.</p>
+            </div>
+          </Card>
+        );
+
+      case "participants":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">AngelThon Participants</h2>
+            <p className="text-slate-600 mb-4">Manage participant registrations and profiles</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will show all AngelThon participants.</p>
+            </div>
+          </Card>
+        );
+
+      case "achievements":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Achievements & Badges</h2>
+            <p className="text-slate-600 mb-4">Manage achievement system and badge awards</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage the achievement system.</p>
+            </div>
+          </Card>
+        );
+
+      case "resources":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Learning Resources</h2>
+            <p className="text-slate-600 mb-4">Manage educational content and resources</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage learning resources.</p>
+            </div>
+          </Card>
+        );
+
+      case "events":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Events Management</h2>
+            <p className="text-slate-600 mb-4">Schedule and manage AngelThon events</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage events and scheduling.</p>
+            </div>
+          </Card>
+        );
+
+      case "facilitators":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Facilitators</h2>
+            <p className="text-slate-600 mb-4">Manage facilitator profiles and assignments</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage facilitator information.</p>
+            </div>
+          </Card>
+        );
+
+      case "shop-products":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Shop Products</h2>
+            <p className="text-slate-600 mb-4">This is the existing product management from Ethereal Treasure Market</p>
+            {/* This will contain the existing product management code */}
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Product management functionality will be moved here.</p>
+            </div>
+          </Card>
+        );
+
       case "users":
         return (
           <Card className="p-6">
@@ -454,6 +630,64 @@ const Admin = () => {
             </div>
           </Card>
         );
+      case "shop-orders":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Shop Orders</h2>
+            <p className="text-slate-600 mb-4">Manage e-commerce orders from Ethereal Treasure Market</p>
+            {/* This will contain the existing order management code */}
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Order management functionality will be moved here.</p>
+            </div>
+          </Card>
+        );
+
+      case "shop-customers":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Shop Customers</h2>
+            <p className="text-slate-600 mb-4">Manage customer accounts and purchase history</p>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Customer management functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      case "shop-angelcoins":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Shop Angel Coins</h2>
+            <p className="text-slate-600 mb-4">Manage Angel Coins for e-commerce rewards and discounts</p>
+            {/* This will contain the existing angel coins management code */}
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Angel Coins management functionality will be moved here.</p>
+            </div>
+          </Card>
+        );
+
+      case "shop-reviews":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Product Reviews</h2>
+            <p className="text-slate-600 mb-4">Moderate and manage customer product reviews</p>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Review management functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      case "shop-settings":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Shop Settings</h2>
+            <p className="text-slate-600 mb-4">Configure e-commerce settings and checkout options</p>
+            {/* This will contain the existing checkout settings code */}
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Shop settings functionality will be moved here.</p>
+            </div>
+          </Card>
+        );
+
       case "settings":
         return (
           <Card className="p-6">
@@ -698,10 +932,59 @@ const Admin = () => {
               <p className="text-sm text-slate-600">Angels On Earth</p>
             </div>
             
+            {/* Dashboard */}
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {menuItems.map((item) => (
+                  {menuItems.filter(item => item.section === "main").map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setActiveSection(item.id)}
+                        className={`w-full justify-start ${
+                          activeSection === item.id ? "bg-primary text-primary-foreground" : ""
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4 mr-3" />
+                        {item.label}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            {/* AngelThon Section */}
+            <SidebarGroup>
+              <div className="px-4 py-2">
+                <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider">AngelThon</h3>
+              </div>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.filter(item => item.section === "angelthon").map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setActiveSection(item.id)}
+                        className={`w-full justify-start ${
+                          activeSection === item.id ? "bg-primary text-primary-foreground" : ""
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4 mr-3" />
+                        {item.label}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            {/* Shop Section */}
+            <SidebarGroup>
+              <div className="px-4 py-2">
+                <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider">Shop</h3>
+              </div>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.filter(item => item.section === "shop").map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         onClick={() => setActiveSection(item.id)}
@@ -719,7 +1002,7 @@ const Admin = () => {
             </SidebarGroup>
             
             <div className="mt-auto p-4 border-t">
-              <Button variant="outline" onClick={() => setIsLoggedIn(false)} className="w-full">
+              <Button variant="outline" onClick={logout} className="w-full">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
