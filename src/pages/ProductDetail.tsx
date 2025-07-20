@@ -791,7 +791,15 @@ const ProductDetail = () => {
                             const cartItem = items.find(item => item.id === relatedId);
                             const currentQuantity = cartItem?.quantity || 0;
                             const selectedQuantity = relatedProductQuantities[relatedId] || 1;
-                            const availableQuantity = Math.floor(Math.random() * 15) + 5; // Random between 5-20
+                            // Static available quantity using product ID hash
+                            const getAvailableQuantity = (productId: string) => {
+                              const hash = productId.split('').reduce((a, b) => {
+                                a = ((a << 5) - a) + b.charCodeAt(0);
+                                return a & a;
+                              }, 0);
+                              return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
+                            };
+                            const availableQuantity = getAvailableQuantity(relatedId);
 
                             console.log(`🛒 [Customers Also Bought] Product: ${relatedProduct.name} (ID: ${relatedId})`);
                             console.log(`📊 Current cart item:`, cartItem);
@@ -819,9 +827,9 @@ const ProductDetail = () => {
 
                             return (
                               <div className="space-y-2">
-                                {/* Quantity Dropdown */}
-                                <div className="space-y-1">
-                                  <label className="text-xs font-medium text-angelic-deep">Qty:</label>
+                                {/* Quantity Dropdown - Same Line */}
+                                <div className="flex items-center gap-2">
+                                  <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
                                   <Select
                                     value={selectedQuantity.toString()}
                                     onValueChange={(value) => setRelatedProductQuantities(prev => ({
@@ -829,7 +837,7 @@ const ProductDetail = () => {
                                       [relatedId]: parseInt(value)
                                     }))}
                                   >
-                                    <SelectTrigger className="w-full h-8 text-xs">
+                                    <SelectTrigger className="flex-1 h-8 text-xs">
                                       <SelectValue placeholder="1" />
                                     </SelectTrigger>
                                     <SelectContent>

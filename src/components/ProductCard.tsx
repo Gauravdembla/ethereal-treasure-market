@@ -41,8 +41,16 @@ const ProductCard = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
 
-  // Mock available quantity (in real app, this would come from props or API)
-  const availableQuantity = Math.floor(Math.random() * 15) + 5; // Random between 5-20
+  // Static available quantity (in real app, this would come from props or API)
+  // Using a hash of the product ID to get consistent quantity per product
+  const getAvailableQuantity = (productId: string) => {
+    const hash = productId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
+  };
+  const availableQuantity = getAvailableQuantity(id);
 
   // Create 5 mockup images - using the main image and banner images as variations
   const images = [
@@ -199,11 +207,11 @@ const ProductCard = ({
         
         {/* New Quantity Controls Design */}
         <div className="space-y-3">
-          {/* Quantity Dropdown */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-angelic-deep">Quantity:</label>
+          {/* Quantity Dropdown - Same Line */}
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
             <Select value={selectedQuantity.toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Select quantity" />
               </SelectTrigger>
               <SelectContent>
