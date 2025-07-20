@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare } from "lucide-react";
+import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare, ChevronDown, ChevronRight, Contact, CreditCard, GraduationCap, Radio, Video } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 // Import product images
@@ -26,6 +26,10 @@ const Admin = () => {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [activeSection, setActiveSection] = useState("dashboard");
   const [loginError, setLoginError] = useState("");
+  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
+    angelthon: false,
+    shop: false
+  });
   
   // Checkout settings state
   const [showAngelCoins, setShowAngelCoins] = useState(true);
@@ -340,28 +344,56 @@ const Admin = () => {
 
 
   const menuItems = [
-    // Dashboard
-    { id: "dashboard", label: "Dashboard", icon: BarChart3, section: "main" },
+    // Main Menu Items
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, type: "single" },
+    { id: "contacts", label: "Contacts", icon: Contact, type: "single" },
+    { id: "payments", label: "Payments", icon: CreditCard, type: "single" },
+    { id: "courses", label: "Courses", icon: GraduationCap, type: "single" },
 
-    // AngelThon Section
-    { id: "leaderboard", label: "Leaderboard", icon: Trophy, section: "angelthon" },
-    { id: "participants", label: "Participants", icon: Users, section: "angelthon" },
-    { id: "achievements", label: "Achievements", icon: Trophy, section: "angelthon" },
-    { id: "resources", label: "Resources", icon: FileText, section: "angelthon" },
-    { id: "events", label: "Events", icon: Calendar, section: "angelthon" },
-    { id: "facilitators", label: "Facilitators", icon: Users, section: "angelthon" },
+    // AngelThon Dropdown
+    {
+      id: "angelthon",
+      label: "AngelThon",
+      icon: Trophy,
+      type: "dropdown",
+      children: [
+        { id: "angelthon-leaderboard", label: "Leaderboard", icon: Trophy },
+        { id: "angelthon-participants", label: "Participants", icon: Users },
+        { id: "angelthon-achievements", label: "Achievements", icon: Trophy },
+        { id: "angelthon-resources", label: "Resources", icon: FileText },
+        { id: "angelthon-events", label: "Events", icon: Calendar },
+        { id: "angelthon-facilitators", label: "Facilitators", icon: Users },
+      ]
+    },
 
-    // Shop Section (Ethereal Treasure Market)
-    { id: "shop-products", label: "Products", icon: Package, section: "shop" },
-    { id: "shop-orders", label: "Orders", icon: ShoppingCart, section: "shop" },
-    { id: "shop-customers", label: "Customers", icon: Users, section: "shop" },
-    { id: "shop-angelcoins", label: "Angel Coins", icon: Coins, section: "shop" },
-    { id: "shop-reviews", label: "Reviews", icon: MessageSquare, section: "shop" },
-    { id: "shop-settings", label: "Shop Settings", icon: Settings, section: "shop" },
+    // Shop Dropdown
+    {
+      id: "shop",
+      label: "Shop",
+      icon: ShoppingCart,
+      type: "dropdown",
+      children: [
+        { id: "shop-products", label: "Products", icon: Package },
+        { id: "shop-orders", label: "Orders", icon: ShoppingCart },
+        { id: "shop-customers", label: "Customers", icon: Users },
+        { id: "shop-angelcoins", label: "Angel Coins", icon: Coins },
+        { id: "shop-reviews", label: "Reviews", icon: MessageSquare },
+        { id: "shop-settings", label: "Shop Settings", icon: Settings },
+      ]
+    },
 
-    // General Settings
-    { id: "settings", label: "System Settings", icon: Settings, section: "main" },
+    // Additional Menu Items
+    { id: "send-broadcast", label: "Send Broadcast", icon: Radio, type: "single" },
+    { id: "setup-sessions", label: "Setup Sessions", icon: Video, type: "single" },
+    { id: "settings", label: "Settings", icon: Settings, type: "single" },
   ];
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -481,7 +513,118 @@ const Admin = () => {
           </Card>
         );
 
-      case "facilitators":
+      case "contacts":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Contacts Management</h2>
+            <p className="text-slate-600 mb-4">Manage user contacts and communication</p>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <p className="text-purple-800">Contact management functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      case "payments":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Payments Management</h2>
+            <p className="text-slate-600 mb-4">Manage payment transactions and billing</p>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800">Payment management functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      case "courses":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Courses Management</h2>
+            <p className="text-slate-600 mb-4">Manage educational courses and content</p>
+            <div className="bg-indigo-50 p-4 rounded-lg">
+              <p className="text-indigo-800">Course management functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      case "send-broadcast":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Send Broadcast</h2>
+            <p className="text-slate-600 mb-4">Send broadcast messages to users</p>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <p className="text-orange-800">Broadcast messaging functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      case "setup-sessions":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Setup Sessions</h2>
+            <p className="text-slate-600 mb-4">Configure and manage user sessions</p>
+            <div className="bg-teal-50 p-4 rounded-lg">
+              <p className="text-teal-800">Session management functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
+      // AngelThon Sections
+      case "angelthon-leaderboard":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">AngelThon Leaderboard</h2>
+            <p className="text-slate-600 mb-4">Manage leaderboard rankings and points</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will integrate with the AngelThon leaderboard system.</p>
+            </div>
+          </Card>
+        );
+
+      case "angelthon-participants":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">AngelThon Participants</h2>
+            <p className="text-slate-600 mb-4">Manage participant registrations and profiles</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will show all AngelThon participants.</p>
+            </div>
+          </Card>
+        );
+
+      case "angelthon-achievements":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Achievements & Badges</h2>
+            <p className="text-slate-600 mb-4">Manage achievement system and badge awards</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage the achievement system.</p>
+            </div>
+          </Card>
+        );
+
+      case "angelthon-resources":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Learning Resources</h2>
+            <p className="text-slate-600 mb-4">Manage educational content and resources</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage learning resources.</p>
+            </div>
+          </Card>
+        );
+
+      case "angelthon-events":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Events Management</h2>
+            <p className="text-slate-600 mb-4">Schedule and manage AngelThon events</p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">This section will manage events and scheduling.</p>
+            </div>
+          </Card>
+        );
+
+      case "angelthon-facilitators":
         return (
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Facilitators</h2>
@@ -972,69 +1115,55 @@ const Admin = () => {
               <p className="text-sm text-slate-600">Angels On Earth</p>
             </div>
             
-            {/* Dashboard */}
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {menuItems.filter(item => item.section === "main").map((item) => (
+                  {menuItems.map((item) => (
                     <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setActiveSection(item.id)}
-                        className={`w-full justify-start ${
-                          activeSection === item.id ? "bg-primary text-primary-foreground" : ""
-                        }`}
-                      >
-                        <item.icon className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* AngelThon Section */}
-            <SidebarGroup>
-              <div className="px-4 py-2">
-                <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider">AngelThon</h3>
-              </div>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menuItems.filter(item => item.section === "angelthon").map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setActiveSection(item.id)}
-                        className={`w-full justify-start ${
-                          activeSection === item.id ? "bg-primary text-primary-foreground" : ""
-                        }`}
-                      >
-                        <item.icon className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* Shop Section */}
-            <SidebarGroup>
-              <div className="px-4 py-2">
-                <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider">Shop</h3>
-              </div>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menuItems.filter(item => item.section === "shop").map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setActiveSection(item.id)}
-                        className={`w-full justify-start ${
-                          activeSection === item.id ? "bg-primary text-primary-foreground" : ""
-                        }`}
-                      >
-                        <item.icon className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </SidebarMenuButton>
+                      {item.type === "single" ? (
+                        <SidebarMenuButton
+                          onClick={() => setActiveSection(item.id)}
+                          className={`w-full justify-start ${
+                            activeSection === item.id ? "bg-primary text-primary-foreground" : ""
+                          }`}
+                        >
+                          <item.icon className="w-4 h-4 mr-3" />
+                          {item.label}
+                        </SidebarMenuButton>
+                      ) : (
+                        <div>
+                          <SidebarMenuButton
+                            onClick={() => toggleSection(item.id)}
+                            className="w-full justify-between"
+                          >
+                            <div className="flex items-center">
+                              <item.icon className="w-4 h-4 mr-3" />
+                              {item.label}
+                            </div>
+                            {expandedSections[item.id] ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </SidebarMenuButton>
+                          {expandedSections[item.id] && item.children && (
+                            <div className="ml-6 mt-1 space-y-1">
+                              {item.children.map((child) => (
+                                <SidebarMenuButton
+                                  key={child.id}
+                                  onClick={() => setActiveSection(child.id)}
+                                  className={`w-full justify-start text-sm ${
+                                    activeSection === child.id ? "bg-primary text-primary-foreground" : ""
+                                  }`}
+                                >
+                                  <child.icon className="w-3 h-3 mr-2" />
+                                  {child.label}
+                                </SidebarMenuButton>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
