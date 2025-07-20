@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare, ChevronDown, ChevronRight, Contact, CreditCard, GraduationCap, Radio, Video } from "lucide-react";
+
+// AngelThon Components
+import FacilitatorsManagement from "@/components/angelthon/FacilitatorsManagement";
+import AchievementsManagement from "@/components/angelthon/AchievementsManagement";
+import ResourcesManagement from "@/components/angelthon/ResourcesManagement";
+import TeamManagement from "@/components/angelthon/TeamManagement";
+import SecuritySettings from "@/components/angelthon/SecuritySettings";
+import EmailSettings from "@/components/angelthon/EmailSettings";
+import RolesManagement from "@/components/angelthon/RolesManagement";
+import LeaderboardManagement from "@/components/angelthon/LeaderboardManagement";
 import { useAuth } from "@/hooks/useAuth";
 
 // Import product images
@@ -570,48 +580,16 @@ const Admin = () => {
 
       // AngelThon Sections
       case "angelthon-leaderboard":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">AngelThon Leaderboard</h2>
-            <p className="text-slate-600 mb-4">Manage leaderboard rankings and points</p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">This section will integrate with the AngelThon leaderboard system.</p>
-            </div>
-          </Card>
-        );
+        return <LeaderboardManagement />;
 
       case "angelthon-participants":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">AngelThon Participants</h2>
-            <p className="text-slate-600 mb-4">Manage participant registrations and profiles</p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">This section will show all AngelThon participants.</p>
-            </div>
-          </Card>
-        );
+        return <TeamManagement />;
 
       case "angelthon-achievements":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Achievements & Badges</h2>
-            <p className="text-slate-600 mb-4">Manage achievement system and badge awards</p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">This section will manage the achievement system.</p>
-            </div>
-          </Card>
-        );
+        return <AchievementsManagement />;
 
       case "angelthon-resources":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Learning Resources</h2>
-            <p className="text-slate-600 mb-4">Manage educational content and resources</p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">This section will manage learning resources.</p>
-            </div>
-          </Card>
-        );
+        return <ResourcesManagement />;
 
       case "angelthon-events":
         return (
@@ -619,21 +597,13 @@ const Admin = () => {
             <h2 className="text-xl font-semibold mb-4">Events Management</h2>
             <p className="text-slate-600 mb-4">Schedule and manage AngelThon events</p>
             <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">This section will manage events and scheduling.</p>
+              <p className="text-blue-800">Events management functionality will be implemented here.</p>
             </div>
           </Card>
         );
 
       case "angelthon-facilitators":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Facilitators</h2>
-            <p className="text-slate-600 mb-4">Manage facilitator profiles and assignments</p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">This section will manage facilitator information.</p>
-            </div>
-          </Card>
-        );
+        return <FacilitatorsManagement />;
 
       case "shop-products":
         return (
@@ -873,42 +843,60 @@ const Admin = () => {
 
       case "settings":
         return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">System Settings</h2>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="font-medium">Coupon Codes</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Code</Label>
-                    <Input placeholder="WELCOME10" />
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">System Settings</h2>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium">Coupon Codes</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Code</Label>
+                      <Input placeholder="WELCOME10" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Discount %</Label>
+                      <Input placeholder="10" type="number" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Button className="w-full">Active</Button>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Discount %</Label>
-                    <Input placeholder="10" type="number" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Button className="w-full">Active</Button>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-medium">OTP Settings</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>WhatsApp OTP Template</Label>
+                      <Input placeholder="Your OTP is: {otp}" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Email OTP Template</Label>
+                      <Input placeholder="Your verification code is: {otp}" />
+                    </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="space-y-4">
-                <h3 className="font-medium">OTP Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>WhatsApp OTP Template</Label>
-                    <Input placeholder="Your OTP is: {otp}" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Email OTP Template</Label>
-                    <Input placeholder="Your verification code is: {otp}" />
-                  </div>
-                </div>
-              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Security Settings</h3>
+                <SecuritySettings />
+              </Card>
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Email Settings</h3>
+                <EmailSettings />
+              </Card>
             </div>
-          </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Roles Management</h3>
+              <RolesManagement />
+            </Card>
+          </div>
         );
       case "products":
         return (
