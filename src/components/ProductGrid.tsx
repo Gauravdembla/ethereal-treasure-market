@@ -1,71 +1,54 @@
+import { useEffect, useState } from "react";
 import ProductCard from "./ProductCard";
-
-// Import product images
-import amethystImage from "@/assets/product-amethyst.jpg";
-import angelCardsImage from "@/assets/product-angel-cards.jpg";
-import candleImage from "@/assets/product-candle.jpg";
-import journalImage from "@/assets/product-journal.jpg";
-import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+import { getAllProducts, type Product } from "@/data/products";
 
 const ProductGrid = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const products = [
-    {
-      id: "amethyst-cluster",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5
-    },
-    {
-      id: "angel-oracle-cards",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5
-    },
-    {
-      id: "healing-candle",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5
-    },
-    {
-      id: "chakra-journal",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5
-    },
-    {
-      id: "rose-quartz-heart",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5
-    },
-    {
-      id: "chakra-stone-set",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5
-    }
-  ];
+  useEffect(() => {
+    // This simulates fetching from API - will be replaced with actual API call
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const productData = getAllProducts();
+        setProducts(productData);
+      } catch (error) {
+        console.error("Error loading products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <section id="products" className="py-16 px-6 bg-gradient-hero">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-playfair font-bold text-angelic-deep mb-4">
+              Sacred Collection
+            </h2>
+            <p className="text-angelic-deep/70 max-w-2xl mx-auto">
+              Loading our blessed treasures...
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white/90 rounded-2xl p-6 animate-pulse">
+                <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                <div className="h-6 bg-gray-200 rounded w-20"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="products" className="py-16 px-6 bg-gradient-hero">

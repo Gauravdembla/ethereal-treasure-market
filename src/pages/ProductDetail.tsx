@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,169 +6,60 @@ import { ShoppingCart, Star, Plus, Minus, ArrowLeft } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
-
-// Import product images
-import amethystImage from "@/assets/product-amethyst.jpg";
-import angelCardsImage from "@/assets/product-angel-cards.jpg";
-import candleImage from "@/assets/product-candle.jpg";
-import journalImage from "@/assets/product-journal.jpg";
-import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+import { getProductById, type Product } from "@/data/products";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const products = {
-    "amethyst-cluster": {
-      id: "amethyst-cluster",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      detailedDescription: "This stunning Amethyst cluster is a powerful tool for spiritual protection and inner peace. Known as the 'Stone of Spiritual Protection', Amethyst creates a protective shield around the wearer, guarding against negative energies and psychic attacks. Its high vibrational energy promotes clarity of mind, emotional balance, and spiritual awareness. Perfect for meditation, chakra healing, and creating a sacred space in your home. Each cluster is naturally formed and unique, radiating beautiful purple hues that captivate the soul.",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5,
-      benefits: [
-        "Enhances spiritual awareness and intuition",
-        "Provides protection from negative energies",
-        "Promotes restful sleep and vivid dreams",
-        "Aids in meditation and mindfulness practices",
-        "Balances the crown chakra"
-      ],
-      specifications: {
-        "Weight": "150-200g",
-        "Size": "8-10cm",
-        "Origin": "Brazil",
-        "Chakra": "Crown & Third Eye",
-        "Element": "Air"
-      }
-    },
-    "angel-oracle-cards": {
-      id: "angel-oracle-cards",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      detailedDescription: "Connect with the divine realm through these beautiful Angel Oracle Cards. Each deck contains 44 cards featuring stunning angelic artwork and powerful messages from your guardian angels. These cards serve as a bridge between the earthly and celestial realms, offering guidance, comfort, and wisdom for your spiritual journey. Whether you're seeking answers to specific questions or daily inspiration, these cards will help you tap into angelic wisdom and receive divine guidance.",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5,
-      benefits: [
-        "Receive direct messages from your angels",
-        "Gain clarity on life decisions",
-        "Develop your intuitive abilities",
-        "Find comfort during difficult times",
-        "Strengthen your spiritual connection"
-      ],
-      specifications: {
-        "Cards": "44 Oracle Cards",
-        "Size": "3.5 x 5 inches",
-        "Material": "High-quality cardstock",
-        "Guidebook": "128-page instruction manual",
-        "Language": "English"
-      }
-    },
-    "healing-candle": {
-      id: "healing-candle",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      detailedDescription: "Immerse yourself in tranquility with our handcrafted Healing Candle infused with pure lavender essential oil. This sacred candle is made with natural soy wax and blessed with intention for healing and peace. The gentle lavender fragrance calms the mind, reduces stress, and promotes restful sleep. Perfect for meditation, prayer, or creating a peaceful atmosphere in your sacred space. Each candle burns for approximately 40 hours, filling your space with divine serenity.",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5,
-      benefits: [
-        "Promotes relaxation and stress relief",
-        "Enhances meditation and prayer",
-        "Improves sleep quality",
-        "Purifies and cleanses energy",
-        "Creates a sacred atmosphere"
-      ],
-      specifications: {
-        "Burn Time": "40 hours",
-        "Wax": "100% Natural Soy Wax",
-        "Fragrance": "Pure Lavender Essential Oil",
-        "Size": "3 x 4 inches",
-        "Weight": "300g"
-      }
-    },
-    "chakra-journal": {
-      id: "chakra-journal",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      detailedDescription: "Transform your thoughts into reality with this beautiful Chakra Journal designed for manifestation and spiritual growth. This sacred journal features chakra-aligned pages, guided prompts, and space for your deepest intentions. Each section corresponds to one of the seven chakras, helping you balance your energy centers while manifesting your desires. The high-quality paper and beautiful design make this journal a treasured companion on your spiritual journey.",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5,
-      benefits: [
-        "Manifest your dreams and intentions",
-        "Balance and align your chakras",
-        "Track your spiritual progress",
-        "Develop mindfulness and gratitude",
-        "Connect with your inner wisdom"
-      ],
-      specifications: {
-        "Pages": "200 lined pages",
-        "Size": "6 x 8 inches",
-        "Cover": "Hardcover with chakra symbols",
-        "Paper": "120gsm cream paper",
-        "Binding": "Lay-flat binding"
-      }
-    },
-    "rose-quartz-heart": {
-      id: "rose-quartz-heart",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      detailedDescription: "Open your heart to love with this beautiful Rose Quartz heart, known as the 'Stone of Unconditional Love'. This gentle pink crystal radiates loving energy, promoting self-love, emotional healing, and harmonious relationships. Rose Quartz helps heal emotional wounds, attracts love into your life, and encourages forgiveness and compassion. Perfect for heart chakra healing, meditation, or as a beautiful addition to your crystal collection.",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5,
-      benefits: [
-        "Attracts love and strengthens relationships",
-        "Promotes self-love and emotional healing",
-        "Opens and balances the heart chakra",
-        "Encourages forgiveness and compassion",
-        "Reduces stress and promotes inner peace"
-      ],
-      specifications: {
-        "Weight": "80-100g",
-        "Size": "5-6cm",
-        "Origin": "Madagascar",
-        "Chakra": "Heart",
-        "Element": "Water"
-      }
-    },
-    "chakra-stone-set": {
-      id: "chakra-stone-set",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      detailedDescription: "Achieve complete chakra balance with this powerful set of seven sacred stones, each carefully selected to correspond with the seven main chakras. This comprehensive kit includes Red Jasper (Root), Carnelian (Sacral), Citrine (Solar Plexus), Green Aventurine (Heart), Sodalite (Throat), Amethyst (Third Eye), and Clear Quartz (Crown). Each stone is cleansed and charged with healing intentions, ready to help you balance your energy centers and achieve optimal spiritual wellness.",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5,
-      benefits: [
-        "Balances all seven chakras",
-        "Enhances energy flow throughout the body",
-        "Promotes physical and emotional healing",
-        "Supports spiritual growth and development",
-        "Creates harmony and inner peace"
-      ],
-      specifications: {
-        "Stones": "7 chakra stones (20-25mm each)",
-        "Materials": "Natural gemstones",
-        "Packaging": "Velvet pouch included",
-        "Guide": "Chakra healing instruction card",
-        "Total Weight": "200-250g"
-      }
-    }
-  };
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (!id) return;
 
-  const product = products[id as keyof typeof products];
+      try {
+        setLoading(true);
+        // This simulates fetching from API - will be replaced with actual API call
+        const productData = getProductById(id);
+        setProduct(productData || null);
+      } catch (error) {
+        console.error("Error loading product:", error);
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    loadProduct();
+  }, [id]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-32 mb-6"></div>
+            <div className="grid lg:grid-cols-2 gap-12">
+              <div className="w-full h-96 bg-gray-200 rounded-xl"></div>
+              <div className="space-y-6">
+                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-6 bg-gray-200 rounded w-24"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <AngelicFooter />
+      </div>
+    );
+  }
+
+  // Product not found
   if (!product) {
     return (
       <div className="min-h-screen bg-background">
