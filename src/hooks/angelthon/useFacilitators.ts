@@ -14,52 +14,87 @@ export const useFacilitators = () => {
 
   const fetchFacilitators = async () => {
     try {
+      console.log('🔍 Fetching facilitators from Supabase...');
+
       const { data, error } = await supabase
         .from('facilitators')
         .select('*')
+        .eq('is_visible', true)
+        .order('sort_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully fetched facilitators:', data?.length || 0, 'records');
       setFacilitators(data || []);
-    } catch (error) {
-      console.error('Error fetching facilitators:', error);
 
-      // Fallback to demo data for demo purposes
-      const demoFacilitators = [
-        {
-          id: 'demo-1',
-          name: 'Dr. Sarah Johnson',
-          role: 'Lead Facilitator',
-          bio: 'Experienced transformation coach with 10+ years in mindfulness and personal development.',
-          email: 'sarah@angelthon.com',
-          phone: '+1234567890',
-          expertise: ['Mindfulness', 'Leadership', 'Personal Growth'],
-          image: '/placeholder.svg',
-          is_visible: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'demo-2',
-          name: 'Michael Chen',
-          role: 'Senior Facilitator',
-          bio: 'Expert in organizational psychology and team dynamics with a focus on innovative methodologies.',
-          email: 'michael@angelthon.com',
-          phone: '+1234567891',
-          expertise: ['Team Building', 'Psychology', 'Innovation'],
-          image: '/placeholder.svg',
-          is_visible: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
+      if (data && data.length > 0) {
+        toast({
+          title: "✅ Data Loaded",
+          description: `Loaded ${data.length} facilitators from database`
+        });
+      }
 
-      setFacilitators(demoFacilitators as any);
+    } catch (error: any) {
+      console.error('❌ Error fetching facilitators:', error);
 
-      toast({
-        title: "Demo Mode",
-        description: "Using demo data for facilitators"
-      });
+      // Check if it's a permission/auth error
+      const isAuthError = error?.message?.includes('permission') ||
+                         error?.message?.includes('RLS') ||
+                         error?.message?.includes('policy') ||
+                         error?.code === 'PGRST301';
+
+      if (isAuthError) {
+        console.log('🔐 Auth/Permission error detected, using demo data');
+
+        // Fallback to demo data for auth issues
+        const demoFacilitators = [
+          {
+            id: 'demo-1',
+            name: 'Dr. Sarah Johnson (Demo)',
+            role: 'Lead Facilitator',
+            bio: 'Demo data - Experienced transformation coach with 10+ years in mindfulness and personal development.',
+            email: 'sarah@angelthon.com',
+            phone: '+1234567890',
+            expertise: ['Mindfulness', 'Leadership', 'Personal Growth'],
+            image: '/placeholder.svg',
+            is_visible: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: 'demo-2',
+            name: 'Michael Chen (Demo)',
+            role: 'Senior Facilitator',
+            bio: 'Demo data - Expert in organizational psychology and team dynamics with a focus on innovative methodologies.',
+            email: 'michael@angelthon.com',
+            phone: '+1234567891',
+            expertise: ['Team Building', 'Psychology', 'Innovation'],
+            image: '/placeholder.svg',
+            is_visible: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ];
+
+        setFacilitators(demoFacilitators as any);
+
+        toast({
+          title: "🔐 Demo Mode",
+          description: "Using demo data due to permission restrictions"
+        });
+      } else {
+        // For other errors, show the actual error
+        toast({
+          variant: "destructive",
+          title: "❌ Error Loading Facilitators",
+          description: error?.message || "Failed to fetch facilitators from database"
+        });
+        setFacilitators([]);
+      }
     } finally {
       setLoading(false);
     }

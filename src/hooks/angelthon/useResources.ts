@@ -14,48 +14,81 @@ export const useResources = () => {
 
   const fetchResources = async () => {
     try {
+      console.log('🔍 Fetching resources from Supabase...');
+
       const { data, error } = await supabase
         .from('resources')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully fetched resources:', data?.length || 0, 'records');
       setResources(data || []);
-    } catch (error) {
-      console.error('Error fetching resources:', error);
 
-      // Fallback to demo data
-      const demoResources = [
-        {
-          id: 'demo-res-1',
-          title: 'Mindfulness Guide',
-          description: 'Complete guide to mindfulness practices for beginners',
-          type: 'PDF' as const,
-          category: 'guides' as const,
-          url: 'https://example.com/mindfulness-guide.pdf',
-          file_size: '2.5 MB',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'demo-res-2',
-          title: 'Meditation Video Series',
-          description: '10-part video series on meditation techniques',
-          type: 'Video' as const,
-          category: 'videos' as const,
-          url: 'https://example.com/meditation-series',
-          file_size: '500 MB',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
+      if (data && data.length > 0) {
+        toast({
+          title: "✅ Data Loaded",
+          description: `Loaded ${data.length} resources from database`
+        });
+      }
 
-      setResources(demoResources as any);
+    } catch (error: any) {
+      console.error('❌ Error fetching resources:', error);
 
-      toast({
-        title: "Demo Mode",
-        description: "Using demo data for resources"
-      });
+      // Check if it's a permission/auth error
+      const isAuthError = error?.message?.includes('permission') ||
+                         error?.message?.includes('RLS') ||
+                         error?.message?.includes('policy') ||
+                         error?.code === 'PGRST301';
+
+      if (isAuthError) {
+        console.log('🔐 Auth/Permission error detected, using demo data');
+
+        // Fallback to demo data for auth issues
+        const demoResources = [
+          {
+            id: 'demo-res-1',
+            title: 'Mindfulness Guide (Demo)',
+            description: 'Demo data - Complete guide to mindfulness practices for beginners',
+            type: 'PDF' as const,
+            category: 'guides' as const,
+            url: 'https://example.com/mindfulness-guide.pdf',
+            file_size: '2.5 MB',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: 'demo-res-2',
+            title: 'Meditation Video Series (Demo)',
+            description: 'Demo data - 10-part video series on meditation techniques',
+            type: 'Video' as const,
+            category: 'videos' as const,
+            url: 'https://example.com/meditation-series',
+            file_size: '500 MB',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ];
+
+        setResources(demoResources as any);
+
+        toast({
+          title: "🔐 Demo Mode",
+          description: "Using demo data due to permission restrictions"
+        });
+      } else {
+        // For other errors, show the actual error
+        toast({
+          variant: "destructive",
+          title: "❌ Error Loading Resources",
+          description: error?.message || "Failed to fetch resources from database"
+        });
+        setResources([]);
+      }
     } finally {
       setLoading(false);
     }
