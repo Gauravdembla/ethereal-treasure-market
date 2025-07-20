@@ -130,7 +130,7 @@ const ProductCard = ({
           <img
             src={images[currentImageIndex]}
             alt={`${name} - Image ${currentImageIndex + 1}`}
-            className="w-full h-48 object-cover transition-all duration-500 group-hover:scale-110"
+            className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
             key={currentImageIndex}
           />
 

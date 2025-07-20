@@ -472,7 +472,7 @@ const ProductDetail = () => {
                 <img
                   src={getProductImages(product)[currentImageIndex]}
                   alt={`${product.name} - Image ${currentImageIndex + 1}`}
-                  className="w-full h-96 object-cover transition-all duration-500 group-hover:scale-105"
+                  className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-105"
                   key={currentImageIndex}
                 />
 
@@ -543,7 +543,7 @@ const ProductDetail = () => {
             </div>
             
             {/* New Quantity Controls Design */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Quantity Dropdown - Centered */}
               <div className="flex items-center justify-center gap-4">
                 <label className="font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
@@ -566,27 +566,28 @@ const ProductDetail = () => {
                 </Select>
               </div>
 
-              {/* Available Quantity Info */}
+              {/* Add to Cart Button */}
+              <Button
+                onClick={handleAddToCart}
+                variant="divine"
+                size="lg"
+                className="w-full"
+              >
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                {(() => {
+                  const cartItem = items.find(item => item.id === actualProductId);
+                  const currentQuantity = cartItem?.quantity || 0;
+                  return `Add ${selectedQuantity} to Cart${currentQuantity > 0 ? ` (${currentQuantity} in cart)` : ''}`;
+                })()}
+              </Button>
+
+              {/* Available Quantity Info - Moved below button */}
               <div className="text-center">
                 <span className="text-sm text-angelic-deep/70">
                   Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
                 </span>
               </div>
             </div>
-
-            <Button
-              onClick={handleAddToCart}
-              variant="divine"
-              size="lg"
-              className="w-full"
-            >
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              {(() => {
-                const cartItem = items.find(item => item.id === actualProductId);
-                const currentQuantity = cartItem?.quantity || 0;
-                return `Add ${selectedQuantity} to Cart${currentQuantity > 0 ? ` (${currentQuantity} in cart)` : ''}`;
-              })()}
-            </Button>
           </div>
         </div>
         
@@ -720,7 +721,7 @@ const ProductDetail = () => {
                         <img
                           src={getProductImages(relatedProduct)[relatedProductImageIndices[relatedId] || 0]}
                           alt={`${relatedProduct.name} - Image ${(relatedProductImageIndices[relatedId] || 0) + 1}`}
-                          className="w-full h-48 object-cover transition-transform duration-300 group-hover/image:scale-105"
+                          className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
                         />
 
                         {/* Image Navigation */}
@@ -779,8 +780,17 @@ const ProductDetail = () => {
                         <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors">
                           {relatedProduct.name}
                         </h3>
-                        <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2">
-                          {relatedProduct.description}
+                        <p className="text-sm text-angelic-deep/70 mb-3">
+                          {relatedProduct.description}...{" "}
+                          <Link to={`/product/${relatedId}`} className="inline">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
+                            >
+                              Read More→
+                            </Button>
+                          </Link>
                         </p>
                         <div className="flex items-center gap-2 mb-3">
                           <span className="font-bold text-primary">₹{relatedProduct.price}</span>
@@ -793,15 +803,6 @@ const ProductDetail = () => {
 
                         {/* Action Buttons */}
                         <div className="space-y-2">
-                          <Link to={`/product/${relatedId}`} className="block">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full text-xs hover:bg-primary hover:text-white transition-colors"
-                            >
-                              Read More
-                            </Button>
-                          </Link>
 
                           {/* New Quantity Controls Design for Related Products */}
                           {(() => {
