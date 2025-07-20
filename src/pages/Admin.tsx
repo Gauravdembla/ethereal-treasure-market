@@ -156,8 +156,8 @@ const Admin = () => {
     const product = {
       ...newProduct,
       id: productId,
-      price: parseFloat(newProduct.price),
-      originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : null,
+      price: newProduct.price,
+      originalPrice: newProduct.originalPrice || undefined,
       availableQuantity: parseInt(newProduct.availableQuantity) || 0,
       image: newProduct.image || '/assets/product-placeholder.jpg'
     };
@@ -185,8 +185,8 @@ const Admin = () => {
     setEditingProduct(product);
     setNewProduct({
       ...product,
-      price: product.price.toString(),
-      originalPrice: product.originalPrice?.toString() || "",
+      price: product.price,
+      originalPrice: product.originalPrice || "",
       availableQuantity: product.availableQuantity?.toString() || "0"
     });
     setIsAddProductOpen(true);
@@ -200,8 +200,8 @@ const Admin = () => {
 
     const updatedProduct = {
       ...newProduct,
-      price: parseFloat(newProduct.price),
-      originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : null,
+      price: newProduct.price,
+      originalPrice: newProduct.originalPrice || undefined,
       availableQuantity: parseInt(newProduct.availableQuantity) || 0,
       image: newProduct.image || '/assets/product-placeholder.jpg'
     };
