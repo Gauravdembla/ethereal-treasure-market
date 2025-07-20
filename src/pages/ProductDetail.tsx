@@ -26,7 +26,8 @@ import banner5 from "@/assets/banner-5.jpg";
 const ProductDetail = () => {
   const { id } = useParams();
   const { addItem, removeItem, items } = useCart();
-  const [quantity, setQuantity] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [relatedProductsStartIndex, setRelatedProductsStartIndex] = useState(0);
   const [relatedProductImageIndices, setRelatedProductImageIndices] = useState<{[key: string]: number}>({});
@@ -342,6 +343,16 @@ const ProductDetail = () => {
 
   const product = products[actualProductId as keyof typeof products];
 
+  // Static available quantity using product ID hash (same logic as ProductCard)
+  const getAvailableQuantity = (productId: string) => {
+    const hash = productId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
+  };
+  const availableQuantity = getAvailableQuantity(actualProductId);
+
   if (!product) {
     return (
       <div className="min-h-screen bg-background">
@@ -362,20 +373,17 @@ const ProductDetail = () => {
     );
   }
 
-  const handleQuantityChange = (newQuantity: number) => {
-    setQuantity(Math.max(0, newQuantity));
-  };
+
 
   const handleAddToCart = () => {
-    if (quantity > 0) {
+    if (selectedQuantity > availableQuantity) {
+      alert(`Can't select quantity more than available. Available Quantity: ${availableQuantity}`);
+      return;
+    }
+
+    if (selectedQuantity > 0) {
       // Add items to cart
-      addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, quantity);
-    } else if (quantity === 0) {
-      // Remove item from cart when quantity is 0
-      const existingItem = items.find(item => item.id === actualProductId);
-      if (existingItem) {
-        removeItem(product.id);
-      }
+      addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, selectedQuantity);
     }
   };
 
@@ -534,27 +542,35 @@ const ProductDetail = () => {
               )}
             </div>
             
-            {/* Quantity Controls */}
-            <div className="flex items-center gap-4">
-              <span className="font-medium text-angelic-deep">Quantity:</span>
-              <div className="flex items-center gap-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleQuantityChange(quantity - 1)}
-                  className="w-10 h-10 p-0"
-                >
-                  <Minus className="w-4 h-4" />
-                </Button>
-                <span className="w-12 text-center font-medium text-lg">{quantity}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleQuantityChange(quantity + 1)}
-                  className="w-10 h-10 p-0"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
+            {/* New Quantity Controls Design */}
+            <div className="space-y-3">
+              {/* Quantity Dropdown - Centered */}
+              <div className="flex items-center justify-center gap-4">
+                <label className="font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
+                <Select value={selectedQuantity.toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue placeholder="Select quantity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                      <SelectItem
+                        key={num}
+                        value={num.toString()}
+                        disabled={num > availableQuantity}
+                        className={num > availableQuantity ? "text-gray-400" : ""}
+                      >
+                        {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Available Quantity Info */}
+              <div className="text-center">
+                <span className="text-sm text-angelic-deep/70">
+                  Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                </span>
               </div>
             </div>
 
@@ -565,10 +581,11 @@ const ProductDetail = () => {
               className="w-full"
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              {quantity === 0
-                ? (items.find(item => item.id === actualProductId) ? 'Remove from Cart' : 'Select Quantity First')
-                : `Add ${quantity} to Cart`
-              }
+              {(() => {
+                const cartItem = items.find(item => item.id === actualProductId);
+                const currentQuantity = cartItem?.quantity || 0;
+                return `Add ${selectedQuantity} to Cart${currentQuantity > 0 ? ` (${currentQuantity} in cart)` : ''}`;
+              })()}
             </Button>
           </div>
         </div>
