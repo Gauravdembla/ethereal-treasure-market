@@ -29,6 +29,8 @@ export const useFacilitators = () => {
       }
 
       console.log('✅ Successfully fetched facilitators:', data?.length || 0, 'records');
+      console.log('📋 Facilitators data:', data?.map(f => ({ id: f.id, name: f.name, is_visible: f.is_visible, sort_order: f.sort_order })));
+
       setFacilitators(data || []);
 
       if (data && data.length > 0) {
