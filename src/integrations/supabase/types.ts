@@ -161,6 +161,69 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          available_quantity: number | null
+          benefits: string[] | null
+          category: string
+          created_at: string
+          description: string
+          detailed_description: string | null
+          featured: boolean | null
+          id: string
+          image: string
+          in_stock: boolean | null
+          name: string
+          original_price: string | null
+          price: string
+          product_id: string
+          rating: number | null
+          sku: string
+          specifications: Json | null
+          updated_at: string
+        }
+        Insert: {
+          available_quantity?: number | null
+          benefits?: string[] | null
+          category: string
+          created_at?: string
+          description: string
+          detailed_description?: string | null
+          featured?: boolean | null
+          id?: string
+          image: string
+          in_stock?: boolean | null
+          name: string
+          original_price?: string | null
+          price: string
+          product_id: string
+          rating?: number | null
+          sku: string
+          specifications?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          available_quantity?: number | null
+          benefits?: string[] | null
+          category?: string
+          created_at?: string
+          description?: string
+          detailed_description?: string | null
+          featured?: boolean | null
+          id?: string
+          image?: string
+          in_stock?: boolean | null
+          name?: string
+          original_price?: string | null
+          price?: string
+          product_id?: string
+          rating?: number | null
+          sku?: string
+          specifications?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       resources: {
         Row: {
           category: Database["public"]["Enums"]["resource_category"]

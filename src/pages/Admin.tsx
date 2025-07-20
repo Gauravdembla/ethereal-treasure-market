@@ -18,7 +18,7 @@ import angelCardsImage from "@/assets/product-angel-cards.jpg";
 import candleImage from "@/assets/product-candle.jpg";
 import journalImage from "@/assets/product-journal.jpg";
 import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+import { useProducts } from "@/hooks/useProducts";
 
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -29,99 +29,26 @@ const Admin = () => {
   const [showAngelCoins, setShowAngelCoins] = useState(true);
   const [showCouponCode, setShowCouponCode] = useState(true);
 
-  // Initial products data
-  const initialProducts = [
-    {
-      id: "amethyst-cluster",
-      sku: "654567652",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5,
-      category: "Crystals",
-      availableQuantity: 12
-    },
-    {
-      id: "angel-oracle-cards",
-      sku: "789123456",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5,
-      category: "Oracle Cards",
-      availableQuantity: 8
-    },
-    {
-      id: "healing-candle",
-      sku: "321987654",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5,
-      category: "Candles",
-      availableQuantity: 15
-    },
-    {
-      id: "chakra-journal",
-      sku: "456789123",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5,
-      category: "Journals",
-      availableQuantity: 6
-    },
-    {
-      id: "rose-quartz-heart",
-      sku: "987654321",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5,
-      category: "Crystals",
-      availableQuantity: 20
-    },
-    {
-      id: "chakra-stone-set",
-      sku: "147258369",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5,
-      category: "Crystal Sets",
-      availableQuantity: 5
-    }
-  ];
-
-  // Product management state
-  const [productList, setProductList] = useState(initialProducts);
+  // Product management state using database
+  const { products: productList, updateProduct, addProduct, deleteProduct, loading } = useProducts();
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [newProduct, setNewProduct] = useState({
-    id: "",
+    product_id: "",
     sku: "",
     name: "",
     description: "",
+    detailed_description: "",
     price: "",
-    originalPrice: "",
+    original_price: "",
     category: "",
-    tags: "",
-    availableQuantity: "",
+    benefits: [],
     specifications: {},
+    available_quantity: 0,
     image: "",
-    rating: 5
+    rating: 5,
+    in_stock: true,
+    featured: false
   });
 
   // Mock data
@@ -146,90 +73,104 @@ const Admin = () => {
   };
 
   // Product management functions
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.price || !newProduct.sku) {
       alert("Please fill in required fields: Name, SKU, and Price");
       return;
     }
 
-    const productId = newProduct.sku.toLowerCase().replace(/\s+/g, '-');
-    const product = {
-      ...newProduct,
-      id: productId,
-      price: newProduct.price,
-      originalPrice: newProduct.originalPrice || undefined,
-      availableQuantity: parseInt(newProduct.availableQuantity) || 0,
-      image: newProduct.image || '/assets/product-placeholder.jpg'
-    };
+    try {
+      const productId = newProduct.sku.toLowerCase().replace(/\s+/g, '-');
+      const product = {
+        ...newProduct,
+        product_id: productId,
+        available_quantity: parseInt(newProduct.available_quantity.toString()) || 0,
+        image: newProduct.image || '/assets/product-placeholder.jpg'
+      };
 
-    setProductList([...productList, product]);
-    setNewProduct({
-      id: "",
-      sku: "",
-      name: "",
-      description: "",
-      price: "",
-      originalPrice: "",
-      category: "",
-      tags: "",
-      availableQuantity: "",
-      specifications: {},
-      image: "",
-      rating: 5
-    });
-    setIsAddProductOpen(false);
-    alert("Product added successfully!");
+      await addProduct(product);
+      
+      setNewProduct({
+        product_id: "",
+        sku: "",
+        name: "",
+        description: "",
+        detailed_description: "",
+        price: "",
+        original_price: "",
+        category: "",
+        benefits: [],
+        specifications: {},
+        available_quantity: 0,
+        image: "",
+        rating: 5,
+        in_stock: true,
+        featured: false
+      });
+      setIsAddProductOpen(false);
+      alert("Product added successfully!");
+    } catch (error) {
+      alert("Failed to add product: " + error.message);
+    }
   };
 
   const handleEditProduct = (product) => {
     setEditingProduct(product);
     setNewProduct({
       ...product,
-      price: product.price,
-      originalPrice: product.originalPrice || "",
-      availableQuantity: product.availableQuantity?.toString() || "0"
+      available_quantity: product.available_quantity || 0
     });
     setIsAddProductOpen(true);
   };
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     if (!newProduct.name || !newProduct.price || !newProduct.sku) {
       alert("Please fill in required fields: Name, SKU, and Price");
       return;
     }
 
-    const updatedProduct = {
-      ...newProduct,
-      price: newProduct.price,
-      originalPrice: newProduct.originalPrice || undefined,
-      availableQuantity: parseInt(newProduct.availableQuantity) || 0,
-      image: newProduct.image || '/assets/product-placeholder.jpg'
-    };
+    try {
+      const updatedProduct = {
+        ...newProduct,
+        available_quantity: parseInt(newProduct.available_quantity.toString()) || 0,
+        image: newProduct.image || '/assets/product-placeholder.jpg'
+      };
 
-    setProductList(productList.map(p => p.id === editingProduct.id ? updatedProduct : p));
-    setEditingProduct(null);
-    setNewProduct({
-      id: "",
-      sku: "",
-      name: "",
-      description: "",
-      price: "",
-      originalPrice: "",
-      category: "",
-      tags: "",
-      availableQuantity: "",
-      specifications: {},
-      image: "",
-      rating: 5
-    });
-    setIsAddProductOpen(false);
-    alert("Product updated successfully!");
+      await updateProduct(editingProduct.product_id, updatedProduct);
+      
+      setEditingProduct(null);
+      setNewProduct({
+        product_id: "",
+        sku: "",
+        name: "",
+        description: "",
+        detailed_description: "",
+        price: "",
+        original_price: "",
+        category: "",
+        benefits: [],
+        specifications: {},
+        available_quantity: 0,
+        image: "",
+        rating: 5,
+        in_stock: true,
+        featured: false
+      });
+      setIsAddProductOpen(false);
+      alert("Product updated successfully!");
+    } catch (error) {
+      alert("Failed to update product: " + error.message);
+    }
   };
 
-  const handleDeleteProduct = (productId) => {
+  const handleDeleteProduct = async (productId) => {
     if (confirm("Are you sure you want to delete this product?")) {
-      setProductList(productList.filter(p => p.id !== productId));
-      alert("Product deleted successfully!");
+      try {
+        await deleteProduct(productId);
+        alert("Product deleted successfully!");
+      } catch (error) {
+        alert("Failed to delete product: " + error.message);
+      }
     }
   };
 
@@ -503,18 +444,21 @@ const Admin = () => {
                   <Button onClick={() => {
                     setEditingProduct(null);
                     setNewProduct({
-                      id: "",
+                      product_id: "",
                       sku: "",
                       name: "",
                       description: "",
+                      detailed_description: "",
                       price: "",
-                      originalPrice: "",
+                      original_price: "",
                       category: "",
-                      tags: "",
-                      availableQuantity: "",
+                      benefits: [],
                       specifications: {},
+                      available_quantity: 0,
                       image: "",
-                      rating: 5
+                      rating: 5,
+                      in_stock: true,
+                      featured: false
                     });
                   }}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -555,8 +499,8 @@ const Admin = () => {
                       <Label>Original Price</Label>
                       <Input
                         type="number"
-                        value={newProduct.originalPrice}
-                        onChange={(e) => setNewProduct({...newProduct, originalPrice: e.target.value})}
+                        value={newProduct.original_price}
+                        onChange={(e) => setNewProduct({...newProduct, original_price: e.target.value})}
                         placeholder="3499"
                       />
                     </div>
@@ -579,8 +523,8 @@ const Admin = () => {
                       <Label>Available Quantity</Label>
                       <Input
                         type="number"
-                        value={newProduct.availableQuantity}
-                        onChange={(e) => setNewProduct({...newProduct, availableQuantity: e.target.value})}
+                        value={newProduct.available_quantity}
+                        onChange={(e) => setNewProduct({...newProduct, available_quantity: parseInt(e.target.value) || 0})}
                         placeholder="10"
                       />
                     </div>
@@ -594,11 +538,11 @@ const Admin = () => {
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label>Tags (comma separated)</Label>
+                      <Label>Detailed Description</Label>
                       <Input
-                        value={newProduct.tags}
-                        onChange={(e) => setNewProduct({...newProduct, tags: e.target.value})}
-                        placeholder="amethyst,crystal,healing,meditation"
+                        value={newProduct.detailed_description}
+                        onChange={(e) => setNewProduct({...newProduct, detailed_description: e.target.value})}
+                        placeholder="Additional detailed description for the product..."
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -652,8 +596,8 @@ const Admin = () => {
                       </TableCell>
                       <TableCell>₹{product.price}</TableCell>
                       <TableCell>
-                        <Badge variant={product.availableQuantity > 10 ? "default" : product.availableQuantity > 0 ? "secondary" : "destructive"}>
-                          {product.availableQuantity || 0}
+                        <Badge variant={product.available_quantity > 10 ? "default" : product.available_quantity > 0 ? "secondary" : "destructive"}>
+                          {product.available_quantity || 0}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -661,7 +605,7 @@ const Admin = () => {
                           <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
                             <Edit className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleDeleteProduct(product.id)}>
+                          <Button size="sm" variant="outline" onClick={() => handleDeleteProduct(product.product_id)}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
@@ -676,9 +620,9 @@ const Admin = () => {
               <h4 className="font-medium mb-2">Product Statistics</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>Total Products: <Badge>{productList.length}</Badge></div>
-                <div>In Stock: <Badge variant="default">{productList.filter(p => p.availableQuantity > 0).length}</Badge></div>
-                <div>Low Stock: <Badge variant="secondary">{productList.filter(p => p.availableQuantity > 0 && p.availableQuantity <= 10).length}</Badge></div>
-                <div>Out of Stock: <Badge variant="destructive">{productList.filter(p => p.availableQuantity === 0).length}</Badge></div>
+                <div>In Stock: <Badge variant="default">{productList.filter(p => p.available_quantity > 0).length}</Badge></div>
+                <div>Low Stock: <Badge variant="secondary">{productList.filter(p => p.available_quantity > 0 && p.available_quantity <= 10).length}</Badge></div>
+                <div>Out of Stock: <Badge variant="destructive">{productList.filter(p => p.available_quantity === 0).length}</Badge></div>
               </div>
             </div>
           </Card>

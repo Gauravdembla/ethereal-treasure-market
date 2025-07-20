@@ -3,517 +3,79 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight, Quote } from "lucide-react";
+import { ShoppingCart, Star, ArrowLeft, Sparkles } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
+import { useProducts, getProductByProductId } from "@/hooks/useProducts";
+import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
 
-// Import product images
-import amethystImage from "@/assets/product-amethyst.jpg";
-import angelCardsImage from "@/assets/product-angel-cards.jpg";
-import candleImage from "@/assets/product-candle.jpg";
-import journalImage from "@/assets/product-journal.jpg";
-import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
-
-// Import banner images for slider
-import banner1 from "@/assets/banner-1.jpg";
-import banner2 from "@/assets/banner-2.jpg";
-import banner3 from "@/assets/banner-3.jpg";
-import banner4 from "@/assets/banner-4.jpg";
-import banner5 from "@/assets/banner-5.jpg";
-
 const ProductDetail = () => {
   const { id } = useParams();
-  const { addItem, removeItem, items } = useCart();
+  const { products, loading } = useProducts();
+  const { addItem } = useCart();
+  const { toast } = useToast();
   const [quantity, setQuantity] = useState(1);
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [relatedProductsStartIndex, setRelatedProductsStartIndex] = useState(0);
-  const [relatedProductImageIndices, setRelatedProductImageIndices] = useState<{[key: string]: number}>({});
-  const [relatedProductQuantities, setRelatedProductQuantities] = useState<{[key: string]: number}>({});
+  
+  const product = getProductByProductId(products, id || "");
 
-  // Scroll to top when component mounts or id changes
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [id]);
-
-  // Extract product ID from URL format: product_name_sku
-  const getProductIdFromUrl = (urlId: string) => {
-    if (!urlId) return null;
-
-    // Split by underscore and take all parts except the last one (which is SKU)
-    const parts = urlId.split('_');
-    if (parts.length < 2) return urlId; // fallback to original if no SKU
-
-    // Remove the last part (SKU) and rejoin with hyphens
-    const productParts = parts.slice(0, -1); // Remove last element (SKU)
-    const productId = productParts.join('-'); // rejoin with hyphens
-
-    return productId;
-  };
-
-  const actualProductId = id;
-
-  // Sync quantity with existing cart item
-  useEffect(() => {
-    if (actualProductId) {
-      const existingItem = items.find(item => item.id === actualProductId);
-      if (existingItem) {
-        setQuantity(existingItem.quantity);
-      } else {
-        setQuantity(0);
-      }
-    }
-  }, [actualProductId, items]);
-
-  const products = {
-    "amethyst-cluster": {
-      id: "amethyst-cluster",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      detailedDescription: "This stunning Amethyst cluster is a powerful tool for spiritual protection and inner peace. Known as the 'Stone of Spiritual Protection', Amethyst creates a protective shield around the wearer, guarding against negative energies and psychic attacks. Its high vibrational energy promotes clarity of mind, emotional balance, and spiritual awareness. Perfect for meditation, chakra healing, and creating a sacred space in your home. Each cluster is naturally formed and unique, radiating beautiful purple hues that captivate the soul.",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5,
-      benefits: [
-        "Enhances spiritual awareness and intuition",
-        "Provides protection from negative energies",
-        "Promotes restful sleep and vivid dreams",
-        "Aids in meditation and mindfulness practices",
-        "Balances the crown chakra"
-      ],
-      specifications: {
-        "Weight": "150-200g",
-        "Size": "8-10cm",
-        "Origin": "Brazil",
-        "Chakra": "Crown & Third Eye",
-        "Element": "Air"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Sarah M.",
-          rating: 5,
-          review: "This amethyst cluster has completely transformed my meditation space. The energy is incredible and I feel so much more peaceful since placing it in my room. Highly recommend!",
-          date: "2 weeks ago",
-          verified: true
-        },
-        {
-          id: 2,
-          name: "Michael R.",
-          rating: 5,
-          review: "Beautiful piece! The purple color is stunning and the energy is very calming. I've been sleeping much better since I got this. Worth every penny.",
-          date: "1 month ago",
-          verified: true
-        },
-        {
-          id: 3,
-          name: "Luna K.",
-          rating: 4,
-          review: "Gorgeous amethyst cluster. Arrived safely packaged and exactly as described. The spiritual energy is amazing for my daily meditation practice.",
-          date: "3 weeks ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["angel-oracle-cards", "chakra-journal", "rose-quartz-heart"]
-    },
-    "angel-oracle-cards": {
-      id: "angel-oracle-cards",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      detailedDescription: "Connect with the divine realm through these beautiful Angel Oracle Cards. Each deck contains 44 cards featuring stunning angelic artwork and powerful messages from your guardian angels. These cards serve as a bridge between the earthly and celestial realms, offering guidance, comfort, and wisdom for your spiritual journey. Whether you're seeking answers to specific questions or daily inspiration, these cards will help you tap into angelic wisdom and receive divine guidance.",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5,
-      benefits: [
-        "Receive direct messages from your angels",
-        "Gain clarity on life decisions",
-        "Develop your intuitive abilities",
-        "Find comfort during difficult times",
-        "Strengthen your spiritual connection"
-      ],
-      specifications: {
-        "Cards": "44 Oracle Cards",
-        "Size": "3.5 x 5 inches",
-        "Material": "High-quality cardstock",
-        "Guidebook": "128-page instruction manual",
-        "Language": "English"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Rebecca M.",
-          rating: 5,
-          review: "These oracle cards are absolutely beautiful! The messages are always spot on and provide such clarity. I use them daily for guidance.",
-          date: "1 week ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "chakra-journal", "rose-quartz-heart"]
-    },
-    "healing-candle": {
-      id: "healing-candle",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      detailedDescription: "Immerse yourself in tranquility with our handcrafted Healing Candle infused with pure lavender essential oil. This sacred candle is made with natural soy wax and blessed with intention for healing and peace. The gentle lavender fragrance calms the mind, reduces stress, and promotes restful sleep. Perfect for meditation, prayer, or creating a peaceful atmosphere in your sacred space. Each candle burns for approximately 40 hours, filling your space with divine serenity.",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5,
-      benefits: [
-        "Promotes relaxation and stress relief",
-        "Enhances meditation and prayer",
-        "Improves sleep quality",
-        "Purifies and cleanses energy",
-        "Creates a sacred atmosphere"
-      ],
-      specifications: {
-        "Burn Time": "40 hours",
-        "Wax": "100% Natural Soy Wax",
-        "Fragrance": "Pure Lavender Essential Oil",
-        "Size": "3 x 4 inches",
-        "Weight": "300g"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Emma L.",
-          rating: 5,
-          review: "The most relaxing candle I've ever owned! The lavender scent is pure and not overpowering. Perfect for my evening meditation routine.",
-          date: "1 week ago",
-          verified: true
-        },
-        {
-          id: 2,
-          name: "David P.",
-          rating: 5,
-          review: "Amazing quality! Burns evenly and the scent fills the entire room. Has really helped with my sleep quality. Will definitely buy again.",
-          date: "2 weeks ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "chakra-journal", "rose-quartz-heart"]
-    },
-    "chakra-journal": {
-      id: "chakra-journal",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      detailedDescription: "Transform your thoughts into reality with this beautiful Chakra Journal designed for manifestation and spiritual growth. This sacred journal features chakra-aligned pages, guided prompts, and space for your deepest intentions. Each section corresponds to one of the seven chakras, helping you balance your energy centers while manifesting your desires. The high-quality paper and beautiful design make this journal a treasured companion on your spiritual journey.",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5,
-      benefits: [
-        "Manifest your dreams and intentions",
-        "Balance and align your chakras",
-        "Track your spiritual progress",
-        "Develop mindfulness and gratitude",
-        "Connect with your inner wisdom"
-      ],
-      specifications: {
-        "Pages": "200 lined pages",
-        "Size": "6 x 8 inches",
-        "Cover": "Hardcover with chakra symbols",
-        "Paper": "120gsm cream paper",
-        "Binding": "Lay-flat binding"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Maya S.",
-          rating: 5,
-          review: "This journal has completely changed my manifestation practice! The chakra-aligned pages help me focus my intentions perfectly.",
-          date: "1 week ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "angel-oracle-cards", "rose-quartz-heart"]
-    },
-    "rose-quartz-heart": {
-      id: "rose-quartz-heart",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      detailedDescription: "Open your heart to love with this beautiful Rose Quartz heart, known as the 'Stone of Unconditional Love'. This gentle pink crystal radiates loving energy, promoting self-love, emotional healing, and harmonious relationships. Rose Quartz helps heal emotional wounds, attracts love into your life, and encourages forgiveness and compassion. Perfect for heart chakra healing, meditation, or as a beautiful addition to your crystal collection.",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5,
-      benefits: [
-        "Attracts love and strengthens relationships",
-        "Promotes self-love and emotional healing",
-        "Opens and balances the heart chakra",
-        "Encourages forgiveness and compassion",
-        "Reduces stress and promotes inner peace"
-      ],
-      specifications: {
-        "Weight": "80-100g",
-        "Size": "5-6cm",
-        "Origin": "Madagascar",
-        "Chakra": "Heart",
-        "Element": "Water"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Grace L.",
-          rating: 5,
-          review: "This rose quartz heart has brought so much love and peace into my life. The energy is absolutely beautiful and calming.",
-          date: "2 weeks ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "chakra-journal", "chakra-stone-set"]
-    },
-    "chakra-stone-set": {
-      id: "chakra-stone-set",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      detailedDescription: "Achieve complete chakra balance with this powerful set of seven sacred stones, each carefully selected to correspond with the seven main chakras. This comprehensive kit includes Red Jasper (Root), Carnelian (Sacral), Citrine (Solar Plexus), Green Aventurine (Heart), Sodalite (Throat), Amethyst (Third Eye), and Clear Quartz (Crown). Each stone is cleansed and charged with healing intentions, ready to help you balance your energy centers and achieve optimal spiritual wellness.",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5,
-      benefits: [
-        "Balances all seven chakras",
-        "Enhances energy flow throughout the body",
-        "Promotes physical and emotional healing",
-        "Supports spiritual growth and development",
-        "Creates harmony and inner peace"
-      ],
-      specifications: {
-        "Stones": "7 chakra stones (20-25mm each)",
-        "Materials": "Natural gemstones",
-        "Packaging": "Velvet pouch included",
-        "Guide": "Chakra healing instruction card",
-        "Total Weight": "200-250g"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Alex K.",
-          rating: 5,
-          review: "This chakra stone set is absolutely perfect! Each stone has such powerful energy and the instruction card is very helpful. My energy feels so much more balanced.",
-          date: "1 week ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "rose-quartz-heart", "angel-oracle-cards"]
-    }
-  };
-
-  // Helper function to get testimonials for products that don't have them
-  const getTestimonials = (productId: string) => {
-    const defaultTestimonials = [
-      {
-        id: 1,
-        name: "Jessica T.",
-        rating: 5,
-        review: "Absolutely love this product! The quality is amazing and the spiritual energy is exactly what I was looking for. Highly recommend!",
-        date: "1 week ago",
-        verified: true
-      },
-      {
-        id: 2,
-        name: "Mark S.",
-        rating: 4,
-        review: "Great quality and fast shipping. This has become an essential part of my daily spiritual practice. Very satisfied with my purchase.",
-        date: "2 weeks ago",
-        verified: true
-      },
-      {
-        id: 3,
-        name: "Sophia R.",
-        rating: 5,
-        review: "Beautiful craftsmanship and powerful energy. I can feel the positive vibrations immediately. Worth every penny!",
-        date: "3 weeks ago",
-        verified: true
-      }
-    ];
-    return defaultTestimonials;
-  };
-
-  // Helper function to get related products (all products except current one)
-  const getRelatedProducts = (currentProductId: string) => {
-    const allProductIds = Object.keys(products);
-    return allProductIds.filter(id => id !== currentProductId);
-  };
-
-  const product = products[actualProductId as keyof typeof products];
-
-  // Static available quantity using product ID hash (same logic as ProductCard)
-  const getAvailableQuantity = (productId: string) => {
-    const hash = productId.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
-  };
-  const availableQuantity = getAvailableQuantity(actualProductId);
-
-  if (!product) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-6 py-16">
-          <div className="text-center">
-            <h1 className="text-2xl font-playfair text-angelic-deep mb-4">Product Not Found</h1>
-            <Link to="/">
-              <Button variant="angelic">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Products
-              </Button>
-            </Link>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="font-playfair text-2xl font-bold text-slate-800 mb-4">Loading...</h2>
+          <p className="text-slate-600">Fetching divine product details...</p>
         </div>
-        <AngelicFooter />
       </div>
     );
   }
 
-
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="font-playfair text-2xl font-bold text-slate-800 mb-4">Product Not Found</h2>
+          <p className="text-slate-600 mb-6">The sacred item you're looking for seems to have vanished into the ethereal realm.</p>
+          <Link to="/" className="inline-block bg-angelic-gold text-white px-6 py-3 rounded-lg hover:bg-angelic-gold/90 transition-colors">
+            Return to Sacred Collection
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleAddToCart = () => {
-    if (selectedQuantity > availableQuantity) {
-      alert(`Can't select quantity more than available. Available Quantity: ${availableQuantity}`);
-      return;
-    }
-
-    if (selectedQuantity > 0) {
-      // Add items to cart
-      addItem({ id: product.id, name: product.name, price: product.price, image: product.image }, selectedQuantity);
-    }
-  };
-
-  // Image slider functions
-  const nextImage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const images = getProductImages(product);
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
-
-  const prevImage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const images = getProductImages(product);
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
-
-  const selectImage = (index: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentImageIndex(index);
-  };
-
-  // Get images for the product (same as ProductCard)
-  const getProductImages = (product: any) => {
-    return [
-      product.image,   // Original product image
-      banner1, // Mockup 2 - lifestyle/banner image
-      banner2, // Mockup 3 - lifestyle/banner image
-      banner3, // Mockup 4 - lifestyle/banner image
-      banner4  // Mockup 5 - lifestyle/banner image
-    ];
-  };
-
-  // Related products slider functions (non-cyclic, max 4 visible)
-  const nextRelatedProducts = () => {
-    const relatedProducts = product.relatedProducts || getRelatedProducts(actualProductId);
-    const maxStartIndex = Math.max(0, relatedProducts.length - 4);
-    setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
-  };
-
-  const prevRelatedProducts = () => {
-    setRelatedProductsStartIndex((prev) => Math.max(prev - 1, 0));
-  };
-
-  // Related product image slider functions
-  const nextRelatedProductImage = (productId: string) => {
-    const relatedProduct = products[productId as keyof typeof products];
-    if (relatedProduct) {
-      const images = getProductImages(relatedProduct);
-      setRelatedProductImageIndices(prev => ({
-        ...prev,
-        [productId]: ((prev[productId] || 0) + 1) % images.length
-      }));
-    }
-  };
-
-  const prevRelatedProductImage = (productId: string) => {
-    const relatedProduct = products[productId as keyof typeof products];
-    if (relatedProduct) {
-      const images = getProductImages(relatedProduct);
-      setRelatedProductImageIndices(prev => ({
-        ...prev,
-        [productId]: ((prev[productId] || 0) - 1 + images.length) % images.length
-      }));
-    }
+    addItem({
+      id: product.product_id,
+      name: product.name,
+      price: product.price,
+      image: product.image
+    });
+    toast({
+      title: "Added to Cart!",
+      description: `${product.name} has been blessed and added to your cart.`,
+    });
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       <Navigation />
       
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <Link to="/" className="inline-flex items-center text-primary hover:text-primary/80 mb-6">
+      <div className="container mx-auto px-4 py-16">
+        <Link to="/" className="inline-flex items-center text-primary hover:text-primary/80 mb-8">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Products
         </Link>
         
-        <div className="grid lg:grid-cols-2 gap-12">
-          {/* Product Image Slider */}
+        <div className="grid md:grid-cols-2 gap-12 mb-16">
+          {/* Product Image */}
           <div className="space-y-4">
-            <div className="relative overflow-hidden rounded-xl group">
-              {/* Image Slider */}
-              <div className="relative">
-                <img
-                  src={getProductImages(product)[currentImageIndex]}
-                  alt={`${product.name} - Image ${currentImageIndex + 1}`}
-                  className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-105"
-                  key={currentImageIndex}
-                />
-
-                {/* Image Counter */}
-                <div className="absolute top-4 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  {currentImageIndex + 1}/{getProductImages(product).length}
-                </div>
-
-                {/* Slider Navigation */}
-                <button
-                  onClick={prevImage}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 shadow-lg hover:shadow-xl"
-                  aria-label="Previous image"
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-700" />
-                </button>
-
-                <button
-                  onClick={nextImage}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 shadow-lg hover:shadow-xl"
-                  aria-label="Next image"
-                >
-                  <ChevronRight className="w-5 h-5 text-gray-700" />
-                </button>
-
-                {/* Image Indicators */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  {getProductImages(product).map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={(e) => selectImage(index, e)}
-                      className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                        index === currentImageIndex
-                          ? 'bg-white shadow-lg scale-110'
-                          : 'bg-white/60 hover:bg-white/80 hover:scale-105'
-                      }`}
-                      aria-label={`Go to image ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
+            <div className="aspect-square overflow-hidden rounded-2xl shadow-2xl">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+              />
             </div>
           </div>
           
@@ -525,387 +87,79 @@ const ProductDetail = () => {
               ))}
             </div>
             
-            <h1 className="font-playfair font-bold text-3xl text-angelic-deep">
+            <h1 className="font-playfair text-4xl font-bold text-slate-800 mb-4">
               {product.name}
             </h1>
             
-            <p className="text-angelic-deep/70 text-lg">
+            <p className="text-slate-600 text-lg leading-relaxed mb-6">
               {product.description}
             </p>
             
-            <div className="flex items-center gap-3">
-              <span className="font-bold text-primary text-2xl">₹{product.price}</span>
-              {product.originalPrice && (
-                <span className="text-lg text-muted-foreground line-through">
-                  ₹{product.originalPrice}
-                </span>
+            <div className="flex items-center gap-4 mb-8">
+              <span className="text-3xl font-bold text-angelic-gold">₹{product.price}</span>
+              {product.original_price && (
+                <span className="text-2xl text-slate-400 line-through">₹{product.original_price}</span>
               )}
             </div>
             
-            {/* New Quantity Controls Design */}
             <div className="space-y-4">
-              {/* Quantity Dropdown - Centered */}
-              <div className="flex items-center justify-center gap-4">
-                <label className="font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
-                <Select value={selectedQuantity.toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
+              <p className="text-slate-600 text-lg leading-relaxed">{product.detailed_description}</p>
+              
+              {product.benefits && product.benefits.length > 0 && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl">
+                  <h3 className="font-playfair text-xl font-semibold text-slate-800 mb-4">Divine Benefits</h3>
+                  <ul className="space-y-2">
+                    {product.benefits.map((benefit, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <Sparkles className="w-5 h-5 text-angelic-gold mt-0.5 flex-shrink-0" />
+                        <span className="text-slate-700">{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {product.specifications && Object.keys(product.specifications).length > 0 && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl">
+                  <h3 className="font-playfair text-xl font-semibold text-slate-800 mb-4">Sacred Specifications</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(product.specifications).map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center py-2 border-b border-slate-200 last:border-b-0">
+                        <span className="font-medium text-slate-700">{key}:</span>
+                        <span className="text-slate-600">{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-4">
+                <Select value={quantity.toString()} onValueChange={(value) => setQuantity(parseInt(value))}>
                   <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Select quantity" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                      <SelectItem
-                        key={num}
-                        value={num.toString()}
-                        disabled={num > availableQuantity}
-                        className={num > availableQuantity ? "text-gray-400" : ""}
-                      >
-                        {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                    {[1, 2, 3, 4, 5].map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              {/* Add to Cart Button */}
-              <Button
-                onClick={handleAddToCart}
-                variant="divine"
-                size="lg"
-                className="w-full"
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                {(() => {
-                  const cartItem = items.find(item => item.id === actualProductId);
-                  const currentQuantity = cartItem?.quantity || 0;
-                  return `Add ${selectedQuantity} to Cart${currentQuantity > 0 ? ` (${currentQuantity} in cart)` : ''}`;
-                })()}
-              </Button>
-
-              {/* Available Quantity Info - Moved below button */}
-              <div className="text-center">
-                <span className="text-sm text-angelic-deep/70">
-                  Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
-                </span>
+                
+                <Button
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-gradient-to-r from-angelic-gold to-purple-600 hover:from-angelic-gold/90 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  Add to Cart
+                </Button>
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Detailed Description */}
-        <div className="mt-16 grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <Card className="p-6">
-              <h2 className="font-playfair font-semibold text-xl text-angelic-deep mb-4">
-                Product Description
-              </h2>
-              <p className="text-angelic-deep/80 leading-relaxed mb-6">
-                {product.detailedDescription}
-              </p>
-              
-              <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-3">
-                Spiritual Benefits
-              </h3>
-              <ul className="space-y-2">
-                {product.benefits.map((benefit, index) => (
-                  <li key={index} className="flex items-start gap-2 text-angelic-deep/80">
-                    <Star className="w-4 h-4 fill-angelic-gold text-angelic-gold mt-0.5 flex-shrink-0" />
-                    {benefit}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </div>
-          
-          <div>
-            <Card className="p-6">
-              <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-4">
-                Specifications
-              </h3>
-              <div className="space-y-3">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div key={key} className="flex justify-between">
-                    <span className="text-angelic-deep/70 font-medium">{key}:</span>
-                    <span className="text-angelic-deep">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        </div>
-
-        {/* Testimonials Section */}
-        <div className="mt-16">
-          <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
-            Customer Reviews
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(product.testimonials || getTestimonials(actualProductId)).map((testimonial) => (
-              <Card key={testimonial.id} className="p-6 hover:shadow-lg transition-shadow duration-300">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
-                    ))}
-                  </div>
-                  {testimonial.verified && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                      Verified Purchase
-                    </span>
-                  )}
-                </div>
-
-                <div className="relative mb-4">
-                  <Quote className="w-6 h-6 text-primary/20 absolute -top-2 -left-1" />
-                  <p className="text-angelic-deep/80 leading-relaxed pl-4">
-                    {testimonial.review}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-medium text-angelic-deep">{testimonial.name}</span>
-                  <span className="text-angelic-deep/60">{testimonial.date}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Related Products Section */}
-        <div className="mt-16 relative">
-          <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
-            Customers Also Bought
-          </h2>
-
-          {/* Slider Navigation - OUTSIDE the product container */}
-          <button
-            onClick={prevRelatedProducts}
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
-            aria-label="Previous products"
-            disabled={relatedProductsStartIndex === 0}
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-700" />
-          </button>
-
-          <button
-            onClick={nextRelatedProducts}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
-            aria-label="Next products"
-            disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
-          >
-            <ChevronRight className="w-5 h-5 text-gray-700" />
-          </button>
-
-          <div className="px-16">
-            <div className="relative group">
-
-            <div className="overflow-hidden">
-              <div className={`flex gap-6 transition-transform duration-300 ${
-                (product.relatedProducts || getRelatedProducts(actualProductId)).length <= 3 
-                  ? 'justify-center' 
-                  : ''
-              }`} style={{
-                transform: `translateX(-${relatedProductsStartIndex * (100 / 4)}%)`
-              }}>
-                {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
-                const relatedProduct = products[relatedId as keyof typeof products];
-                if (!relatedProduct) return null;
-
-                return (
-                  <div
-                    key={relatedId}
-                    className="flex-shrink-0 w-60 group"
-                  >
-                    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
-                      {/* Image Slider for Related Product */}
-                      <div className="relative group/image">
-                        <img
-                          src={getProductImages(relatedProduct)[relatedProductImageIndices[relatedId] || 0]}
-                          alt={`${relatedProduct.name} - Image ${(relatedProductImageIndices[relatedId] || 0) + 1}`}
-                          className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
-                        />
-
-                        {/* Image Navigation */}
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            prevRelatedProductImage(relatedId);
-                          }}
-                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10"
-                        >
-                          <ChevronLeft className="w-3 h-3 text-gray-700" />
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            nextRelatedProductImage(relatedId);
-                          }}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10"
-                        >
-                          <ChevronRight className="w-3 h-3 text-gray-700" />
-                        </button>
-
-                        {/* Image Indicators */}
-                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300">
-                          {getProductImages(relatedProduct).map((_, index) => (
-                            <button
-                              key={index}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setRelatedProductImageIndices(prev => ({
-                                  ...prev,
-                                  [relatedId]: index
-                                }));
-                              }}
-                              className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${
-                                index === (relatedProductImageIndices[relatedId] || 0)
-                                  ? 'bg-white'
-                                  : 'bg-white/50 hover:bg-white/75'
-                              }`}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      </div>
-                      <div className="p-4">
-                        <div className="flex items-center gap-1 mb-2">
-                          {[...Array(relatedProduct.rating)].map((_, i) => (
-                            <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                          ))}
-                        </div>
-                        <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors">
-                          {relatedProduct.name}
-                        </h3>
-                        <p className="text-sm text-angelic-deep/70 mb-3">
-                          {relatedProduct.description}...{" "}
-                          <Link to={`/product/${relatedId}`} className="inline">
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
-                            >
-                              Read More→
-                            </Button>
-                          </Link>
-                        </p>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="font-bold text-primary">₹{relatedProduct.price}</span>
-                          {relatedProduct.originalPrice && (
-                            <span className="text-sm text-muted-foreground line-through">
-                              ₹{relatedProduct.originalPrice}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="space-y-2">
-
-                          {/* New Quantity Controls Design for Related Products */}
-                          {(() => {
-                            const cartItem = items.find(item => item.id === relatedId);
-                            const currentQuantity = cartItem?.quantity || 0;
-                            const selectedQuantity = relatedProductQuantities[relatedId] || 1;
-                            // Static available quantity using product ID hash
-                            const getAvailableQuantity = (productId: string) => {
-                              const hash = productId.split('').reduce((a, b) => {
-                                a = ((a << 5) - a) + b.charCodeAt(0);
-                                return a & a;
-                              }, 0);
-                              return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
-                            };
-                            const availableQuantity = getAvailableQuantity(relatedId);
-
-                            console.log(`🛒 [Customers Also Bought] Product: ${relatedProduct.name} (ID: ${relatedId})`);
-                            console.log(`📊 Current cart item:`, cartItem);
-                            console.log(`🔢 Current quantity: ${currentQuantity}`);
-                            console.log(`🛍️ Total cart items:`, items.length);
-                            console.log(`📋 Full cart state:`, items);
-
-                            const handleAddToCart = (e: React.MouseEvent) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-
-                              if (selectedQuantity > availableQuantity) {
-                                alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
-                                return;
-                              }
-
-                              console.log(`🛒 [ADD TO CART] ${relatedProduct.name} - Adding ${selectedQuantity} items`);
-                              addItem({
-                                id: relatedProduct.id,
-                                name: relatedProduct.name,
-                                price: relatedProduct.price,
-                                image: relatedProduct.image
-                              }, selectedQuantity);
-                            };
-
-                            return (
-                              <div className="space-y-2">
-                                {/* Quantity Dropdown - Same Line - Centered */}
-                                <div className="flex items-center justify-center gap-2">
-                                  <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
-                                  <Select
-                                    value={(currentQuantity || selectedQuantity).toString()}
-                                    onValueChange={(value) => setRelatedProductQuantities(prev => ({
-                                      ...prev,
-                                      [relatedId]: parseInt(value)
-                                    }))}
-                                  >
-                                    <SelectTrigger className="w-16 h-8 text-xs">
-                                      <SelectValue placeholder="1" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                                        <SelectItem
-                                          key={num}
-                                          value={num.toString()}
-                                          disabled={num > availableQuantity}
-                                          className={num > availableQuantity ? "text-gray-400" : ""}
-                                        >
-                                          {num} {num > availableQuantity ? "(Out of stock)" : ""}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                {/* Add to Cart Button */}
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="w-full text-xs"
-                                  onClick={handleAddToCart}
-                                >
-                                  <ShoppingCart className="w-3 h-3 mr-1" />
-                                  Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
-                                </Button>
-
-                                {/* Available Quantity Info */}
-                                <div className="text-center">
-                                  <span className="text-xs text-angelic-deep/70">
-                                    Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                );
-              })}
-              </div>
-            </div>
-          </div>
           </div>
         </div>
       </div>
-
+      
       <AngelicFooter />
     </div>
   );
