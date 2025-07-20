@@ -11,6 +11,7 @@ import chakraKitImage from "@/assets/product-chakra-kit.jpg";
 
 export interface Product {
   id: string;
+  sku: string;
   name: string;
   description: string;
   detailedDescription: string;
@@ -29,6 +30,7 @@ export interface Product {
 export const PRODUCTS: Product[] = [
   {
     id: "amethyst-cluster",
+    sku: "654567652",
     name: "Amethyst Cluster",
     description: "Divine Protection & Peace - Enhance your spiritual connection",
     detailedDescription: "This stunning Amethyst cluster is a powerful tool for spiritual protection and inner peace. Known as the 'Stone of Spiritual Protection', Amethyst creates a protective shield around the wearer, guarding against negative energies and psychic attacks. Its high vibrational energy promotes clarity of mind, emotional balance, and spiritual awareness. Perfect for meditation, chakra healing, and creating a sacred space in your home. Each cluster is naturally formed and unique, radiating beautiful purple hues that captivate the soul.",
@@ -58,6 +60,7 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "angel-oracle-cards",
+    sku: "789123456",
     name: "Angel Oracle Cards",
     description: "Celestial Guidance - Connect with your guardian angels",
     detailedDescription: "This beautiful 44-card oracle deck serves as a direct communication channel with your guardian angels and spiritual guides. Each card features stunning angelic artwork and carries divine messages of love, guidance, and protection. Perfect for daily guidance, meditation, or when seeking answers to life's important questions. The accompanying guidebook provides detailed interpretations and spreads to deepen your connection with the angelic realm.",
@@ -87,6 +90,7 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "healing-candle",
+    sku: "321987654",
     name: "Healing Candle",
     description: "Lavender Serenity - Aromatherapy for mind & soul",
     detailedDescription: "Hand-poured with pure lavender essential oil and blessed with healing intentions, this sacred candle creates a sanctuary of peace in your space. The gentle lavender fragrance promotes relaxation, reduces stress, and enhances spiritual practices. Made with natural soy wax and a cotton wick, it burns cleanly for up to 40 hours. Perfect for meditation, prayer, healing rituals, or simply creating a calming atmosphere in your home.",
@@ -116,6 +120,7 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "chakra-journal",
+    sku: "456789123",
     name: "Chakra Journal",
     description: "Sacred Writing - Manifest your dreams & intentions",
     detailedDescription: "This beautifully crafted journal is designed to support your spiritual journey and manifestation practice. Featuring chakra-aligned pages with guided prompts, affirmations, and space for reflection, it helps you align your energy centers and manifest your deepest desires. The high-quality paper and sacred geometry cover design make this journal a treasured companion for daily spiritual practice, gratitude work, and intention setting.",
@@ -145,6 +150,7 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "rose-quartz-heart",
+    sku: "987654321",
     name: "Rose Quartz Heart",
     description: "Unconditional Love - Open your heart chakra",
     detailedDescription: "This beautiful Rose Quartz heart is carved from the finest quality stone, radiating pure love energy throughout your space. Known as the 'Stone of Unconditional Love', Rose Quartz opens and heals the heart chakra, promoting self-love, compassion, and emotional healing. Its gentle pink energy soothes emotional wounds, attracts love, and creates harmony in relationships. Perfect for meditation, healing work, or as a beautiful reminder of love's power.",
@@ -174,6 +180,7 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "chakra-stone-set",
+    sku: "147258369",
     name: "Chakra Stone Set",
     description: "Complete Balance - Seven sacred stones for alignment",
     detailedDescription: "This complete chakra stone set includes seven carefully selected crystals, each corresponding to one of the main energy centers in your body. From grounding Red Jasper for the root chakra to enlightening Amethyst for the crown chakra, this set provides everything you need for chakra balancing, meditation, and energy healing. Each stone is cleansed and charged with healing intentions, ready to support your spiritual journey and energy work.",
