@@ -143,13 +143,35 @@ const Admin = () => {
     e.preventDefault();
     setLoginError("");
 
+    // Demo login fallback
+    if (credentials.email === "admin@angelsonearth.com" && credentials.password === "divine123") {
+      // Set a demo user in the auth store
+      const demoUser = {
+        id: "demo-admin-id",
+        email: "admin@angelsonearth.com",
+        user_metadata: { role: "admin", name: "Demo Admin" },
+        app_metadata: {},
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as any;
+
+      // Manually set the auth state for demo
+      useAuth.setState({
+        user: demoUser,
+        isAuthenticated: true,
+        loading: false
+      });
+      return;
+    }
+
     try {
       const success = await login(credentials.email, credentials.password);
       if (!success) {
-        setLoginError("Invalid email or password. Please try again.");
+        setLoginError("Invalid email or password. Please try demo credentials: admin@angelsonearth.com / divine123");
       }
     } catch (error) {
-      setLoginError("Login failed. Please try again.");
+      setLoginError("Login failed. Please try demo credentials: admin@angelsonearth.com / divine123");
     }
   };
 
@@ -289,9 +311,27 @@ const Admin = () => {
             <Button type="submit" className="w-full">
               Sign In
             </Button>
-            <p className="text-sm text-slate-500 text-center">
-              Use your Supabase account credentials
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-sm text-slate-500">Demo Credentials:</p>
+              <div className="bg-slate-50 p-3 rounded text-sm">
+                <p><strong>Email:</strong> admin@angelsonearth.com</p>
+                <p><strong>Password:</strong> divine123</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCredentials({
+                    email: "admin@angelsonearth.com",
+                    password: "divine123"
+                  });
+                }}
+                className="text-xs"
+              >
+                Fill Demo Credentials
+              </Button>
+            </div>
           </form>
         </Card>
       </div>
