@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Star, ChevronLeft, ChevronRight, Plus, Minus } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 
@@ -38,6 +39,10 @@ const ProductCard = ({
   const cartItem = items.find(item => item.id === id);
   const currentQuantity = cartItem?.quantity || 0;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
+
+  // Mock available quantity (in real app, this would come from props or API)
+  const availableQuantity = Math.floor(Math.random() * 15) + 5; // Random between 5-20
 
   // Create 5 mockup images - using the main image and banner images as variations
   const images = [
@@ -49,10 +54,15 @@ const ProductCard = ({
   ];
 
   const handleAddToCart = () => {
-    console.log('🛒 Add to Cart clicked for:', { id, name, price });
+    if (selectedQuantity > availableQuantity) {
+      alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+      return;
+    }
+
+    console.log('🛒 Add to Cart clicked for:', { id, name, price, selectedQuantity });
     console.log('🖼️ Image parameter:', image);
     console.log('📦 Full product object being added:', { id, name, price, image });
-    addItem({ id, name, price, image }, 1);
+    addItem({ id, name, price, image }, selectedQuantity);
     // Note: items state won't update immediately due to React async state updates
     setTimeout(() => {
       console.log('🛒 Cart state after 100ms:', items);
@@ -187,37 +197,47 @@ const ProductCard = ({
           )}
         </div>
         
-        {/* Dynamic Add to Cart / Quantity Controls */}
-        {currentQuantity > 0 ? (
-          <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-2 py-1.5 w-full">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
-              onClick={handleQuantityDecrease}
-            >
-              <Minus className="w-3 h-3" />
-            </Button>
-            <span className="text-xs font-medium px-2 min-w-[20px] text-center text-primary-foreground">{currentQuantity}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
-              onClick={handleQuantityIncrease}
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
+        {/* New Quantity Controls Design */}
+        <div className="space-y-3">
+          {/* Quantity Dropdown */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-angelic-deep">Quantity:</label>
+            <Select value={selectedQuantity.toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select quantity" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                  <SelectItem
+                    key={num}
+                    value={num.toString()}
+                    disabled={num > availableQuantity}
+                    className={num > availableQuantity ? "text-gray-400" : ""}
+                  >
+                    {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ) : (
+
+          {/* Add to Cart Button - Always visible */}
           <Button
             onClick={handleAddToCart}
             variant="angelic"
             className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
-            Add to Cart
+            Add to Cart {currentQuantity > 0 && `(${currentQuantity} in cart)`}
           </Button>
-        )}
+
+          {/* Available Quantity Info */}
+          <div className="text-center">
+            <span className="text-xs text-angelic-deep/70">
+              Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+            </span>
+          </div>
+        </div>
       </div>
     </Card>
   );

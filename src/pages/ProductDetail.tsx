@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import Navigation from "@/components/Navigation";
@@ -29,6 +30,7 @@ const ProductDetail = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [relatedProductsStartIndex, setRelatedProductsStartIndex] = useState(0);
   const [relatedProductImageIndices, setRelatedProductImageIndices] = useState<{[key: string]: number}>({});
+  const [relatedProductQuantities, setRelatedProductQuantities] = useState<{[key: string]: number}>({});
 
   // Scroll to top when component mounts or id changes
   useEffect(() => {
@@ -784,10 +786,12 @@ const ProductDetail = () => {
                             </Button>
                           </Link>
 
-                          {/* Quantity Controls for Related Product */}
+                          {/* New Quantity Controls Design for Related Products */}
                           {(() => {
                             const cartItem = items.find(item => item.id === relatedId);
                             const currentQuantity = cartItem?.quantity || 0;
+                            const selectedQuantity = relatedProductQuantities[relatedId] || 1;
+                            const availableQuantity = Math.floor(Math.random() * 15) + 5; // Random between 5-20
 
                             console.log(`🛒 [Customers Also Bought] Product: ${relatedProduct.name} (ID: ${relatedId})`);
                             console.log(`📊 Current cart item:`, cartItem);
@@ -795,79 +799,72 @@ const ProductDetail = () => {
                             console.log(`🛍️ Total cart items:`, items.length);
                             console.log(`📋 Full cart state:`, items);
 
-                            return currentQuantity > 0 ? (
-                              <div className="flex items-center justify-center gap-1 bg-primary text-primary-foreground rounded-md px-2 py-1.5">
+                            const handleAddToCart = (e: React.MouseEvent) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+
+                              if (selectedQuantity > availableQuantity) {
+                                alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+                                return;
+                              }
+
+                              console.log(`🛒 [ADD TO CART] ${relatedProduct.name} - Adding ${selectedQuantity} items`);
+                              addItem({
+                                id: relatedProduct.id,
+                                name: relatedProduct.name,
+                                price: relatedProduct.price,
+                                image: relatedProduct.image
+                              }, selectedQuantity);
+                            };
+
+                            return (
+                              <div className="space-y-2">
+                                {/* Quantity Dropdown */}
+                                <div className="space-y-1">
+                                  <label className="text-xs font-medium text-angelic-deep">Qty:</label>
+                                  <Select
+                                    value={selectedQuantity.toString()}
+                                    onValueChange={(value) => setRelatedProductQuantities(prev => ({
+                                      ...prev,
+                                      [relatedId]: parseInt(value)
+                                    }))}
+                                  >
+                                    <SelectTrigger className="w-full h-8 text-xs">
+                                      <SelectValue placeholder="1" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                        <SelectItem
+                                          key={num}
+                                          value={num.toString()}
+                                          disabled={num > availableQuantity}
+                                          className={num > availableQuantity ? "text-gray-400" : ""}
+                                        >
+                                          {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {/* Add to Cart Button */}
                                 <Button
-                                  variant="ghost"
+                                  variant="default"
                                   size="sm"
-                                  className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log(`➖ [DECREASE] ${relatedProduct.name} - Current: ${currentQuantity}`);
-                                    if (currentQuantity > 1) {
-                                      console.log(`📝 Updating quantity from ${currentQuantity} to ${currentQuantity - 1}`);
-                                      addItem({
-                                        id: relatedProduct.id,
-                                        name: relatedProduct.name,
-                                        price: relatedProduct.price,
-                                        image: relatedProduct.image
-                                      }, currentQuantity - 1);
-                                    } else {
-                                      console.log(`🗑️ Removing item ${relatedProduct.name} from cart`);
-                                      removeItem(relatedProduct.id);
-                                    }
-                                  }}
+                                  className="w-full text-xs"
+                                  onClick={handleAddToCart}
                                 >
-                                  <Minus className="w-3 h-3" />
+                                  <ShoppingCart className="w-3 h-3 mr-1" />
+                                  Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
                                 </Button>
-                                <span className="text-xs font-medium px-2 min-w-[20px] text-center text-primary-foreground">{currentQuantity}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="w-6 h-6 p-0 text-xs hover:bg-primary-foreground/20 text-primary-foreground"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log(`➕ [INCREASE] ${relatedProduct.name} - Current: ${currentQuantity}`);
-                                    console.log(`📝 Updating quantity from ${currentQuantity} to ${currentQuantity + 1}`);
-                                    addItem({
-                                      id: relatedProduct.id,
-                                      name: relatedProduct.name,
-                                      price: relatedProduct.price,
-                                      image: relatedProduct.image
-                                    }, currentQuantity + 1);
-                                  }}
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </Button>
+
+                                {/* Available Quantity Info */}
+                                <div className="text-center">
+                                  <span className="text-xs text-angelic-deep/70">
+                                    Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                  </span>
+                                </div>
                               </div>
-                            ) : (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="w-full text-xs"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log(`🛒 [ADD TO CART] ${relatedProduct.name} - Adding first item`);
-                                  console.log(`📦 Product details:`, {
-                                    id: relatedProduct.id,
-                                    name: relatedProduct.name,
-                                    price: relatedProduct.price,
-                                    image: relatedProduct.image
-                                  });
-                                  addItem({
-                                    id: relatedProduct.id,
-                                    name: relatedProduct.name,
-                                    price: relatedProduct.price,
-                                    image: relatedProduct.image
-                                  }, 1);
-                                }}
-                              >
-                                <ShoppingCart className="w-3 h-3 mr-1" />
-                                Add to Cart
-                              </Button>
                             );
                           })()}
                         </div>
