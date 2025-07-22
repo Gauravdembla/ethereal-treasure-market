@@ -1258,57 +1258,6 @@ const Admin = () => {
           </div>
 
           <div className="flex-1 p-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Total Users</p>
-                    <p className="text-2xl font-bold">{mockUsers.length}</p>
-                  </div>
-                </div>
-              </Card>
-              
-              <Card className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <Package className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Total Orders</p>
-                    <p className="text-2xl font-bold">{mockOrders.length}</p>
-                  </div>
-                </div>
-              </Card>
-              
-              <Card className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Coins className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Angel Coins Issued</p>
-                    <p className="text-2xl font-bold">32.5K</p>
-                  </div>
-                </div>
-              </Card>
-              
-              <Card className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Settings className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Revenue</p>
-                    <p className="text-2xl font-bold">₹45.2K</p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
             {/* Content */}
             {renderContent()}
           </div>
