@@ -24,6 +24,22 @@ const Navigation = () => {
             </h1>
           </div>
 
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center space-x-6">
+            <a
+              href="/"
+              className="text-angelic-deep hover:text-primary transition-colors font-medium"
+            >
+              Shop
+            </a>
+            <a
+              href="/angelthon"
+              className="text-angelic-deep hover:text-primary transition-colors font-medium"
+            >
+              AngelThon
+            </a>
+          </div>
+
           {/* Right side - Cart, Login/User */}
           <div className="flex items-center gap-4">
             {/* Cart */}
