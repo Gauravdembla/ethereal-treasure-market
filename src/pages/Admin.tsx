@@ -42,6 +42,7 @@ const Admin = () => {
   const activeSection = searchParams.get('section') || 'dashboard';
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
     angelthon: false,
+    'angelthon-7': false,
     shop: false
   });
 
@@ -387,12 +388,20 @@ const Admin = () => {
       icon: Trophy,
       type: "dropdown",
       children: [
-        { id: "angelthon-leaderboard", label: "Leaderboard", icon: Trophy },
-        { id: "angelthon-participants", label: "Participants", icon: Users },
-        { id: "angelthon-achievements", label: "Achievements", icon: Trophy },
-        { id: "angelthon-resources", label: "Resources", icon: FileText },
-        { id: "angelthon-events", label: "Events", icon: Calendar },
-        { id: "angelthon-facilitators", label: "Facilitators", icon: Users },
+        { id: "angelthon-setup", label: "Setup AngelThon", icon: Settings },
+        {
+          id: "angelthon-7",
+          label: "AngelThon 7.0",
+          icon: Trophy,
+          type: "nested-dropdown",
+          children: [
+            { id: "angelthon-leaderboard", label: "Leaderboard", icon: Trophy },
+            { id: "angelthon-facilitators", label: "Facilitators", icon: Users },
+            { id: "angelthon-achievements", label: "Achievements", icon: Trophy },
+            { id: "angelthon-resources", label: "Resources", icon: FileText },
+            { id: "angelthon-events", label: "Events", icon: Calendar },
+          ]
+        },
       ]
     },
 
@@ -599,6 +608,17 @@ const Admin = () => {
         );
 
       // AngelThon Sections
+      case "angelthon-setup":
+        return (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Setup AngelThon</h2>
+            <p className="text-slate-600 mb-4">Configure AngelThon settings and initial setup</p>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <p className="text-purple-800">AngelThon setup and configuration functionality will be implemented here.</p>
+            </div>
+          </Card>
+        );
+
       case "angelthon-leaderboard":
         return <LeaderboardManagement />;
 
@@ -1157,16 +1177,52 @@ const Admin = () => {
                           {expandedSections[item.id] && item.children && (
                             <div className="ml-6 mt-1 space-y-1">
                               {item.children.map((child) => (
-                                <SidebarMenuButton
-                                  key={child.id}
-                                  onClick={() => handleSectionChange(child.id)}
-                                  className={`w-full justify-start text-sm ${
-                                    activeSection === child.id ? "bg-primary text-primary-foreground" : ""
-                                  }`}
-                                >
-                                  <child.icon className="w-3 h-3 mr-2" />
-                                  {child.label}
-                                </SidebarMenuButton>
+                                <div key={child.id}>
+                                  {child.type === "nested-dropdown" ? (
+                                    <div>
+                                      <SidebarMenuButton
+                                        onClick={() => toggleSection(child.id)}
+                                        className="w-full justify-between text-sm"
+                                      >
+                                        <div className="flex items-center">
+                                          <child.icon className="w-3 h-3 mr-2" />
+                                          {child.label}
+                                        </div>
+                                        {expandedSections[child.id] ? (
+                                          <ChevronDown className="w-3 h-3" />
+                                        ) : (
+                                          <ChevronRight className="w-3 h-3" />
+                                        )}
+                                      </SidebarMenuButton>
+                                      {expandedSections[child.id] && child.children && (
+                                        <div className="ml-4 mt-1 space-y-1">
+                                          {child.children.map((nestedChild) => (
+                                            <SidebarMenuButton
+                                              key={nestedChild.id}
+                                              onClick={() => handleSectionChange(nestedChild.id)}
+                                              className={`w-full justify-start text-xs ${
+                                                activeSection === nestedChild.id ? "bg-primary text-primary-foreground" : ""
+                                              }`}
+                                            >
+                                              <nestedChild.icon className="w-3 h-3 mr-2" />
+                                              {nestedChild.label}
+                                            </SidebarMenuButton>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <SidebarMenuButton
+                                      onClick={() => handleSectionChange(child.id)}
+                                      className={`w-full justify-start text-sm ${
+                                        activeSection === child.id ? "bg-primary text-primary-foreground" : ""
+                                      }`}
+                                    >
+                                      <child.icon className="w-3 h-3 mr-2" />
+                                      {child.label}
+                                    </SidebarMenuButton>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           )}
