@@ -38,9 +38,13 @@ const demoLeaderboardData: LeaderboardMember[] = [
 
 const fetchLeaderboardWithFallback = async (): Promise<LeaderboardMember[]> => {
   try {
-    return await fetchLeaderboardData();
+    console.log('🏆 Attempting to fetch leaderboard data...');
+    const data = await fetchLeaderboardData();
+    console.log('✅ Successfully fetched leaderboard data:', data?.length || 0, 'members');
+    return data;
   } catch (error) {
-    console.log('Using demo leaderboard data');
+    console.error('❌ Error fetching leaderboard data:', error);
+    console.log('🔄 Using demo leaderboard data as fallback');
     return demoLeaderboardData;
   }
 };

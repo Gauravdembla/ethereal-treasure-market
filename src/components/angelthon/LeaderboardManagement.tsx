@@ -1,11 +1,96 @@
 
-import { Trophy, Medal, Award, Star, TrendingUp, Search, ArrowLeft } from "lucide-react";
+import { Trophy, Medal, Award, Star, TrendingUp, Search, ArrowLeft, Crown, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useMemo } from "react";
 import { useLeaderboardData } from "@/hooks/angelthon/useLeaderboardData";
+import { LeaderboardMember } from "@/services/secureGoogleSheetsService";
+
+// MemberCard Component
+const MemberCard = ({ member, isTop3 }: { member: LeaderboardMember; isTop3: boolean }) => {
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
+      case 1: return <Crown className="h-5 w-5 text-yellow-500" />;
+      case 2: return <Medal className="h-5 w-5 text-gray-400" />;
+      case 3: return <Award className="h-5 w-5 text-amber-600" />;
+      default: return <span className="text-sm font-bold text-gray-600">#{rank}</span>;
+    }
+  };
+
+  const getLevelColor = (level: string) => {
+    switch (level?.toLowerCase()) {
+      case 'gold': return 'bg-yellow-100 text-yellow-800';
+      case 'silver': return 'bg-gray-100 text-gray-800';
+      case 'bronze': return 'bg-amber-100 text-amber-800';
+      default: return 'bg-blue-100 text-blue-800';
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between p-4 hover:bg-white/50 transition-colors">
+      <div className="flex items-center space-x-4">
+        {/* Rank */}
+        <div className="flex items-center justify-center w-8 h-8">
+          {getRankIcon(member.rank)}
+        </div>
+
+        {/* Avatar */}
+        <img
+          src={member.avatar}
+          alt={member.name}
+          className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+        />
+
+        {/* Member Info */}
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 mb-1">
+            <h3 className="font-semibold text-gray-800">{member.name}</h3>
+            {member.level && (
+              <Badge className={getLevelColor(member.level)}>
+                {member.level}
+              </Badge>
+            )}
+          </div>
+
+          {/* Badges */}
+          {member.badges && member.badges.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {member.badges.slice(0, 3).map((badge, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {badge}
+                </Badge>
+              ))}
+              {member.badges.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{member.badges.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Points and Growth */}
+      <div className="text-right">
+        <div className="flex items-center space-x-2 mb-1">
+          <Trophy className="h-4 w-4 text-yellow-500" />
+          <span className="font-bold text-lg text-gray-800">
+            {member.points.toLocaleString()}
+          </span>
+        </div>
+
+        {member.weeklyGrowth !== undefined && member.weeklyGrowth > 0 && (
+          <div className="flex items-center space-x-1 text-green-600">
+            <TrendingUp className="h-3 w-3" />
+            <span className="text-xs font-medium">+{member.weeklyGrowth}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const LeaderboardManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,22 +141,15 @@ const LeaderboardManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      {/* Back Button */}
-      <div className="absolute top-4 left-4 z-10">
-        <Link to="/">
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-white/70 backdrop-blur-sm border-white/50 hover:bg-white/90"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </Link>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">AngelThon Leaderboard</h2>
+          <p className="text-gray-600">View and manage leaderboard rankings</p>
+        </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 rounded-lg p-6">
         {/* Header with Search */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
