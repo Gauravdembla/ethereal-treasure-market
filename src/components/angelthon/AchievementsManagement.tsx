@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trophy, Star, Award, Edit, Trash2 } from "lucide-react";
+import { useSectionToggles } from "@/hooks/angelthon/useSectionToggles";
+import { Plus, Trophy, Star, Award, Edit, Trash2, Settings } from "lucide-react";
 
 interface Achievement {
   id: number;
@@ -22,6 +24,7 @@ interface Achievement {
 }
 
 const AchievementsManagement = () => {
+  const { getToggleStatus, updateToggle } = useSectionToggles();
   const [achievements, setAchievements] = useState<Achievement[]>([
     { 
       id: 1, 
@@ -56,6 +59,9 @@ const AchievementsManagement = () => {
   ]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const achievementsSectionEnabled = getToggleStatus('achievements');
+
   const [newAchievement, setNewAchievement] = useState({
     title: '',
     description: '',
@@ -138,7 +144,16 @@ const AchievementsManagement = () => {
           <p className="text-gray-600">Create and manage achievements and badges for users</p>
         </div>
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Settings className="h-4 w-4" />
+            <span className="text-sm">Section Enabled:</span>
+            <Switch
+              checked={achievementsSectionEnabled}
+              onCheckedChange={(checked) => updateToggle('achievements', checked)}
+            />
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
               <Plus className="h-4 w-4 mr-2" />
@@ -221,6 +236,7 @@ const AchievementsManagement = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

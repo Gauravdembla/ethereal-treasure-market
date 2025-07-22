@@ -22,6 +22,7 @@ import SecuritySettings from "@/components/angelthon/SecuritySettings";
 import EmailSettings from "@/components/angelthon/EmailSettings";
 import RolesManagement from "@/components/angelthon/RolesManagement";
 import LeaderboardManagement from "@/components/angelthon/LeaderboardManagement";
+import CalendarManagement from "@/components/angelthon/CalendarManagement";
 import { useAuth } from "@/hooks/useAuth";
 
 // Import product images
@@ -400,6 +401,7 @@ const Admin = () => {
             { id: "angelthon-achievements", label: "Achievements", icon: Trophy },
             { id: "angelthon-resources", label: "Resources", icon: FileText },
             { id: "angelthon-events", label: "Events", icon: Calendar },
+            { id: "angelthon-calendar", label: "Calendar", icon: Calendar },
           ]
         },
       ]
@@ -644,6 +646,9 @@ const Admin = () => {
 
       case "angelthon-facilitators":
         return <FacilitatorsManagement />;
+
+      case "angelthon-calendar":
+        return <CalendarManagement />;
 
       case "shop-products":
         return (
