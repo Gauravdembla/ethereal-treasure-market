@@ -15,7 +15,7 @@ import LoginDialog from "@/components/LoginDialog";
 const Checkout = () => {
   const { items, updateQuantity, removeItem, clearCart } = useCart();
   const { user, getUserRole } = useAuth();
-  const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, calculateRedemptionValue, loading: angelCoinsLoading } = useAngelCoins();
+  const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, getMaxRedemptionValue, calculateGSTBreakdown, calculateRedemptionValue, loading: angelCoinsLoading } = useAngelCoins();
   const navigate = useNavigate();
 
   // Get user information
@@ -37,15 +37,25 @@ const Checkout = () => {
 
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
 
-  // Calculate max redeemable coins using the centralized hook
+  // Calculate GST breakdown
+  const gstBreakdown = calculateGSTBreakdown(subtotal);
+  const { baseAmount, gstAmount } = gstBreakdown;
+
+  // Calculate max redeemable coins (5% of base amount)
   const maxRedeemableCoins = getMaxRedeemableCoins(subtotal);
+  const maxRedemptionValue = getMaxRedemptionValue(subtotal);
 
   // Check if user has enough coins and meets minimum requirement
   const canRedeemAngelCoins = angelCoins >= minAngelCoinsRequired && !angelCoinsLoading;
   const actualMaxRedeemableCoins = canRedeemAngelCoins ? maxRedeemableCoins : 0;
 
+  // Calculate Angel Coins discount (applied to base amount)
   const angelCoinsDiscount = calculateRedemptionValue(angelCoinsToRedeem[0]);
-  const total = Math.max(0, subtotal - discount - angelCoinsDiscount);
+
+  // Calculate final amounts
+  const discountedBaseAmount = Math.max(0, baseAmount - discount - angelCoinsDiscount);
+  const finalGstAmount = discountedBaseAmount * 0.18;
+  const total = discountedBaseAmount + finalGstAmount;
 
   const applyCoupon = () => {
     if (couponCode.toLowerCase() === "welcome10") {
@@ -230,6 +240,9 @@ const Checkout = () => {
                           You currently have {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} Angel Coins.
                           Keep shopping to earn more Angel Coins!
                         </p>
+                        <p className="text-xs text-yellow-700 mt-2">
+                          <strong>Note:</strong> Angel Coins can be redeemed up to 5% of base amount (before GST).
+                        </p>
                       </div>
                     </div>
                   )}
@@ -270,9 +283,11 @@ const Checkout = () => {
                           <span>Max: {actualMaxRedeemableCoins.toLocaleString()} coins</span>
                         </div>
                       </div>
-                      <p className="text-xs text-angelic-deep/60">
-                        1 Angel Coin = ₹{exchangeRateINR.toFixed(2)} | Max 50% of order value
-                      </p>
+                      <div className="text-xs text-angelic-deep/60 space-y-1">
+                        <p>1 Angel Coin = ₹{exchangeRateINR.toFixed(2)}</p>
+                        <p>Max 5% of base amount (₹{baseAmount.toFixed(2)}) = ₹{maxRedemptionValue.toFixed(2)}</p>
+                        <p>Max redeemable: {maxRedeemableCoins.toLocaleString()} coins</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -285,8 +300,8 @@ const Checkout = () => {
               {/* Pricing Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
+                  <span>Base Amount</span>
+                  <span>₹{baseAmount.toFixed(2)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
@@ -300,9 +315,17 @@ const Checkout = () => {
                     <span>-₹{angelCoinsDiscount.toFixed(2)}</span>
                   </div>
                 )}
+                <div className="flex justify-between">
+                  <span>Discounted Base</span>
+                  <span>₹{discountedBaseAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>GST (18%)</span>
+                  <span>₹{finalGstAmount.toFixed(2)}</span>
+                </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
-                  <span>Total</span>
+                  <span>Total Amount</span>
                   <span className="text-primary">₹{total.toFixed(2)}</span>
                 </div>
               </div>

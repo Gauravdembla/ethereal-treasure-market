@@ -75,11 +75,35 @@ export const useAngelCoins = () => {
     return coins * angelCoinsData.exchangeRateINR;
   };
 
+  const calculateGSTBreakdown = (cartTotal: number) => {
+    // Calculate base amount from total (reverse GST calculation)
+    // If total includes 18% GST: Total = Base + (Base * 0.18) = Base * 1.18
+    // So Base = Total / 1.18
+    const baseAmount = cartTotal / 1.18;
+    const gstAmount = cartTotal - baseAmount;
+
+    return {
+      baseAmount: Math.round(baseAmount * 100) / 100, // Round to 2 decimal places
+      gstAmount: Math.round(gstAmount * 100) / 100,
+      gstPercentage: 18
+    };
+  };
+
   const getMaxRedeemableCoins = (cartTotal: number): number => {
-    // Maximum 50% of cart total can be paid with Angel Coins
-    const maxRedemptionValue = cartTotal * 0.5;
+    // Calculate base amount (before GST)
+    const { baseAmount } = calculateGSTBreakdown(cartTotal);
+
+    // Maximum 5% of base amount can be paid with Angel Coins
+    const maxRedemptionValue = baseAmount * 0.05;
     const maxCoins = Math.floor(maxRedemptionValue / angelCoinsData.exchangeRateINR);
+
+    // Return the minimum of calculated max coins and user's actual balance
     return Math.min(maxCoins, angelCoinsData.balance);
+  };
+
+  const getMaxRedemptionValue = (cartTotal: number): number => {
+    const { baseAmount } = calculateGSTBreakdown(cartTotal);
+    return baseAmount * 0.05; // 5% of base amount
   };
 
   const canRedeem = (coins: number): boolean => {
@@ -165,6 +189,8 @@ export const useAngelCoins = () => {
     loading: angelCoinsData.loading,
     calculateRedemptionValue,
     getMaxRedeemableCoins,
+    getMaxRedemptionValue,
+    calculateGSTBreakdown,
     canRedeem,
     redeemCoins,
     updateBalance,
