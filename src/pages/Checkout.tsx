@@ -313,6 +313,77 @@ const Checkout = () => {
                 ))}
               </div>
             </Card>
+
+            {/* Dynamic Customers Also Bought - Vertical Layout */}
+            {relatedProducts.length > 0 && showAsCard && (
+              <div className="space-y-6">
+                <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
+                  Customers Also Bought
+                </h3>
+                <div className="space-y-4">
+                  {relatedProducts.slice(0, 6).map((relatedProduct) => {
+                    const relatedProductId = relatedProduct.product_id;
+                    const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                    const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                    
+                    return (
+                      <Card key={relatedProductId} className="flex gap-4 p-4 hover:shadow-lg transition-all duration-300">
+                        <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                        </Link>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-1">
+                            {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                            ))}
+                          </div>
+                          <Link to={`/product/${relatedProductSlug}`}>
+                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2">
+                              {relatedProduct.name}
+                            </h4>
+                          </Link>
+                          <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
+                            {relatedProduct.description.slice(0, 50)}...
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
+                              {relatedProduct.original_price && (
+                                <span className="text-xs text-muted-foreground line-through">
+                                  ₹{relatedProduct.original_price}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                addItem({
+                                  id: relatedProductId,
+                                  name: relatedProduct.name,
+                                  price: relatedProduct.price,
+                                  image: relatedImageUrl
+                                }, 1);
+                              }}
+                            >
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Order Summary */}
@@ -706,14 +777,23 @@ const Checkout = () => {
                 <div className="px-16">
                   <div className="relative group">
                     <div className="overflow-hidden">
-                      <div className={`flex gap-6 transition-transform duration-300 ${
-                        relatedProducts.length <= 4
-                          ? 'justify-center'
-                          : ''
-                      }`} style={{
-                        transform: `translateX(-${relatedProductsStartIndex * 25}%)`
-                      }}>
-                        {relatedProducts.map((relatedProduct) => {
+                      <div className={`grid transition-all duration-300 ${
+                        relatedProducts.length === 1
+                          ? 'grid-cols-1 justify-items-center'
+                          : relatedProducts.length === 2
+                          ? 'grid-cols-2 gap-6'
+                          : relatedProducts.length === 3
+                          ? 'grid-cols-3 gap-4'
+                          : 'flex gap-6'
+                      }`} style={
+                        relatedProducts.length > 3
+                          ? { transform: `translateX(-${relatedProductsStartIndex * 25}%)` }
+                          : {}
+                      }>
+                        {(relatedProducts.length > 3 
+                          ? relatedProducts 
+                          : relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + Math.min(4, relatedProducts.length))
+                        ).map((relatedProduct) => {
                         const relatedProductId = relatedProduct.product_id;
                         const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
                         const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
@@ -721,7 +801,7 @@ const Checkout = () => {
                         return (
                           <div
                             key={relatedProductId}
-                            className="flex-shrink-0 w-60 group"
+                            className={`group ${relatedProducts.length > 3 ? 'flex-shrink-0 w-60' : 'w-full'}`}
                           >
                             <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
                               <Link to={`/product/${relatedProductSlug}`}>
