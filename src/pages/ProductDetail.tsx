@@ -198,6 +198,9 @@ const ProductDetail = () => {
   const primaryImage = productHelpers.getPrimaryImageUrl(productImages);
   const allImages = productImages.length > 0 ? productImages.map(img => img.url) : [primaryImage];
 
+  // Get actual product ID from URL format
+  const actualProductId = id ? getProductIdFromUrl(id) : null;
+  
   // Static available quantity using product ID hash (same logic as ProductCard)
   const getAvailableQuantity = (productId: string) => {
     const hash = productId.split('').reduce((a, b) => {
@@ -206,7 +209,7 @@ const ProductDetail = () => {
     }, 0);
     return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
-  const availableQuantity = getAvailableQuantity(actualProductId);
+  const availableQuantity = actualProductId ? getAvailableQuantity(actualProductId) : 0;
 
   if (!product) {
     return (
@@ -282,7 +285,6 @@ const ProductDetail = () => {
 
   // Related products slider functions (non-cyclic, max 4 visible)
   const nextRelatedProducts = () => {
-    const relatedProducts = product.relatedProducts || getRelatedProducts(actualProductId);
     const maxStartIndex = Math.max(0, relatedProducts.length - 4);
     setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
   };
@@ -375,9 +377,9 @@ const ProductDetail = () => {
             
             <div className="flex items-center gap-3">
               <span className="font-bold text-primary text-2xl">₹{product.price}</span>
-              {product.originalPrice && (
+              {product.original_price && (
                 <span className="text-lg text-muted-foreground line-through">
-                  ₹{product.originalPrice}
+                  ₹{product.original_price}
                 </span>
               )}
             </div>
@@ -415,7 +417,7 @@ const ProductDetail = () => {
               >
                 <ShoppingCart className="w-5 h-5 mr-2" />
                 {(() => {
-                  const cartItem = items.find(item => item.id === actualProductId);
+                  const cartItem = items.find(item => item.id === product.product_id);
                   const currentQuantity = cartItem?.quantity || 0;
                   return `Add ${selectedQuantity} to Cart${currentQuantity > 0 ? ` (${currentQuantity} in cart)` : ''}`;
                 })()}
@@ -439,7 +441,7 @@ const ProductDetail = () => {
                 Product Description
               </h2>
               <p className="text-angelic-deep/80 leading-relaxed mb-6">
-                {product.detailedDescription}
+                {product.detailed_description || product.description}
               </p>
               
               <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-3">
@@ -479,7 +481,7 @@ const ProductDetail = () => {
             Customer Reviews
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(product.testimonials || getTestimonials(actualProductId)).map((testimonial) => (
+            {getTestimonials(product.product_id).map((testimonial) => (
               <Card key={testimonial.id} className="p-6 hover:shadow-lg transition-shadow duration-300">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="flex">
@@ -530,7 +532,7 @@ const ProductDetail = () => {
             onClick={nextRelatedProducts}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
             aria-label="Next products"
-            disabled={relatedProductsStartIndex >= Math.max(0, (product.relatedProducts || getRelatedProducts(actualProductId)).length - 4)}
+            disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
           >
             <ChevronRight className="w-5 h-5 text-gray-700" />
           </button>
@@ -540,81 +542,37 @@ const ProductDetail = () => {
 
             <div className="overflow-hidden">
               <div className={`flex gap-6 transition-transform duration-300 ${
-                (product.relatedProducts || getRelatedProducts(actualProductId)).length <= 3 
+                relatedProducts.length <= 3 
                   ? 'justify-center' 
                   : ''
               }`} style={{
                 transform: `translateX(-${relatedProductsStartIndex * (100 / 4)}%)`
               }}>
-                {/* Temporarily disabled related products section - will be fixed in next update */}
-                {[].map((relatedId) => {
-                // const relatedProduct = products[relatedId as keyof typeof products];
-                // if (!relatedProduct) return null;
+                {/* Display related products from Supabase */}
+                {relatedProducts.map((relatedProduct) => {
+                const relatedProductId = relatedProduct.product_id;
+                const relatedProductSlug = `${relatedProduct.name.toLowerCase().replace(/\s+/g, '-')}_${relatedProduct.sku}`;
+                const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
 
                 return (
                   <div
-                    key={relatedId}
+                    key={relatedProductId}
                     className="flex-shrink-0 w-60 group"
                   >
                     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
-                      {/* Image Slider for Related Product */}
-                      <div className="relative group/image">
-                        <img
-                          src={getProductImages(relatedProduct)[relatedProductImageIndices[relatedId] || 0]}
-                          alt={`${relatedProduct.name} - Image ${(relatedProductImageIndices[relatedId] || 0) + 1}`}
-                          className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
-                        />
-
-                        {/* Image Navigation */}
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            prevRelatedProductImage(relatedId);
-                          }}
-                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10"
-                        >
-                          <ChevronLeft className="w-3 h-3 text-gray-700" />
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            nextRelatedProductImage(relatedId);
-                          }}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10"
-                        >
-                          <ChevronRight className="w-3 h-3 text-gray-700" />
-                        </button>
-
-                        {/* Image Indicators */}
-                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300">
-                          {getProductImages(relatedProduct).map((_, index) => (
-                            <button
-                              key={index}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setRelatedProductImageIndices(prev => ({
-                                  ...prev,
-                                  [relatedId]: index
-                                }));
-                              }}
-                              className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${
-                                index === (relatedProductImageIndices[relatedId] || 0)
-                                  ? 'bg-white'
-                                  : 'bg-white/50 hover:bg-white/75'
-                              }`}
-                            />
-                          ))}
+                      <Link to={`/product/${relatedProductSlug}`}>
+                        <div className="relative group/image">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         </div>
-
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      </div>
+                      </Link>
                       <div className="p-4">
                         <div className="flex items-center gap-1 mb-2">
-                          {[...Array(relatedProduct.rating)].map((_, i) => (
+                          {[...Array(relatedProduct.rating || 5)].map((_, i) => (
                             <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
                           ))}
                         </div>
@@ -622,8 +580,8 @@ const ProductDetail = () => {
                           {relatedProduct.name}
                         </h3>
                         <p className="text-sm text-angelic-deep/70 mb-3">
-                          {relatedProduct.description}...{" "}
-                          <Link to={`/product/${relatedId}`} className="inline">
+                          {relatedProduct.description.slice(0, 100)}...{" "}
+                          <Link to={`/product/${relatedProductSlug}`} className="inline">
                             <Button
                               variant="link"
                               size="sm"
@@ -635,36 +593,21 @@ const ProductDetail = () => {
                         </p>
                         <div className="flex items-center gap-2 mb-3">
                           <span className="font-bold text-primary">₹{relatedProduct.price}</span>
-                          {relatedProduct.originalPrice && (
+                          {relatedProduct.original_price && (
                             <span className="text-sm text-muted-foreground line-through">
-                              ₹{relatedProduct.originalPrice}
+                              ₹{relatedProduct.original_price}
                             </span>
                           )}
                         </div>
 
                         {/* Action Buttons */}
                         <div className="space-y-2">
-
                           {/* New Quantity Controls Design for Related Products */}
                           {(() => {
-                            const cartItem = items.find(item => item.id === relatedId);
+                            const cartItem = items.find(item => item.id === relatedProductId);
                             const currentQuantity = cartItem?.quantity || 0;
-                            const selectedQuantity = relatedProductQuantities[relatedId] || 1;
-                            // Static available quantity using product ID hash
-                            const getAvailableQuantity = (productId: string) => {
-                              const hash = productId.split('').reduce((a, b) => {
-                                a = ((a << 5) - a) + b.charCodeAt(0);
-                                return a & a;
-                              }, 0);
-                              return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
-                            };
-                            const availableQuantity = getAvailableQuantity(relatedId);
-
-                            console.log(`🛒 [Customers Also Bought] Product: ${relatedProduct.name} (ID: ${relatedId})`);
-                            console.log(`📊 Current cart item:`, cartItem);
-                            console.log(`🔢 Current quantity: ${currentQuantity}`);
-                            console.log(`🛍️ Total cart items:`, items.length);
-                            console.log(`📋 Full cart state:`, items);
+                            const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                            const availableQuantity = relatedProduct.available_quantity || 10;
 
                             const handleAddToCart = (e: React.MouseEvent) => {
                               e.preventDefault();
@@ -675,12 +618,11 @@ const ProductDetail = () => {
                                 return;
                               }
 
-                              console.log(`🛒 [ADD TO CART] ${relatedProduct.name} - Adding ${selectedQuantity} items`);
                               addItem({
-                                id: relatedProduct.id,
+                                id: relatedProductId,
                                 name: relatedProduct.name,
                                 price: relatedProduct.price,
-                                image: relatedProduct.image
+                                image: relatedImageUrl
                               }, selectedQuantity);
                             };
 
@@ -693,7 +635,7 @@ const ProductDetail = () => {
                                     value={(currentQuantity || selectedQuantity).toString()}
                                     onValueChange={(value) => setRelatedProductQuantities(prev => ({
                                       ...prev,
-                                      [relatedId]: parseInt(value)
+                                      [relatedProductId]: parseInt(value)
                                     }))}
                                   >
                                     <SelectTrigger className="w-16 h-8 text-xs">

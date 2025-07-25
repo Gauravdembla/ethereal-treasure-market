@@ -28,7 +28,7 @@ const LoginDialog = ({ open, onOpenChange, onLoginSuccess }: LoginDialogProps) =
       return;
     }
     // Mock login - OTP will be implemented later
-    login();
+    login(email, "1234");
     onOpenChange(false);
     onLoginSuccess?.();
   };
