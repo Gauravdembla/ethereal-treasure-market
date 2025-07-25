@@ -315,20 +315,20 @@ const Checkout = () => {
             </Card>
 
             {/* Dynamic Customers Also Bought - Vertical Layout for Mobile/Tablet */}
-            {relatedProducts.length > 0 && showAsCard && (
-              <div className="space-y-6 lg:hidden">
-                <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
-                  Customers Also Bought
-                </h3>
-                <div className="space-y-4">
-                  {relatedProducts.slice(0, (() => {
-                    // Logic: 1 item = max 3 products, 2 items = max 2 products, 3 items = max 1 product, >3 items = show under summary
-                    const cartItemsCount = items.length;
-                    if (cartItemsCount === 1) return 3;
-                    if (cartItemsCount === 2) return 2;
-                    if (cartItemsCount === 3) return 1;
-                    return 0; // >3 items = don't show here
-                  })()).map((relatedProduct) => {
+            {relatedProducts.length > 0 && showAsCard && (() => {
+              const cartItemsCount = items.length;
+              const maxProducts = cartItemsCount === 1 ? 3 : cartItemsCount === 2 ? 2 : cartItemsCount === 3 ? 1 : 0;
+              
+              // Only show this section on mobile/tablet AND when cart items <= 3
+              if (maxProducts === 0) return null;
+              
+              return (
+                <div className="space-y-6 lg:hidden">
+                  <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
+                    Customers Also Bought
+                  </h3>
+                  <div className="space-y-4">
+                    {relatedProducts.slice(0, maxProducts).map((relatedProduct) => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
                     const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
@@ -387,10 +387,12 @@ const Checkout = () => {
                         </div>
                       </Card>
                     );
-                  })}
-                </div>
-              </div>
-            )}
+                   })}
+                 </div>
+               </div>
+               );
+             })()}
+
           </div>
 
           {/* Order Summary */}
