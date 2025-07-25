@@ -5,16 +5,18 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User, UserCircle, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User, UserCircle, ChevronLeft, ChevronRight, ShoppingCart, Star } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useAngelCoins } from "@/hooks/useAngelCoins";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import LoginDialog from "@/components/LoginDialog";
 import { PRODUCTS } from "@/data/products";
+import { supabase, type Product, productHelpers } from "@/integrations/supabase/client";
 
 const Checkout = () => {
-  const { items, updateQuantity, removeItem, clearCart } = useCart();
+  const { items, updateQuantity, removeItem, clearCart, addItem } = useCart();
   const { user, getUserRole } = useAuth();
   const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, getMaxRedemptionValue, calculateGSTBreakdown, calculateRedemptionValue, loading: angelCoinsLoading } = useAngelCoins();
   const navigate = useNavigate();
@@ -33,8 +35,11 @@ const Checkout = () => {
   const [discount, setDiscount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
 
-  // Frequently Bought Together state
-  const [frequentlyBoughtStartIndex, setFrequentlyBoughtStartIndex] = useState(0);
+  // Related Products state (matching ProductDetail.tsx)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [relatedProductsStartIndex, setRelatedProductsStartIndex] = useState(0);
+  const [relatedProductQuantities, setRelatedProductQuantities] = useState<{[key: string]: number}>({});
+  const [showAsCard, setShowAsCard] = useState(false);
 
   // Admin settings - in real app, these would come from API/context
   const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
@@ -52,7 +57,22 @@ const Checkout = () => {
     return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
 
-  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
+  // Helper function to create product slug
+  const createProductSlug = (name: string, sku: string) => {
+    const spacesRegex = new RegExp('\\s+', 'g');
+    return name.toLowerCase().replace(spacesRegex, '-') + '_' + sku;
+  };
+
+  // Helper function to clean price string
+  const cleanPriceString = (price: string) => {
+    const commaRegex = new RegExp(',', 'g');
+    return price.replace(commaRegex, '');
+  };
+
+  const subtotal = items.reduce((sum, item) => {
+    const cleanPrice = cleanPriceString(item.price);
+    return sum + (parseFloat(cleanPrice) * item.quantity);
+  }, 0);
 
   // Calculate GST breakdown
   const gstBreakdown = calculateGSTBreakdown(subtotal);
@@ -140,21 +160,60 @@ const Checkout = () => {
     navigate("/address");
   };
 
-  // Get products not in cart for "Frequently Bought Together"
-  const getFrequentlyBoughtProducts = () => {
-    const cartProductIds = items.map(item => item.id);
-    return PRODUCTS.filter(product => !cartProductIds.includes(product.id));
+  // Fetch related products from Supabase (matching ProductDetail.tsx logic)
+  useEffect(() => {
+    const fetchRelatedProducts = async () => {
+      try {
+        // Get all published products that are not in the current cart
+        const cartProductIds = items.map(item => item.id);
+
+        const { data: relatedData, error: relatedError } = await supabase
+          .from('product_details_view')
+          .select('*')
+          .eq('status', 'published')
+          .not('product_id', 'in', `(${cartProductIds.length > 0 ? cartProductIds.join(',') : 'null'})`)
+          .limit(8);
+
+        if (!relatedError && relatedData) {
+          setRelatedProducts(relatedData);
+        }
+      } catch (err) {
+        console.error('Error fetching related products:', err);
+      }
+    };
+
+    fetchRelatedProducts();
+  }, [items]); // Re-fetch when cart items change
+
+  // Check height comparison between Order Items and Order Summary
+  useEffect(() => {
+    const checkHeights = () => {
+      const orderItemsElement = document.querySelector('[data-order-items]');
+      const orderSummaryElement = document.querySelector('[data-order-summary]');
+
+      if (orderItemsElement && orderSummaryElement) {
+        const orderItemsHeight = orderItemsElement.clientHeight;
+        const orderSummaryHeight = orderSummaryElement.clientHeight;
+
+        // Show as card if Order Items height is less than Order Summary height
+        setShowAsCard(orderItemsHeight < orderSummaryHeight);
+      }
+    };
+
+    // Check heights after component mounts and when items change
+    const timer = setTimeout(checkHeights, 100);
+    return () => clearTimeout(timer);
+  }, [items]);
+
+  // Navigation functions for related products - Fixed for proper scrolling
+  const nextRelatedProducts = () => {
+    const visibleProducts = showAsCard ? 3 : 4; // Show 3 in card mode, 4 in full width
+    const maxStartIndex = Math.max(0, relatedProducts.length - visibleProducts);
+    setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
   };
 
-  // Navigation functions for frequently bought together
-  const nextFrequentlyBought = () => {
-    const availableProducts = getFrequentlyBoughtProducts();
-    const maxStartIndex = Math.max(0, availableProducts.length - 3);
-    setFrequentlyBoughtStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
-  };
-
-  const prevFrequentlyBought = () => {
-    setFrequentlyBoughtStartIndex((prev) => Math.max(prev - 1, 0));
+  const prevRelatedProducts = () => {
+    setRelatedProductsStartIndex((prev) => Math.max(prev - 1, 0));
   };
 
   if (items.length === 0) {
@@ -201,7 +260,7 @@ const Checkout = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Order Items */}
-          <div className="space-y-6">
+          <div className="space-y-6" data-order-items>
             <Card className="p-6">
               <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Items</h2>
               <div className="space-y-4">
@@ -257,7 +316,7 @@ const Checkout = () => {
           </div>
 
           {/* Order Summary */}
-          <div className="space-y-6">
+          <div className="space-y-6" data-order-summary>
             {/* Customer Information */}
             {user && (
               <Card className="p-6">
@@ -465,92 +524,338 @@ const Checkout = () => {
           </div>
         </div>
 
-        {/* Frequently Bought Together Section */}
-        {getFrequentlyBoughtProducts().length > 0 && (
-          <div className="mt-12">
-            <Card className="p-6">
-              <h2 className="font-playfair text-xl text-angelic-deep mb-6 text-center">
-                Frequently Bought Together
-              </h2>
+        {/* Related Products Section - Conditional Layout */}
+        {relatedProducts.length > 0 && (
+          <div className={`mt-16 ${showAsCard ? 'max-w-4xl mx-auto' : ''}`}>
+            <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
+              Customers Also Bought
+            </h2>
 
+            {showAsCard ? (
               <div className="relative">
-                {/* Navigation Arrows */}
-                {frequentlyBoughtStartIndex > 0 && (
-                  <button
-                    onClick={prevFrequentlyBought}
-                    className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
-                  </button>
+                {/* Navigation for Card Layout */}
+                {relatedProducts.length > 3 && (
+                  <>
+                    <button
+                      onClick={prevRelatedProducts}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-2 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Previous products"
+                      disabled={relatedProductsStartIndex === 0}
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-700" />
+                    </button>
+
+                    <button
+                      onClick={nextRelatedProducts}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-2 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Next products"
+                      disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 3)}
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-700" />
+                    </button>
+                  </>
                 )}
 
-                {frequentlyBoughtStartIndex < getFrequentlyBoughtProducts().length - 3 && (
-                  <button
-                    onClick={nextFrequentlyBought}
-                    className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                  </button>
-                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-8">
+                {relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + 3).map((relatedProduct) => {
+                  const relatedProductId = relatedProduct.product_id;
+                  const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                  const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
 
-                {/* Products Grid */}
-                <div className="overflow-hidden">
-                  <div
-                    className="flex gap-4 transition-transform duration-300"
-                    style={{
-                      transform: `translateX(-${frequentlyBoughtStartIndex * (100 / 3)}%)`
-                    }}
-                  >
-                    {getFrequentlyBoughtProducts().map((product) => (
-                      <div key={product.id} className="flex-shrink-0 w-1/3">
-                        <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
-                          <div className="aspect-video relative overflow-hidden">
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                            />
+                  return (
+                    <Card key={relatedProductId} className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
+                      <Link to={`/product/${relatedProductSlug}`}>
+                        <div className="relative group/image">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        </div>
+                      </Link>
+                      <div className="related-product-content p-4">
+                        <div className="flex items-center gap-1 mb-2">
+                          {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                          ))}
+                        </div>
+                        <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                          {relatedProduct.name}
+                        </h3>
+                        <div className="related-product-description">
+                          <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
+                            {relatedProduct.description.slice(0, 80)}...
+                          </p>
+                          <div className="related-product-read-more">
+                            <Link to={`/product/${relatedProductSlug}`} className="inline">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
+                              >
+                                Read More→
+                              </Button>
+                            </Link>
                           </div>
-                          <div className="p-4">
-                            <h3 className="font-semibold text-sm text-angelic-deep mb-2 line-clamp-2">
-                              {product.name}
-                            </h3>
-                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-                              {product.description}
-                            </p>
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-primary text-sm">₹{product.price}</span>
-                                {product.originalPrice && (
-                                  <span className="text-xs text-gray-500 line-through">
-                                    ₹{product.originalPrice}
-                                  </span>
-                                )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                          {relatedProduct.original_price && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              ₹{relatedProduct.original_price}
+                            </span>
+                          )}
+                        </div>
+                        {/* Action Buttons for Card Layout */}
+                        {(() => {
+                          const cartItem = items.find(item => item.id === relatedProductId);
+                          const currentQuantity = cartItem?.quantity || 0;
+                          const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                          const availableQuantity = relatedProduct.available_quantity || 10;
+
+                          const handleAddToCart = (e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            if (selectedQuantity > availableQuantity) {
+                              alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+                              return;
+                            }
+
+                            addItem({
+                              id: relatedProductId,
+                              name: relatedProduct.name,
+                              price: relatedProduct.price,
+                              image: relatedImageUrl
+                            }, selectedQuantity);
+                          };
+
+                          return (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-center gap-2">
+                                <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
+                                <Select
+                                  value={(currentQuantity || selectedQuantity).toString()}
+                                  onValueChange={(value) => setRelatedProductQuantities(prev => ({
+                                    ...prev,
+                                    [relatedProductId]: parseInt(value)
+                                  }))}
+                                >
+                                  <SelectTrigger className="w-16 h-8 text-xs">
+                                    <SelectValue placeholder="1" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                      <SelectItem
+                                        key={num}
+                                        value={num.toString()}
+                                        disabled={num > availableQuantity}
+                                        className={num > availableQuantity ? "text-gray-400" : ""}
+                                      >
+                                        {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={handleAddToCart}
+                              >
+                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
+                              </Button>
+                              <div className="text-center">
+                                <span className="text-xs text-angelic-deep/70">
+                                  Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                </span>
                               </div>
                             </div>
-                            <Button
-                              size="sm"
-                              className="w-full text-xs"
-                              onClick={() => {
-                                addItem({
-                                  id: product.id,
-                                  name: product.name,
-                                  price: product.price,
-                                  image: product.image
-                                }, 1);
-                              }}
-                            >
-                              <ShoppingCart className="w-3 h-3 mr-1" />
-                              Add to Cart
-                            </Button>
-                          </div>
-                        </Card>
+                          );
+                        })()}
                       </div>
-                    ))}
-                  </div>
+                    </Card>
+                  );
+                })}
                 </div>
               </div>
-            </Card>
+            ) : (
+              <div className="relative">
+                {/* Slider Navigation - OUTSIDE the product container */}
+                <button
+                  onClick={prevRelatedProducts}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+                  aria-label="Previous products"
+                  disabled={relatedProductsStartIndex === 0}
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
+                </button>
+
+                <button
+                  onClick={nextRelatedProducts}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+                  aria-label="Next products"
+                  disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
+                </button>
+
+                <div className="px-16">
+                  <div className="relative group">
+                    <div className="overflow-hidden">
+                      <div className={`flex gap-6 transition-transform duration-300 ${
+                        relatedProducts.length <= 4
+                          ? 'justify-center'
+                          : ''
+                      }`} style={{
+                        transform: `translateX(-${relatedProductsStartIndex * 25}%)`
+                      }}>
+                        {relatedProducts.map((relatedProduct) => {
+                        const relatedProductId = relatedProduct.product_id;
+                        const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                        const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+
+                        return (
+                          <div
+                            key={relatedProductId}
+                            className="flex-shrink-0 w-60 group"
+                          >
+                            <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
+                              <Link to={`/product/${relatedProductSlug}`}>
+                                <div className="relative group/image">
+                                  <img
+                                    src={relatedImageUrl}
+                                    alt={relatedProduct.name}
+                                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </div>
+                              </Link>
+                              <div className="related-product-content p-4">
+                                <div className="flex items-center gap-1 mb-2">
+                                  {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                                    <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                                  ))}
+                                </div>
+                                <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                                  {relatedProduct.name}
+                                </h3>
+                                <div className="related-product-description">
+                                  <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
+                                    {relatedProduct.description.slice(0, 80)}...
+                                  </p>
+                                  <div className="related-product-read-more">
+                                    <Link to={`/product/${relatedProductSlug}`} className="inline">
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
+                                      >
+                                        Read More→
+                                      </Button>
+                                    </Link>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                                  {relatedProduct.original_price && (
+                                    <span className="text-sm text-muted-foreground line-through">
+                                      ₹{relatedProduct.original_price}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="space-y-2">
+                                  {/* New Quantity Controls Design for Related Products */}
+                                  {(() => {
+                                    const cartItem = items.find(item => item.id === relatedProductId);
+                                    const currentQuantity = cartItem?.quantity || 0;
+                                    const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                                    const availableQuantity = relatedProduct.available_quantity || 10;
+
+                                    const handleAddToCart = (e: React.MouseEvent) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+
+                                      if (selectedQuantity > availableQuantity) {
+                                        alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+                                        return;
+                                      }
+
+                                      addItem({
+                                        id: relatedProductId,
+                                        name: relatedProduct.name,
+                                        price: relatedProduct.price,
+                                        image: relatedImageUrl
+                                      }, selectedQuantity);
+                                    };
+
+                                    return (
+                                      <div className="space-y-2">
+                                        {/* Quantity Dropdown - Same Line - Centered */}
+                                        <div className="flex items-center justify-center gap-2">
+                                          <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
+                                          <Select
+                                            value={(currentQuantity || selectedQuantity).toString()}
+                                            onValueChange={(value) => setRelatedProductQuantities(prev => ({
+                                              ...prev,
+                                              [relatedProductId]: parseInt(value)
+                                            }))}
+                                          >
+                                            <SelectTrigger className="w-16 h-8 text-xs">
+                                              <SelectValue placeholder="1" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                                <SelectItem
+                                                  key={num}
+                                                  value={num.toString()}
+                                                  disabled={num > availableQuantity}
+                                                  className={num > availableQuantity ? "text-gray-400" : ""}
+                                                >
+                                                  {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+
+                                        {/* Add to Cart Button */}
+                                        <Button
+                                          variant="default"
+                                          size="sm"
+                                          className="w-full text-xs"
+                                          onClick={handleAddToCart}
+                                        >
+                                          <ShoppingCart className="w-3 h-3 mr-1" />
+                                          Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
+                                        </Button>
+
+                                        {/* Available Quantity Info */}
+                                        <div className="text-center">
+                                          <span className="text-xs text-angelic-deep/70">
+                                            Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </Card>
+                          </div>
+                        );
+                      })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
