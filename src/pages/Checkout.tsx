@@ -334,9 +334,16 @@ const Checkout = () => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
                     // Fix image URL with fallback
-                    const relatedImageUrl = relatedProduct.images && relatedProduct.images.length > 0 
-                      ? productHelpers.getPrimaryImageUrl(relatedProduct.images)
-                      : '/placeholder.svg';
+                    let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                    
+                    if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                      try {
+                        relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                      } catch (error) {
+                        console.error('Error getting primary image URL:', error);
+                        relatedImageUrl = '/placeholder.svg';
+                      }
+                    }
                     
                     return (
                       <Card key={relatedProductId} className="overflow-hidden hover:shadow-lg transition-all duration-300">
@@ -347,6 +354,7 @@ const Checkout = () => {
                               alt={relatedProduct.name}
                               className="w-full aspect-square object-cover transition-transform duration-300 group-hover/image:scale-105"
                               onError={(e) => {
+                                console.error('Image failed to load:', e.currentTarget.src);
                                 e.currentTarget.src = '/placeholder.svg';
                               }}
                             />
@@ -365,7 +373,7 @@ const Checkout = () => {
                             </h4>
                           </Link>
                           <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
-                            {relatedProduct.description?.slice(0, 40)}...
+                            {relatedProduct.description?.slice(0, 40) || 'No description available'}...
                           </p>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1">
@@ -404,7 +412,7 @@ const Checkout = () => {
               );
             })()}
 
-            {/* Desktop Vertical Customers Also Bought Section - Only show for 1-3 order items */}
+            {/* Desktop Vertical Customers Also Bought Section - For 1-3 order items */}
             {relatedProducts.length > 0 && items.length <= 3 && (
               <div className="hidden lg:block mt-6">
                 <Card className="p-6 bg-white shadow-sm border border-gray-100">
@@ -412,79 +420,89 @@ const Checkout = () => {
                     Customers Also Bought
                   </h3>
                   <div className="space-y-5">
-                    {relatedProducts.slice(0, 3).map((relatedProduct) => {
-                      const relatedProductId = relatedProduct.product_id;
-                      const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                      // Fix image URL with multiple fallbacks
-                      let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                    {(() => {
+                      // Dynamic product count based on order items
+                      const orderItemsCount = items.length;
+                      let productsToShow = 1; // Default for 3+ items
                       
-                      if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
-                        try {
-                          relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-                        } catch (error) {
-                          console.error('Error getting primary image URL:', error);
-                          relatedImageUrl = '/placeholder.svg';
+                      if (orderItemsCount === 1) productsToShow = 3;
+                      else if (orderItemsCount === 2) productsToShow = 2;
+                      else if (orderItemsCount === 3) productsToShow = 1;
+                      
+                      return relatedProducts.slice(0, productsToShow).map((relatedProduct) => {
+                        const relatedProductId = relatedProduct.product_id;
+                        const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                        // Fix image URL with multiple fallbacks
+                        let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                        
+                        if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                          try {
+                            relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                          } catch (error) {
+                            console.error('Error getting primary image URL:', error);
+                            relatedImageUrl = '/placeholder.svg';
+                          }
                         }
-                      }
-                      
-                      return (
-                        <div key={relatedProductId} className="flex items-start gap-4 p-4 bg-angelic-cream/10 rounded-lg hover:bg-angelic-cream/20 hover:shadow-md transition-all duration-300 border border-transparent hover:border-angelic-cream/30">
-                          <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
-                            <img
-                              src={relatedImageUrl}
-                              alt={relatedProduct.name}
-                              className="w-24 h-24 object-cover rounded-lg hover:scale-105 transition-transform duration-300 shadow-sm"
-                              onError={(e) => {
-                                console.error('Image failed to load:', e.currentTarget.src);
-                                e.currentTarget.src = '/placeholder.svg';
-                              }}
-                            />
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-2">
-                              {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                                <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
-                              ))}
-                            </div>
-                            <Link to={`/product/${relatedProductSlug}`}>
-                              <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-2">
-                                {relatedProduct.name}
-                              </h4>
-                            </Link>
-                            <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2 leading-relaxed">
-                              {relatedProduct.description?.slice(0, 100) || 'No description available'}...
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-primary text-lg">₹{relatedProduct.price}</span>
-                                {relatedProduct.original_price && (
-                                  <span className="text-sm text-muted-foreground line-through">
-                                    ₹{relatedProduct.original_price}
-                                  </span>
-                                )}
-                              </div>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="px-6 py-2 font-medium hover:shadow-md transition-all duration-200"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  addItem({
-                                    id: relatedProductId,
-                                    name: relatedProduct.name,
-                                    price: relatedProduct.price,
-                                    image: relatedImageUrl
-                                  }, 1);
+                        
+                        return (
+                          <div key={relatedProductId} className="flex items-start gap-4 p-4 bg-angelic-cream/10 rounded-lg hover:bg-angelic-cream/20 hover:shadow-md transition-all duration-300 border border-transparent hover:border-angelic-cream/30">
+                            <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
+                              <img
+                                src={relatedImageUrl}
+                                alt={relatedProduct.name}
+                                className="w-24 h-24 object-cover rounded-lg hover:scale-105 transition-transform duration-300 shadow-sm"
+                                onError={(e) => {
+                                  console.error('Image failed to load:', e.currentTarget.src);
+                                  e.currentTarget.src = '/placeholder.svg';
                                 }}
-                              >
-                                Add
-                              </Button>
+                              />
+                            </Link>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 mb-2">
+                                {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                                  <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
+                                ))}
+                              </div>
+                              <Link to={`/product/${relatedProductSlug}`}>
+                                <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-2">
+                                  {relatedProduct.name}
+                                </h4>
+                              </Link>
+                              <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2 leading-relaxed">
+                                {relatedProduct.description?.slice(0, 100) || 'No description available'}...
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-primary text-lg">₹{relatedProduct.price}</span>
+                                  {relatedProduct.original_price && (
+                                    <span className="text-sm text-muted-foreground line-through">
+                                      ₹{relatedProduct.original_price}
+                                    </span>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="px-6 py-2 font-medium hover:shadow-md transition-all duration-200"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    addItem({
+                                      id: relatedProductId,
+                                      name: relatedProduct.name,
+                                      price: relatedProduct.price,
+                                      image: relatedImageUrl
+                                    }, 1);
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </Card>
               </div>
@@ -697,447 +715,208 @@ const Checkout = () => {
                 </Button>
               </div>
             </Card>
-
-            {/* Desktop Customers Also Bought for 4+ Order Items - Under Order Summary */}
-            {relatedProducts.length > 0 && items.length >= 4 && (
-              <Card className="p-6 bg-white shadow-sm border border-gray-100 mt-6">
-                <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6">
-                  Customers Also Bought
-                </h3>
-                <div className="space-y-5">
-                  {relatedProducts.slice(0, 3).map((relatedProduct) => {
-                    const relatedProductId = relatedProduct.product_id;
-                    const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                    // Fix image URL with multiple fallbacks
-                    let relatedImageUrl = '/placeholder.svg'; // Default fallback
-                    
-                    if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
-                      try {
-                        relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-                      } catch (error) {
-                        console.error('Error getting primary image URL:', error);
-                        relatedImageUrl = '/placeholder.svg';
-                      }
-                    }
-                    
-                    return (
-                      <div key={relatedProductId} className="flex items-start gap-4 p-4 bg-angelic-cream/10 rounded-lg hover:bg-angelic-cream/20 hover:shadow-md transition-all duration-300 border border-transparent hover:border-angelic-cream/30">
-                        <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
-                          <img
-                            src={relatedImageUrl}
-                            alt={relatedProduct.name}
-                            className="w-24 h-24 object-cover rounded-lg hover:scale-105 transition-transform duration-300 shadow-sm"
-                            onError={(e) => {
-                              console.error('Image failed to load:', e.currentTarget.src);
-                              e.currentTarget.src = '/placeholder.svg';
-                            }}
-                          />
-                        </Link>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-2">
-                            {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                              <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
-                            ))}
-                          </div>
-                          <Link to={`/product/${relatedProductSlug}`}>
-                            <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-2">
-                              {relatedProduct.name}
-                            </h4>
-                          </Link>
-                          <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2 leading-relaxed">
-                            {relatedProduct.description?.slice(0, 100) || 'No description available'}...
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-primary text-lg">₹{relatedProduct.price}</span>
-                              {relatedProduct.original_price && (
-                                <span className="text-sm text-muted-foreground line-through">
-                                  ₹{relatedProduct.original_price}
-                                </span>
-                              )}
-                            </div>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="px-6 py-2 font-medium hover:shadow-md transition-all duration-200"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                addItem({
-                                  id: relatedProductId,
-                                  name: relatedProduct.name,
-                                  price: relatedProduct.price,
-                                  image: relatedImageUrl
-                                }, 1);
-                              }}
-                            >
-                              Add
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            )}
           </div>
         </div>
 
-        {/* Related Products Section - Only for Mobile when >3 cart items */}
-        {relatedProducts.length > 0 && (() => {
-          const cartItemsCount = items.length;
-          const isMobile = window.innerWidth < 1024; // lg breakpoint
+        {/* Horizontal Customers Also Bought Section - For 4+ Order Items (Below entire page) */}
+        {relatedProducts.length > 0 && items.length >= 4 && (
+          <div className="mt-16">
+            <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
+              Customers Also Bought
+            </h2>
+            <div className="relative">
+              {/* Slider Navigation */}
+              <button
+                onClick={prevRelatedProducts}
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+                aria-label="Previous products"
+                disabled={relatedProductsStartIndex === 0}
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-700" />
+              </button>
 
-          // Show this section:
-          // - Only on mobile/tablet when >3 cart items (since mobile vertical section won't show for >3 items)
-          // - Never on desktop (to avoid duplication with vertical section)
-          const showBottomSection = isMobile && cartItemsCount > 3;
+              <button
+                onClick={nextRelatedProducts}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+                aria-label="Next products"
+                disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
+              >
+                <ChevronRight className="w-5 h-5 text-gray-700" />
+              </button>
 
-          return showBottomSection ? (
-            <div className="mt-16 lg:hidden">
-              <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
-                Customers Also Bought
-              </h2>
+              <div className="px-16">
+                <div className="relative group">
+                  <div className="overflow-hidden">
+                    <div className={`grid transition-all duration-300 ${
+                      relatedProducts.length === 1
+                        ? 'grid-cols-1 justify-items-center'
+                        : relatedProducts.length === 2
+                        ? 'grid-cols-2 gap-6'
+                        : relatedProducts.length === 3
+                        ? 'grid-cols-3 gap-4'
+                        : 'flex gap-6'
+                    }`} style={
+                      relatedProducts.length > 3
+                        ? { transform: `translateX(-${relatedProductsStartIndex * 25}%)` }
+                        : {}
+                    }>
+                      {(relatedProducts.length > 3 
+                        ? relatedProducts 
+                        : relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + Math.min(4, relatedProducts.length))
+                      ).map((relatedProduct) => {
+                      const relatedProductId = relatedProduct.product_id;
+                      const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                      // Fix image URL with multiple fallbacks  
+                      let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                      
+                      if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                        try {
+                          relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                        } catch (error) {
+                          console.error('Error getting primary image URL:', error);
+                          relatedImageUrl = '/placeholder.svg';
+                        }
+                      }
 
-            {/* Always use slider layout for bottom section */}
-            {false ? (
-              <div className="relative">
-                {/* Navigation for Card Layout */}
-                {relatedProducts.length > 3 && (
-                  <>
-                    <button
-                      onClick={prevRelatedProducts}
-                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-2 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Previous products"
-                      disabled={relatedProductsStartIndex === 0}
-                    >
-                      <ChevronLeft className="w-4 h-4 text-gray-700" />
-                    </button>
-
-                    <button
-                      onClick={nextRelatedProducts}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-2 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Next products"
-                      disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 3)}
-                    >
-                      <ChevronRight className="w-4 h-4 text-gray-700" />
-                    </button>
-                  </>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-8">
-                {relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + 3).map((relatedProduct) => {
-                  const relatedProductId = relatedProduct.product_id;
-                  const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                  const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-
-                  return (
-                    <Card key={relatedProductId} className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
-                      <Link to={`/product/${relatedProductSlug}`}>
-                        <div className="relative group/image">
-                          <img
-                            src={relatedImageUrl}
-                            alt={relatedProduct.name}
-                            className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        </div>
-                      </Link>
-                      <div className="related-product-content p-4">
-                        <div className="flex items-center gap-1 mb-2">
-                          {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                            <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                          ))}
-                        </div>
-                        <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                          {relatedProduct.name}
-                        </h3>
-                        <div className="related-product-description">
-                          <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
-                            {relatedProduct.description.slice(0, 80)}...
-                          </p>
-                          <div className="related-product-read-more">
-                            <Link to={`/product/${relatedProductSlug}`} className="inline">
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
-                              >
-                                Read More→
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="font-bold text-primary">₹{relatedProduct.price}</span>
-                          {relatedProduct.original_price && (
-                            <span className="text-sm text-muted-foreground line-through">
-                              ₹{relatedProduct.original_price}
-                            </span>
-                          )}
-                        </div>
-                        {/* Action Buttons for Card Layout */}
-                        {(() => {
-                          const cartItem = items.find(item => item.id === relatedProductId);
-                          const currentQuantity = cartItem?.quantity || 0;
-                          const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
-                          const availableQuantity = relatedProduct.available_quantity || 10;
-
-                          const handleAddToCart = (e: React.MouseEvent) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
-                            if (selectedQuantity > availableQuantity) {
-                              alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
-                              return;
-                            }
-
-                            addItem({
-                              id: relatedProductId,
-                              name: relatedProduct.name,
-                              price: relatedProduct.price,
-                              image: relatedImageUrl
-                            }, selectedQuantity);
-                          };
-
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-center gap-2">
-                                <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
-                                <Select
-                                  value={(currentQuantity || selectedQuantity).toString()}
-                                  onValueChange={(value) => setRelatedProductQuantities(prev => ({
-                                    ...prev,
-                                    [relatedProductId]: parseInt(value)
-                                  }))}
-                                >
-                                  <SelectTrigger className="w-16 h-8 text-xs">
-                                    <SelectValue placeholder="1" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                                      <SelectItem
-                                        key={num}
-                                        value={num.toString()}
-                                        disabled={num > availableQuantity}
-                                        className={num > availableQuantity ? "text-gray-400" : ""}
-                                      >
-                                        {num} {num > availableQuantity ? "(Out of stock)" : ""}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                      return (
+                        <div
+                          key={relatedProductId}
+                          className={`group ${relatedProducts.length > 3 ? 'flex-shrink-0 w-60' : 'w-full'}`}
+                        >
+                          <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
+                            <Link to={`/product/${relatedProductSlug}`}>
+                              <div className="relative group/image">
+                                <img
+                                  src={relatedImageUrl}
+                                  alt={relatedProduct.name}
+                                  className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                                  onError={(e) => {
+                                    console.error('Image failed to load:', e.currentTarget.src);
+                                    e.currentTarget.src = '/placeholder.svg';
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               </div>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="w-full text-xs"
-                                onClick={handleAddToCart}
-                              >
-                                <ShoppingCart className="w-3 h-3 mr-1" />
-                                Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
-                              </Button>
-                              <div className="text-center">
-                                <span className="text-xs text-angelic-deep/70">
-                                  Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
-                                </span>
+                            </Link>
+                            <div className="related-product-content p-4">
+                              <div className="flex items-center gap-1 mb-2">
+                                {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                                  <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                                ))}
+                              </div>
+                              <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                                {relatedProduct.name}
+                              </h3>
+                              <div className="related-product-description">
+                                <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
+                                  {relatedProduct.description?.slice(0, 80) || 'No description available'}...
+                                </p>
+                                <div className="related-product-read-more">
+                                  <Link to={`/product/${relatedProductSlug}`} className="inline">
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
+                                    >
+                                      Read More→
+                                    </Button>
+                                  </Link>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                                {relatedProduct.original_price && (
+                                  <span className="text-sm text-muted-foreground line-through">
+                                    ₹{relatedProduct.original_price}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="space-y-2">
+                                {(() => {
+                                  const cartItem = items.find(item => item.id === relatedProductId);
+                                  const currentQuantity = cartItem?.quantity || 0;
+                                  const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                                  const availableQuantity = relatedProduct.available_quantity || 10;
+
+                                  const handleAddToCart = (e: React.MouseEvent) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+
+                                    if (selectedQuantity > availableQuantity) {
+                                      alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+                                      return;
+                                    }
+
+                                    addItem({
+                                      id: relatedProductId,
+                                      name: relatedProduct.name,
+                                      price: relatedProduct.price,
+                                      image: relatedImageUrl
+                                    }, selectedQuantity);
+                                  };
+
+                                  return (
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
+                                        <Select
+                                          value={(currentQuantity || selectedQuantity).toString()}
+                                          onValueChange={(value) => setRelatedProductQuantities(prev => ({
+                                            ...prev,
+                                            [relatedProductId]: parseInt(value)
+                                          }))}
+                                        >
+                                          <SelectTrigger className="w-16 h-8 text-xs">
+                                            <SelectValue placeholder="1" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                              <SelectItem
+                                                key={num}
+                                                value={num.toString()}
+                                                disabled={num > availableQuantity}
+                                                className={num > availableQuantity ? "text-gray-400" : ""}
+                                              >
+                                                {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="w-full text-xs"
+                                        onClick={handleAddToCart}
+                                      >
+                                        <ShoppingCart className="w-3 h-3 mr-1" />
+                                        Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
+                                      </Button>
+
+                                      <div className="text-center">
+                                        <span className="text-xs text-angelic-deep/70">
+                                          Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
-                          );
-                        })()}
-                      </div>
-                    </Card>
-                  );
-                })}
-                </div>
-              </div>
-            ) : (
-              <div className="relative">
-                {/* Slider Navigation - OUTSIDE the product container */}
-                <button
-                  onClick={prevRelatedProducts}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
-                  aria-label="Previous products"
-                  disabled={relatedProductsStartIndex === 0}
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-700" />
-                </button>
-
-                <button
-                  onClick={nextRelatedProducts}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
-                  aria-label="Next products"
-                  disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
-                >
-                  <ChevronRight className="w-5 h-5 text-gray-700" />
-                </button>
-
-                <div className="px-16">
-                  <div className="relative group">
-                    <div className="overflow-hidden">
-                      <div className={`grid transition-all duration-300 ${
-                        relatedProducts.length === 1
-                          ? 'grid-cols-1 justify-items-center'
-                          : relatedProducts.length === 2
-                          ? 'grid-cols-2 gap-6'
-                          : relatedProducts.length === 3
-                          ? 'grid-cols-3 gap-4'
-                          : 'flex gap-6'
-                      }`} style={
-                        relatedProducts.length > 3
-                          ? { transform: `translateX(-${relatedProductsStartIndex * 25}%)` }
-                          : {}
-                      }>
-                        {(relatedProducts.length > 3 
-                          ? relatedProducts 
-                          : relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + Math.min(4, relatedProducts.length))
-                        ).map((relatedProduct) => {
-                        const relatedProductId = relatedProduct.product_id;
-                        const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                        const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-
-                        return (
-                          <div
-                            key={relatedProductId}
-                            className={`group ${relatedProducts.length > 3 ? 'flex-shrink-0 w-60' : 'w-full'}`}
-                          >
-                            <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
-                              <Link to={`/product/${relatedProductSlug}`}>
-                                <div className="relative group/image">
-                                  <img
-                                    src={relatedImageUrl}
-                                    alt={relatedProduct.name}
-                                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                </div>
-                              </Link>
-                              <div className="related-product-content p-4">
-                                <div className="flex items-center gap-1 mb-2">
-                                  {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                                    <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                                  ))}
-                                </div>
-                                <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                                  {relatedProduct.name}
-                                </h3>
-                                <div className="related-product-description">
-                                  <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
-                                    {relatedProduct.description.slice(0, 80)}...
-                                  </p>
-                                  <div className="related-product-read-more">
-                                    <Link to={`/product/${relatedProductSlug}`} className="inline">
-                                      <Button
-                                        variant="link"
-                                        size="sm"
-                                        className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
-                                      >
-                                        Read More→
-                                      </Button>
-                                    </Link>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <span className="font-bold text-primary">₹{relatedProduct.price}</span>
-                                  {relatedProduct.original_price && (
-                                    <span className="text-sm text-muted-foreground line-through">
-                                      ₹{relatedProduct.original_price}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="space-y-2">
-                                  {/* New Quantity Controls Design for Related Products */}
-                                  {(() => {
-                                    const cartItem = items.find(item => item.id === relatedProductId);
-                                    const currentQuantity = cartItem?.quantity || 0;
-                                    const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
-                                    const availableQuantity = relatedProduct.available_quantity || 10;
-
-                                    const handleAddToCart = (e: React.MouseEvent) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-
-                                      if (selectedQuantity > availableQuantity) {
-                                        alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
-                                        return;
-                                      }
-
-                                      addItem({
-                                        id: relatedProductId,
-                                        name: relatedProduct.name,
-                                        price: relatedProduct.price,
-                                        image: relatedImageUrl
-                                      }, selectedQuantity);
-                                    };
-
-                                    return (
-                                      <div className="space-y-2">
-                                        {/* Quantity Dropdown - Same Line - Centered */}
-                                        <div className="flex items-center justify-center gap-2">
-                                          <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
-                                          <Select
-                                            value={(currentQuantity || selectedQuantity).toString()}
-                                            onValueChange={(value) => setRelatedProductQuantities(prev => ({
-                                              ...prev,
-                                              [relatedProductId]: parseInt(value)
-                                            }))}
-                                          >
-                                            <SelectTrigger className="w-16 h-8 text-xs">
-                                              <SelectValue placeholder="1" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                                                <SelectItem
-                                                  key={num}
-                                                  value={num.toString()}
-                                                  disabled={num > availableQuantity}
-                                                  className={num > availableQuantity ? "text-gray-400" : ""}
-                                                >
-                                                  {num} {num > availableQuantity ? "(Out of stock)" : ""}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-
-                                        {/* Add to Cart Button */}
-                                        <Button
-                                          variant="default"
-                                          size="sm"
-                                          className="w-full text-xs"
-                                          onClick={handleAddToCart}
-                                        >
-                                          <ShoppingCart className="w-3 h-3 mr-1" />
-                                          Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
-                                        </Button>
-
-                                        {/* Available Quantity Info */}
-                                        <div className="text-center">
-                                          <span className="text-xs text-angelic-deep/70">
-                                            Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-                            </Card>
-                          </div>
-                        );
-                      })}
-                      </div>
+                          </Card>
+                        </div>
+                      );
+                    })}
                     </div>
                   </div>
                 </div>
               </div>
-            )}
             </div>
-          ) : null;
-        })()}
+          </div>
+        )}
       </div>
 
       <LoginDialog
