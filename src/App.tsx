@@ -10,6 +10,7 @@ import Checkout from "./pages/Checkout";
 import Address from "./pages/Address";
 import Admin from "./pages/Admin";
 import AngelThon from "./pages/AngelThon";
+import Profile from "./pages/Profile";
 import ProductDetail from "./pages/ProductDetail";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +42,7 @@ const App = () => {
             <Route path="/address" element={<Address />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/angelthon" element={<AngelThon />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
