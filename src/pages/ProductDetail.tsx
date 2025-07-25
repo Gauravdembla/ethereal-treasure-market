@@ -16,6 +16,28 @@ import banner3 from "@/assets/banner-3.jpg";
 import banner4 from "@/assets/banner-4.jpg";
 import banner5 from "@/assets/banner-5.jpg";
 
+// Import product images
+import amethystImage from "@/assets/product-amethyst.jpg";
+import angelCardsImage from "@/assets/product-angel-cards.jpg";
+import candleImage from "@/assets/product-candle.jpg";
+import journalImage from "@/assets/product-journal.jpg";
+import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
+import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+
+// Map database image paths to actual imported images
+const getActualImageUrl = (imagePath: string): string => {
+  const imageMap: { [key: string]: string } = {
+    '/src/assets/product-amethyst.jpg': amethystImage,
+    '/src/assets/product-angel-cards.jpg': angelCardsImage,
+    '/src/assets/product-candle.jpg': candleImage,
+    '/src/assets/product-journal.jpg': journalImage,
+    '/src/assets/product-rose-quartz.jpg': roseQuartzImage,
+    '/src/assets/product-chakra-kit.jpg': chakraKitImage,
+  };
+
+  return imageMap[imagePath] || imagePath;
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const { addItem, removeItem, items } = useCart();
@@ -195,7 +217,10 @@ const ProductDetail = () => {
   // Helper function to get related products (all products except current one)
   // Get product images for display
   const productImages = product?.images || [];
-  const primaryImage = productHelpers.getPrimaryImageUrl(productImages);
+  const primaryImageFromImages = productHelpers.getPrimaryImageUrl(productImages);
+  const primaryImage = primaryImageFromImages !== '/placeholder.svg'
+    ? primaryImageFromImages
+    : getActualImageUrl((product as any)?.image || '/placeholder.svg');
   const allImages = productImages.length > 0 ? productImages.map(img => img.url) : [primaryImage];
 
   // Get actual product ID from URL format
