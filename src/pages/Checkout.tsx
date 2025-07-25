@@ -397,6 +397,76 @@ const Checkout = () => {
               </div>
               );
             })()}
+
+            {/* Desktop Vertical Customers Also Bought Section */}
+            {relatedProducts.length > 0 && (
+              <div className="hidden lg:block">
+                <Card className="p-6">
+                  <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-4">
+                    Customers Also Bought
+                  </h3>
+                  <div className="space-y-4">
+                    {relatedProducts.slice(0, 3).map((relatedProduct) => {
+                      const relatedProductId = relatedProduct.product_id;
+                      const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                      const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                      
+                      return (
+                        <div key={relatedProductId} className="flex items-center gap-4 p-3 bg-angelic-cream/20 rounded-lg hover:shadow-md transition-all duration-300">
+                          <Link to={`/product/${relatedProductSlug}`}>
+                            <img
+                              src={relatedImageUrl}
+                              alt={relatedProduct.name}
+                              className="w-20 h-20 object-cover rounded-md hover:scale-105 transition-transform duration-300"
+                            />
+                          </Link>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1 mb-1">
+                              {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                                <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                              ))}
+                            </div>
+                            <Link to={`/product/${relatedProductSlug}`}>
+                              <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-1">
+                                {relatedProduct.name}
+                              </h4>
+                            </Link>
+                            <p className="text-sm text-angelic-deep/70 mb-2 line-clamp-2">
+                              {relatedProduct.description.slice(0, 80)}...
+                            </p>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                              {relatedProduct.original_price && (
+                                <span className="text-sm text-muted-foreground line-through">
+                                  ₹{relatedProduct.original_price}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="px-4 py-2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              addItem({
+                                id: relatedProductId,
+                                name: relatedProduct.name,
+                                price: relatedProduct.price,
+                                image: relatedImageUrl
+                              }, 1);
+                            }}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </div>
+            )}
           </div>
 
           {/* Order Summary */}
