@@ -316,7 +316,7 @@ const Checkout = () => {
               </div>
             </Card>
 
-            {/* Dynamic Customers Also Bought - Horizontal Layout for Mobile/Tablet */}
+            {/* Mobile/Tablet Customers Also Bought - Only show when cart-based logic applies */}
             {relatedProducts.length > 0 && showAsCard && (() => {
               const cartItemsCount = items.length;
               const maxProducts = cartItemsCount === 1 ? 3 : cartItemsCount === 2 ? 2 : cartItemsCount === 3 ? 1 : 0;
@@ -333,7 +333,10 @@ const Checkout = () => {
                     {relatedProducts.slice(0, maxProducts).map((relatedProduct) => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                    const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                    // Fix image URL with fallback
+                    const relatedImageUrl = relatedProduct.images && relatedProduct.images.length > 0 
+                      ? productHelpers.getPrimaryImageUrl(relatedProduct.images)
+                      : '/placeholder.svg';
                     
                     return (
                       <Card key={relatedProductId} className="overflow-hidden hover:shadow-lg transition-all duration-300">
@@ -343,6 +346,9 @@ const Checkout = () => {
                               src={relatedImageUrl}
                               alt={relatedProduct.name}
                               className="w-full aspect-square object-cover transition-transform duration-300 group-hover/image:scale-105"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.svg';
+                              }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           </div>
@@ -359,7 +365,7 @@ const Checkout = () => {
                             </h4>
                           </Link>
                           <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
-                            {relatedProduct.description.slice(0, 40)}...
+                            {relatedProduct.description?.slice(0, 40)}...
                           </p>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1">
@@ -398,68 +404,76 @@ const Checkout = () => {
               );
             })()}
 
-            {/* Desktop Vertical Customers Also Bought Section */}
+            {/* Desktop Vertical Customers Also Bought Section - Always show 3 items */}
             {relatedProducts.length > 0 && (
-              <div className="hidden lg:block">
-                <Card className="p-6">
-                  <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-4">
+              <div className="hidden lg:block mt-6">
+                <Card className="p-6 bg-white shadow-sm border border-gray-100">
+                  <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6">
                     Customers Also Bought
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {relatedProducts.slice(0, 3).map((relatedProduct) => {
                       const relatedProductId = relatedProduct.product_id;
                       const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                      const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                      // Fix image URL with fallback
+                      const relatedImageUrl = relatedProduct.images && relatedProduct.images.length > 0 
+                        ? productHelpers.getPrimaryImageUrl(relatedProduct.images)
+                        : '/placeholder.svg';
                       
                       return (
-                        <div key={relatedProductId} className="flex items-center gap-4 p-3 bg-angelic-cream/20 rounded-lg hover:shadow-md transition-all duration-300">
-                          <Link to={`/product/${relatedProductSlug}`}>
+                        <div key={relatedProductId} className="flex items-start gap-4 p-4 bg-angelic-cream/10 rounded-lg hover:bg-angelic-cream/20 hover:shadow-md transition-all duration-300 border border-transparent hover:border-angelic-cream/30">
+                          <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
                             <img
                               src={relatedImageUrl}
                               alt={relatedProduct.name}
-                              className="w-20 h-20 object-cover rounded-md hover:scale-105 transition-transform duration-300"
+                              className="w-24 h-24 object-cover rounded-lg hover:scale-105 transition-transform duration-300 shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.svg';
+                              }}
                             />
                           </Link>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-1 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 mb-2">
                               {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                                <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                                <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
                               ))}
                             </div>
                             <Link to={`/product/${relatedProductSlug}`}>
-                              <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-1">
+                              <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-2">
                                 {relatedProduct.name}
                               </h4>
                             </Link>
-                            <p className="text-sm text-angelic-deep/70 mb-2 line-clamp-2">
-                              {relatedProduct.description.slice(0, 80)}...
+                            <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2 leading-relaxed">
+                              {relatedProduct.description?.slice(0, 100)}...
                             </p>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="font-bold text-primary">₹{relatedProduct.price}</span>
-                              {relatedProduct.original_price && (
-                                <span className="text-sm text-muted-foreground line-through">
-                                  ₹{relatedProduct.original_price}
-                                </span>
-                              )}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-primary text-lg">₹{relatedProduct.price}</span>
+                                {relatedProduct.original_price && (
+                                  <span className="text-sm text-muted-foreground line-through">
+                                    ₹{relatedProduct.original_price}
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="px-6 py-2 font-medium hover:shadow-md transition-all duration-200"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  addItem({
+                                    id: relatedProductId,
+                                    name: relatedProduct.name,
+                                    price: relatedProduct.price,
+                                    image: relatedImageUrl
+                                  }, 1);
+                                }}
+                              >
+                                Add
+                              </Button>
                             </div>
                           </div>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="px-4 py-2"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              addItem({
-                                id: relatedProductId,
-                                name: relatedProduct.name,
-                                price: relatedProduct.price,
-                                image: relatedImageUrl
-                              }, 1);
-                            }}
-                          >
-                            Add
-                          </Button>
                         </div>
                       );
                     })}
@@ -678,18 +692,18 @@ const Checkout = () => {
           </div>
         </div>
 
-        {/* Related Products Section - Conditional Layout */}
+        {/* Related Products Section - Only for Mobile when >3 cart items */}
         {relatedProducts.length > 0 && (() => {
           const cartItemsCount = items.length;
           const isMobile = window.innerWidth < 1024; // lg breakpoint
 
           // Show this section:
-          // - Always on desktop (full-width slider)
-          // - On mobile/tablet only when >3 cart items (since mobile vertical section won't show for >3 items)
-          const showBottomSection = !isMobile || cartItemsCount > 3;
+          // - Only on mobile/tablet when >3 cart items (since mobile vertical section won't show for >3 items)
+          // - Never on desktop (to avoid duplication with vertical section)
+          const showBottomSection = isMobile && cartItemsCount > 3;
 
           return showBottomSection ? (
-            <div className="mt-16">
+            <div className="mt-16 lg:hidden">
               <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
                 Customers Also Bought
               </h2>
