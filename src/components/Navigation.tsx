@@ -19,7 +19,8 @@ const Navigation = () => {
     if (userRole === 'admin' || userRole === 'team') {
       window.location.href = '/admin';
     } else {
-      window.location.href = '/profile';
+      const userId = user?.id || 'user';
+      window.location.href = `/profile?user=${userId}`;
     }
   };
 

@@ -26,8 +26,8 @@ const Checkout = () => {
   const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
   const [showCouponSection, setShowCouponSection] = useState(true);
 
-  // Minimum Angel Coins required to redeem (can be adjusted)
-  const minAngelCoinsRequired = 100;
+  // Minimum Angel Coins required to redeem
+  const minAngelCoinsRequired = 10000;
 
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
 
@@ -167,8 +167,28 @@ const Checkout = () => {
                 </>
               )}
 
-              {/* Angel Points Redemption - Only show if enabled by admin and user has minimum coins */}
-              {showAngelCoinsSection && canRedeemAngelCoins && (
+              {/* Angel Points Redemption - Only show if enabled by admin */}
+              {showAngelCoinsSection && (
+                <>
+                  {!canRedeemAngelCoins && (
+                    <div className="space-y-2 mb-4">
+                      <Label className="flex items-center gap-2 text-angelic-deep">
+                        <Coins className="w-4 h-4" />
+                        Angel Coins Redemption
+                      </Label>
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          <strong>Minimum {minAngelCoinsRequired.toLocaleString()} Angel Coins required for redemption.</strong>
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          You currently have {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} Angel Coins.
+                          Keep shopping to earn more Angel Coins!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {canRedeemAngelCoins && (
                 <div className="space-y-4 mb-4">
                   <Label className="flex items-center gap-2 text-angelic-deep">
                     <Coins className="w-4 h-4" />
@@ -210,6 +230,8 @@ const Checkout = () => {
                     </div>
                   </div>
                 </div>
+                  )}
+                </>
               )}
 
               <Separator className="my-4" />

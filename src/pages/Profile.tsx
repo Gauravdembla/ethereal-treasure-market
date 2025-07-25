@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,14 +12,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useAngelCoins } from "@/hooks/useAngelCoins";
-import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe } from "lucide-react";
+import { useCountryState } from "@/hooks/useCountryState";
+import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe, Search } from "lucide-react";
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currency, loading: currencyLoading, formatPrice, formatAngelCoinValue, changeCurrency, supportedCurrencies } = useCurrency();
-  const { angelCoins, loading: angelCoinsLoading } = useAngelCoins();
+  const { angelCoins, loading: angelCoinsLoading, updateBalance } = useAngelCoins();
+  const [searchParams] = useSearchParams();
+
+  // Get user ID from URL params for unique URLs
+  const userId = searchParams.get('user') || user?.id || 'default';
 
   // Active section state
   const [activeSection, setActiveSection] = useState('profile');
@@ -28,6 +33,10 @@ const Profile = () => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [editingAddress, setEditingAddress] = useState<any>(null);
+
+  // Angel Coins editing (admin only)
+  const [isEditingAngelCoins, setIsEditingAngelCoins] = useState(false);
+  const [angelCoinsEditValue, setAngelCoinsEditValue] = useState('');
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -106,12 +115,25 @@ const Profile = () => {
 
   const [newAddress, setNewAddress] = useState({
     type: '',
-    fullAddress: '',
+    customType: '',
+    name: '',
+    address1: '',
+    address2: '',
+    nearby: '',
     city: '',
     state: '',
+    customState: '',
+    country: '',
     zipCode: '',
     isDefault: false
   });
+
+  // Country/State management
+  const { selectedCountry, availableStates, loading: countryLoading, changeCountry, filterCountries, filterStates, allCountries } = useCountryState();
+  const [countrySearch, setCountrySearch] = useState('');
+  const [stateSearch, setStateSearch] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
 
   // Handler functions
   const handleSaveProfile = () => {
@@ -129,7 +151,11 @@ const Profile = () => {
   };
 
   const handleAddAddress = () => {
-    if (!newAddress.type || !newAddress.fullAddress || !newAddress.city) {
+    // Validation
+    const addressType = newAddress.type === 'Others' ? newAddress.customType : newAddress.type;
+    const stateName = newAddress.state === 'Others' ? newAddress.customState : newAddress.state;
+
+    if (!addressType || !newAddress.name || !newAddress.address1 || !newAddress.city || !stateName || !newAddress.country || !newAddress.zipCode) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -139,8 +165,17 @@ const Profile = () => {
     }
 
     const addressToAdd = {
-      ...newAddress,
       id: Date.now(),
+      type: addressType,
+      name: newAddress.name,
+      fullAddress: `${newAddress.address1}${newAddress.address2 ? ', ' + newAddress.address2 : ''}${newAddress.nearby ? ', Near ' + newAddress.nearby : ''}`,
+      address1: newAddress.address1,
+      address2: newAddress.address2,
+      nearby: newAddress.nearby,
+      city: newAddress.city,
+      state: stateName,
+      country: newAddress.country,
+      zipCode: newAddress.zipCode,
       isDefault: userProfile.addresses.length === 0 ? true : newAddress.isDefault
     };
 
@@ -153,13 +188,21 @@ const Profile = () => {
 
     setNewAddress({
       type: '',
-      fullAddress: '',
+      customType: '',
+      name: '',
+      address1: '',
+      address2: '',
+      nearby: '',
       city: '',
       state: '',
+      customState: '',
+      country: selectedCountry?.name || '',
       zipCode: '',
       isDefault: false
     });
     setIsAddingAddress(false);
+    setCountrySearch('');
+    setStateSearch('');
     toast({
       title: "Success",
       description: "Address added successfully"
@@ -180,6 +223,34 @@ const Profile = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handleSaveAngelCoins = async () => {
+    const newBalance = parseInt(angelCoinsEditValue);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid number"
+      });
+      return;
+    }
+
+    const success = await updateBalance(newBalance);
+    if (success) {
+      setIsEditingAngelCoins(false);
+      setAngelCoinsEditValue('');
+      toast({
+        title: "Success",
+        description: "Angel Coins balance updated successfully"
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update Angel Coins balance"
+      });
+    }
   };
 
   if (!user) {
@@ -368,16 +439,55 @@ const Profile = () => {
                         <Coins className="w-12 h-12 text-yellow-500" />
                         <div>
                           <p className="text-lg font-medium text-yellow-700">Current Balance</p>
-                          <p className="text-4xl font-bold text-yellow-600">
-                            {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
-                          </p>
+                          {isEditingAngelCoins ? (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Input
+                                type="number"
+                                value={angelCoinsEditValue}
+                                onChange={(e) => setAngelCoinsEditValue(e.target.value)}
+                                placeholder="Enter new balance"
+                                className="w-32 text-center"
+                              />
+                              <Button size="sm" onClick={handleSaveAngelCoins}>
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setIsEditingAngelCoins(false);
+                                  setAngelCoinsEditValue('');
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <p className="text-4xl font-bold text-yellow-600">
+                                {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setIsEditingAngelCoins(true);
+                                  setAngelCoinsEditValue(angelCoins.toString());
+                                }}
+                                className="ml-2 text-yellow-600 hover:text-yellow-700"
+                                title="Edit Angel Coins (Admin)"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                           <p className="text-sm text-yellow-600">Angel Coins</p>
                         </div>
                       </div>
                     </div>
                     <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                       <p className="text-gray-700 mb-2">
-                        <strong>Exchange Rate:</strong> 1 Angel Coin = {formatAngelCoinValue()}
+                        <strong>Exchange Rate:</strong> 1 Angel Coin = ₹0.05
                       </p>
                       <p className="text-gray-600 text-sm">
                         Earn Angel Coins with every purchase and redeem them for exclusive rewards!

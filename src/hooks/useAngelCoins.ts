@@ -11,7 +11,7 @@ export const useAngelCoins = () => {
   const { user, isAuthenticated } = useAuth();
   const [angelCoinsData, setAngelCoinsData] = useState<AngelCoinsData>({
     balance: 0,
-    exchangeRateINR: 0.10, // 1 Angel Coin = Rs. 0.10
+    exchangeRateINR: 0.05, // 1 Angel Coin = Rs. 0.05
     loading: true
   });
 
@@ -20,7 +20,7 @@ export const useAngelCoins = () => {
       if (!isAuthenticated || !user) {
         setAngelCoinsData({
           balance: 0,
-          exchangeRateINR: 0.10,
+          exchangeRateINR: 0.05,
           loading: false
         });
         return;
@@ -40,14 +40,14 @@ export const useAngelCoins = () => {
 
         setAngelCoinsData({
           balance,
-          exchangeRateINR: 0.10,
+          exchangeRateINR: 0.05,
           loading: false
         });
       } catch (error) {
         console.error('Error fetching Angel Coins:', error);
         setAngelCoinsData({
           balance: 0,
-          exchangeRateINR: 0.10,
+          exchangeRateINR: 0.05,
           loading: false
         });
       }
@@ -90,6 +90,20 @@ export const useAngelCoins = () => {
     }
   };
 
+  const updateBalance = async (newBalance: number): Promise<boolean> => {
+    try {
+      // In a real app, this would update the database
+      setAngelCoinsData(prev => ({
+        ...prev,
+        balance: newBalance
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error updating Angel Coins balance:', error);
+      return false;
+    }
+  };
+
   return {
     angelCoins: angelCoinsData.balance,
     exchangeRateINR: angelCoinsData.exchangeRateINR,
@@ -97,6 +111,7 @@ export const useAngelCoins = () => {
     calculateRedemptionValue,
     getMaxRedeemableCoins,
     canRedeem,
-    redeemCoins
+    redeemCoins,
+    updateBalance
   };
 };
