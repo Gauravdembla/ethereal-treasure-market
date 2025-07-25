@@ -48,46 +48,102 @@ const Checkout = () => {
   // Minimum Angel Coins required to redeem
   const minAngelCoinsRequired = 10000;
 
-  // Helper function to create product slug
-  const createProductSlug = (name: string, sku: string) => {
-    const nameSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    return `${nameSlug}-${sku}`;
+  // Helper function to get available quantity (same logic as ProductCard)
+  const getAvailableQuantity = (productId: string) => {
+    const hash = productId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
 
-  const handleQuantityChange = (id: string, change: number) => {
-    const item = items.find(item => item.id === id);
-    if (item) {
-      const newQuantity = Math.max(1, item.quantity + change);
-      updateQuantity(id, newQuantity);
-    }
+  // Helper function to create product slug
+  const createProductSlug = (name: string, sku: string) => {
+    const spacesRegex = new RegExp('\\s+', 'g');
+    return name.toLowerCase().replace(spacesRegex, '-') + '_' + sku;
+  };
+
+  // Helper function to clean price string
+  const cleanPriceString = (price: string) => {
+    const commaRegex = new RegExp(',', 'g');
+    return price.replace(commaRegex, '');
   };
 
   const subtotal = items.reduce((sum, item) => {
-    const price = parseFloat(item.price.replace(/[^\d.]/g, ''));
-    return sum + (price * item.quantity);
+    const cleanPrice = cleanPriceString(item.price);
+    return sum + (parseFloat(cleanPrice) * item.quantity);
   }, 0);
 
-  const applyCoupon = () => {
-    if (couponCode === "WELCOME10") {
-      setDiscount(subtotal * 0.1);
-    } else if (couponCode === "ANGEL20") {
-      setDiscount(subtotal * 0.2);
-    } else {
-      setDiscount(0);
+  // Calculate GST breakdown
+  const gstBreakdown = calculateGSTBreakdown(subtotal);
+  const { baseAmount, gstAmount } = gstBreakdown;
+
+  // Calculate max redeemable coins (5% of base amount)
+  const maxRedeemableCoins = getMaxRedeemableCoins(subtotal);
+  const maxRedemptionValue = getMaxRedemptionValue(subtotal);
+
+  // Calculate theoretical maximum based on 5% rule only (not limited by user balance)
+  const theoreticalMaxCoins = Math.floor(maxRedemptionValue / exchangeRateINR);
+
+  // Check if user has enough coins and meets minimum requirement
+  const canRedeemAngelCoins = angelCoins >= minAngelCoinsRequired && !angelCoinsLoading;
+
+  // For slider maximum, use theoretical max but ensure user has enough coins
+  const actualMaxRedeemableCoins = canRedeemAngelCoins ?
+    Math.min(theoreticalMaxCoins, angelCoins) : 0;
+
+  // Calculate Angel Coins discount (applied to base amount)
+  const angelCoinsDiscount = calculateRedemptionValue(angelCoinsToRedeem[0]);
+
+  // Calculate final amounts
+  const discountedBaseAmount = Math.max(0, baseAmount - discount - angelCoinsDiscount);
+  const finalGstAmount = discountedBaseAmount * 0.18;
+  const total = discountedBaseAmount + finalGstAmount;
+
+  // Load Angel Coins selection from localStorage on component mount
+  useEffect(() => {
+    if (user) {
+      const userId = user.id || user.email || 'default';
+      const storageKey = `angelCoinsRedemption_${userId}`;
+      const savedRedemption = localStorage.getItem(storageKey);
+
+      if (savedRedemption) {
+        const savedValue = parseInt(savedRedemption, 10);
+        if (!isNaN(savedValue) && savedValue >= 0) {
+          setAngelCoinsToRedeem([savedValue]);
+        }
+      }
     }
-  };
+  }, [user]);
 
-  const angelPointsDiscount = calculateRedemptionValue(angelCoinsToRedeem[0]);
-  const gstBreakdown = calculateGSTBreakdown(subtotal - discount - angelPointsDiscount);
-  const total = gstBreakdown.baseAmount + gstBreakdown.gstAmount;
+  // Save Angel Coins selection to localStorage whenever it changes
+  useEffect(() => {
+    if (user && angelCoinsToRedeem[0] !== undefined) {
+      const userId = user.id || user.email || 'default';
+      const storageKey = `angelCoinsRedemption_${userId}`;
+      localStorage.setItem(storageKey, angelCoinsToRedeem[0].toString());
+    }
+  }, [user, angelCoinsToRedeem]);
 
-  const prevRelatedProducts = () => {
-    setRelatedProductsStartIndex(prev => Math.max(0, prev - 1));
-  };
+  // Auto-adjust Angel Coins when cart value changes
+  useEffect(() => {
+    const currentMaxRedemptionValue = getMaxRedemptionValue(subtotal);
+    const currentTheoreticalMaxCoins = Math.floor(currentMaxRedemptionValue / exchangeRateINR);
+    const currentMaxRedeemableCoins = Math.min(currentTheoreticalMaxCoins, angelCoins);
+    const currentRedemption = angelCoinsToRedeem[0];
 
-  const nextRelatedProducts = () => {
-    const maxStartIndex = Math.max(0, relatedProducts.length - 4);
-    setRelatedProductsStartIndex(prev => Math.min(maxStartIndex, prev + 1));
+    // If current redemption exceeds new maximum, adjust it down
+    if (currentRedemption > currentMaxRedeemableCoins) {
+      setAngelCoinsToRedeem([currentMaxRedeemableCoins]);
+    }
+  }, [subtotal, getMaxRedemptionValue, exchangeRateINR, angelCoins, angelCoinsToRedeem]);
+
+  const applyCoupon = () => {
+    if (couponCode.toLowerCase() === "welcome10") {
+      setDiscount(subtotal * 0.1);
+    } else if (couponCode.toLowerCase() === "angel20") {
+      setDiscount(subtotal * 0.2);
+    }
   };
 
   const handleCheckout = () => {
@@ -95,171 +151,163 @@ const Checkout = () => {
       setShowLoginDialog(true);
       return;
     }
-    
+    console.log("Navigating to address page...");
     navigate("/address");
   };
 
-  const updateRelatedProductQuantity = (productId: string, quantity: number) => {
-    setRelatedProductQuantities(prev => ({
-      ...prev,
-      [productId]: Math.max(1, quantity)
-    }));
+  const handleLoginSuccess = () => {
+    setShowLoginDialog(false);
+    navigate("/address");
   };
 
-  // Fetch related products from Supabase
+  // Fetch related products from Supabase (matching ProductDetail.tsx logic)
   useEffect(() => {
-    if (items.length === 0) return;
-
     const fetchRelatedProducts = async () => {
       try {
-        const { data: products, error } = await supabase
-          .from('products')
-          .select(`
-            *,
-            categories (
-              id,
-              name,
-              slug
-            ),
-            subcategories (
-              id,
-              name,
-              slug
-            ),
-            brands (
-              id,
-              name,
-              slug
-            )
-          `)
-          .neq('id', items[0].id)
-          .limit(10);
+        // Get all published products that are not in the current cart
+        const cartProductIds = items.map(item => item.id);
 
-        if (error) {
-          console.error('Error fetching related products:', error);
-          return;
+        const { data: relatedData, error: relatedError } = await supabase
+          .from('product_details_view')
+          .select('*')
+          .eq('status', 'published')
+          .not('product_id', 'in', `(${cartProductIds.length > 0 ? cartProductIds.join(',') : 'null'})`)
+          .limit(8);
+
+        if (!relatedError && relatedData) {
+          setRelatedProducts(relatedData);
         }
-
-        setRelatedProducts(products || []);
-      } catch (error) {
-        console.error('Error fetching related products:', error);
+      } catch (err) {
+        console.error('Error fetching related products:', err);
       }
     };
 
     fetchRelatedProducts();
-  }, [items]);
+  }, [items]); // Re-fetch when cart items change
 
-  // Layout detection
+  // Check height comparison between Order Items and Order Summary
   useEffect(() => {
-    const detectLayout = () => {
-      const orderItemsSection = document.querySelector('[data-order-items]');
-      const orderSummarySection = document.querySelector('[data-order-summary]');
-      
-      if (orderItemsSection && orderSummarySection) {
-        const orderItemsHeight = orderItemsSection.clientHeight;
-        const orderSummaryHeight = orderSummarySection.clientHeight;
-        
-        // Show as card if order items height is less than order summary
+    const checkHeights = () => {
+      const orderItemsElement = document.querySelector('[data-order-items]');
+      const orderSummaryElement = document.querySelector('[data-order-summary]');
+
+      if (orderItemsElement && orderSummaryElement) {
+        const orderItemsHeight = orderItemsElement.clientHeight;
+        const orderSummaryHeight = orderSummaryElement.clientHeight;
+
+        // Show as card if Order Items height is less than Order Summary height
         setShowAsCard(orderItemsHeight < orderSummaryHeight);
       }
     };
 
-    const timer = setTimeout(detectLayout, 100);
-    window.addEventListener('resize', detectLayout);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', detectLayout);
-    };
+    // Check heights after component mounts and when items change
+    const timer = setTimeout(checkHeights, 100);
+    return () => clearTimeout(timer);
   }, [items]);
+
+  // Navigation functions for related products - Fixed for proper scrolling
+  const nextRelatedProducts = () => {
+    const visibleProducts = showAsCard ? 3 : 4; // Show 3 in card mode, 4 in full width
+    const maxStartIndex = Math.max(0, relatedProducts.length - visibleProducts);
+    setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
+  };
+
+  const prevRelatedProducts = () => {
+    setRelatedProductsStartIndex((prev) => Math.max(prev - 1, 0));
+  };
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-25 to-white">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center py-16">
-            <h1 className="text-2xl font-bold text-gray-600 mb-4">Your cart is empty</h1>
-            <Button onClick={() => navigate('/')} className="mt-4">
-              Continue Shopping
-            </Button>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-angelic-cream/30 to-white/50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="font-playfair text-2xl text-angelic-deep mb-4">Your cart is empty</h2>
+          <Button onClick={() => navigate("/")} variant="angelic">
+            Continue Shopping
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-25 to-white">
-      {/* Header */}
-      <div className="border-b border-gray-200 bg-white/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/')}
-                className="flex items-center gap-2 text-gray-600 hover:text-primary"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Shop
-              </Button>
-            </div>
-            <h1 className="text-2xl font-playfair font-bold text-angelic-deep">Checkout</h1>
-            <div className="flex items-center gap-2 text-gray-600">
-              <UserCircle className="w-5 h-5" />
-              <span className="text-sm">{userName}</span>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-angelic-cream/30 to-white/50">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Shop
+            </Button>
+            <h1 className="font-playfair text-3xl text-angelic-deep">Checkout</h1>
           </div>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Order Items Section */}
-          <div className="lg:col-span-8 space-y-6" data-order-items>
+          {/* Profile Icon */}
+          {user && (
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/profile")}
+              className="flex items-center gap-2 text-angelic-deep hover:text-primary"
+            >
+              <UserCircle className="w-6 h-6" />
+              <span className="hidden sm:inline">{userName}</span>
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Order Items */}
+          <div className="space-y-6" data-order-items>
             <Card className="p-6">
-              <h2 className="text-xl font-playfair font-bold text-angelic-deep mb-6">Order Items</h2>
+              <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Items</h2>
               <div className="space-y-4">
                 {items.map((item) => (
-                  <div key={item.id} className="flex gap-4 p-4 border border-gray-100 rounded-lg hover:shadow-md transition-all duration-300">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-playfair font-semibold text-angelic-deep text-lg mb-2">{item.name}</h3>
-                      <p className="text-primary font-bold text-xl mb-3">{item.price}</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleQuantityChange(item.id, -1)}
-                            className="h-8 w-8 p-0 hover:bg-gray-200"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="font-semibold text-lg w-8 text-center">{item.quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleQuantityChange(item.id, 1)}
-                            className="h-8 w-8 p-0 hover:bg-gray-200"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(item.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                  <div key={item.id} className="flex items-center gap-3 p-3 bg-angelic-cream/20 rounded-lg">
+                    <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-md" />
+                    <div className="flex-1">
+                      <h4 className="font-medium text-angelic-deep">{item.name}</h4>
+                      <p className="text-primary font-semibold">₹{item.price}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                        className="w-8 h-8 p-0"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{item.quantity}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const availableQuantity = getAvailableQuantity(item.id);
+                          const maxSelectQuantity = 15;
+                          const maxAllowed = Math.min(availableQuantity, maxSelectQuantity);
+
+                          if (item.quantity >= maxAllowed) {
+                            alert(`Maximum quantity allowed: ${maxAllowed} (Available: ${availableQuantity})`);
+                            return;
+                          }
+                          updateQuantity(item.id, item.quantity + 1);
+                        }}
+                        className="w-8 h-8 p-0"
+                        disabled={item.quantity >= Math.min(getAvailableQuantity(item.id), 15)}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeItem(item.id)}
+                        className="w-8 h-8 p-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -267,476 +315,650 @@ const Checkout = () => {
             </Card>
 
             {/* Dynamic Customers Also Bought - Vertical Layout for Mobile/Tablet */}
-            {relatedProducts.length > 0 && showAsCard && (() => {
-              const cartItemsCount = items.length;
-              const maxProducts = cartItemsCount === 1 ? 3 : cartItemsCount === 2 ? 2 : cartItemsCount === 3 ? 1 : 0;
-              
-              // Only show this section on mobile/tablet AND when cart items <= 3
-              if (maxProducts === 0) return null;
-              
-              return (
-                <div className="space-y-6 lg:hidden">
-                  <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
-                    Customers Also Bought
-                  </h3>
-                  <div className="space-y-4">
-                    {relatedProducts.slice(0, maxProducts).map((relatedProduct) => {
-                      const relatedProductId = relatedProduct.product_id;
-                      const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                      const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-                      
-                      return (
-                        <Card key={relatedProductId} className="flex gap-4 p-4 hover:shadow-lg transition-all duration-300">
-                          <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
-                            <img
-                              src={relatedImageUrl}
-                              alt={relatedProduct.name}
-                              className="w-20 h-20 object-cover rounded-lg"
-                            />
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-1">
-                              {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                                <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                              ))}
-                            </div>
-                            <Link to={`/product/${relatedProductSlug}`}>
-                              <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2">
-                                {relatedProduct.name}
-                              </h4>
-                            </Link>
-                            <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
-                              {relatedProduct.description.slice(0, 50)}...
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
-                                {relatedProduct.original_price && (
-                                  <span className="text-xs text-muted-foreground line-through">
-                                    ₹{relatedProduct.original_price}
-                                  </span>
-                                )}
-                              </div>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="h-7 px-3 text-xs"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  addItem({
-                                    id: relatedProductId,
-                                    name: relatedProduct.name,
-                                    price: relatedProduct.price,
-                                    image: relatedImageUrl
-                                  }, 1);
-                                }}
-                              >
-                                <ShoppingCart className="w-3 h-3 mr-1" />
-                                Add
-                              </Button>
-                            </div>
+            {relatedProducts.length > 0 && showAsCard && (
+              <div className="space-y-6 lg:hidden">
+                <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
+                  Customers Also Bought
+                </h3>
+                <div className="space-y-4">
+                  {relatedProducts.slice(0, (() => {
+                    // Logic: 1 item = max 3 products, 2 items = max 2 products, 3 items = max 1 product, >3 items = show under summary
+                    const cartItemsCount = items.length;
+                    if (cartItemsCount === 1) return 3;
+                    if (cartItemsCount === 2) return 2;
+                    if (cartItemsCount === 3) return 1;
+                    return 0; // >3 items = don't show here
+                  })()).map((relatedProduct) => {
+                    const relatedProductId = relatedProduct.product_id;
+                    const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                    const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                    
+                    return (
+                      <Card key={relatedProductId} className="flex gap-4 p-4 hover:shadow-lg transition-all duration-300">
+                        <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                        </Link>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-1">
+                            {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                            ))}
                           </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                          <Link to={`/product/${relatedProductSlug}`}>
+                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2">
+                              {relatedProduct.name}
+                            </h4>
+                          </Link>
+                          <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
+                            {relatedProduct.description.slice(0, 50)}...
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
+                              {relatedProduct.original_price && (
+                                <span className="text-xs text-muted-foreground line-through">
+                                  ₹{relatedProduct.original_price}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                addItem({
+                                  id: relatedProductId,
+                                  name: relatedProduct.name,
+                                  price: relatedProduct.price,
+                                  image: relatedImageUrl
+                                }, 1);
+                              }}
+                            >
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </div>
 
           {/* Order Summary */}
-          <div className="lg:col-span-4 space-y-6" data-order-summary>
+          <div className="space-y-6" data-order-summary>
             {/* Customer Information */}
             {user && (
               <Card className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <User className="w-5 h-5 text-primary" />
-                  <h3 className="font-playfair font-bold text-lg text-angelic-deep">Customer Information</h3>
-                </div>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Name:</span>
-                    <span className="font-medium text-angelic-deep">{userName}</span>
+                <h2 className="font-playfair text-xl text-angelic-deep mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Customer Information
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Name:</span>
+                    <span className="text-sm text-gray-800">{userName}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Email:</span>
-                    <span className="font-medium text-angelic-deep">{userEmail}</span>
-                  </div>
-                  {userMobile && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Mobile:</span>
-                      <span className="font-medium text-angelic-deep">{userMobile}</span>
+                  {userEmail && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Email:</span>
+                      <span className="text-sm text-gray-800">{userEmail}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Membership Type:</span>
-                    <span className="font-medium text-primary">{userMembershipType}</span>
+                  {userMobile && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Mobile:</span>
+                      <span className="text-sm text-gray-800">{userMobile}</span>
+                    </div>
+                  )}
+                  {userAlternativeMobile && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Alternative Mobile:</span>
+                      <span className="text-sm text-gray-800">{userAlternativeMobile}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Membership Type:</span>
+                    <span className="text-sm text-gray-800 font-semibold text-primary">{userMembershipType}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Account Type:</span>
-                    <span className="font-medium text-angelic-deep">{userRole === 'admin' ? 'Admin' : 'Customer'}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Account Type:</span>
+                    <span className="text-sm text-gray-800 capitalize">
+                      {userRole === 'admin' ? 'Administrator' : userRole === 'team' ? 'Team Member' : 'Customer'}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Angel Coins:</span>
-                    <span className="font-medium text-angelic-gold flex items-center gap-1">
-                      <Coins className="w-4 h-4" />
-                      {angelCoins.toLocaleString()} coins
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Angel Coins:</span>
+                    <span className="text-sm font-semibold text-yellow-600">
+                      {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} coins
                     </span>
                   </div>
                 </div>
               </Card>
             )}
 
-            {/* Order Summary */}
             <Card className="p-6">
-              <h3 className="font-playfair font-bold text-lg text-angelic-deep mb-4">Order Summary</h3>
+              <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Summary</h2>
               
-              {/* Coupon Section */}
+              {/* Coupon Code - Only show if enabled by admin */}
               {showCouponSection && (
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Gift className="w-4 h-4 text-primary" />
-                    <Label htmlFor="coupon" className="font-medium text-angelic-deep">Coupon Code</Label>
+                <>
+                  <div className="space-y-2 mb-4">
+                    <Label className="flex items-center gap-2 text-angelic-deep">
+                      <Gift className="w-4 h-4" />
+                      Coupon Code
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter coupon code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button onClick={applyCoupon} variant="outline">
+                        Apply
+                      </Button>
+                    </div>
+                    <p className="text-xs text-angelic-deep/60">Try: WELCOME10 or ANGEL20</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Input
-                      id="coupon"
-                      placeholder="Enter coupon code"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button onClick={applyCoupon} variant="outline">Apply</Button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Try: WELCOME10 or ANGEL20</p>
-                </div>
+                  <Separator className="my-4" />
+                </>
               )}
 
-              {/* Angel Coins Redemption */}
+              {/* Angel Points Redemption - Only show if enabled by admin */}
               {showAngelCoinsSection && (
-                <div className="mb-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Coins className="w-4 h-4 text-angelic-gold" />
-                    <Label className="font-medium text-angelic-deep">Angel Coins Redemption</Label>
-                  </div>
-                  
-                  {angelCoins < minAngelCoinsRequired ? (
-                    <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-3">
-                      <p className="text-sm text-yellow-800 font-medium">
-                        Minimum {minAngelCoinsRequired.toLocaleString()} Angel Coins required for redemption.
-                      </p>
-                      <p className="text-xs text-yellow-700 mt-1">
-                        You currently have {angelCoins.toLocaleString()} Angel Coins. Keep shopping to earn more Angel Coins!
-                      </p>
+                <>
+                  {!canRedeemAngelCoins && (
+                    <div className="space-y-2 mb-4">
+                      <Label className="flex items-center gap-2 text-angelic-deep">
+                        <Coins className="w-4 h-4" />
+                        Angel Coins Redemption
+                      </Label>
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          <strong>Minimum {minAngelCoinsRequired.toLocaleString()} Angel Coins required for redemption.</strong>
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          You currently have {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} Angel Coins.
+                          Keep shopping to earn more Angel Coins!
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-2">
+                          <strong>Note:</strong> Angel Coins can be redeemed up to 5% of base amount (before GST).
+                        </p>
+                      </div>
                     </div>
-                  ) : (
-                    <>
-                      <div className="mb-3">
-                        <div className="flex justify-between text-sm mb-2">
-                          <span>Angel Coins to use:</span>
-                          <span className="font-medium">{angelCoinsToRedeem[0].toLocaleString()}</span>
+                  )}
+
+                  {canRedeemAngelCoins && (
+                <div className="space-y-4 mb-4">
+                  <Label className="flex items-center gap-2 text-angelic-deep">
+                    <Coins className="w-4 h-4" />
+                    Redeem Angel Coins
+                  </Label>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span>Available Angel Coins:</span>
+                      <span className="font-medium">
+                        {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Redeem:</span>
+                          <span className="font-medium">
+                            {angelCoinsToRedeem[0].toLocaleString()} coins (₹{angelCoinsDiscount.toFixed(2)})
+                          </span>
                         </div>
                         <Slider
                           value={angelCoinsToRedeem}
                           onValueChange={setAngelCoinsToRedeem}
-                          max={getMaxRedeemableCoins(subtotal - discount)}
+                          max={actualMaxRedeemableCoins}
+                          min={0}
                           step={100}
                           className="w-full"
                         />
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <div className="flex justify-between text-xs text-angelic-deep/60">
                           <span>0</span>
-                          <span>{getMaxRedeemableCoins(subtotal - discount).toLocaleString()}</span>
+                          <span>Max: {actualMaxRedeemableCoins.toLocaleString()} coins</span>
                         </div>
                       </div>
-                      
-                      <div className="bg-white/50 rounded-lg p-3 space-y-2">
-                        <p className="text-xs text-gray-600">
-                          <strong>Note:</strong> Angel Coins can be redeemed up to 5% of base amount (before GST).
-                        </p>
-                        <div className="flex justify-between text-xs">
-                          <span>Exchange Rate:</span>
-                          <span>{exchangeRateINR} coins = ₹1</span>
-                        </div>
-                        <div className="flex justify-between text-xs font-medium text-green-600">
-                          <span>Discount Value:</span>
-                          <span>₹{angelPointsDiscount.toFixed(2)}</span>
-                        </div>
+                      <div className="text-xs text-angelic-deep/60 space-y-1">
+                        <p>1 Angel Coin = ₹{exchangeRateINR.toFixed(2)}</p>
+                        <p>Max 5% of base amount (₹{baseAmount.toFixed(2)}) = ₹{maxRedemptionValue.toFixed(2)}</p>
+                        <p>Max redeemable: {theoreticalMaxCoins.toLocaleString()} coins</p>
                       </div>
-                    </>
-                  )}
+                    </div>
+                  </div>
                 </div>
+                  )}
+                </>
               )}
 
               <Separator className="my-4" />
-              
-              {/* Price Breakdown */}
-              <div className="space-y-2 text-sm">
+
+              {/* Pricing Breakdown */}
+              <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span>Base Amount:</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
+                  <span>Base Amount</span>
+                  <span>₹{baseAmount.toFixed(2)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Coupon Discount:</span>
+                    <span>Coupon Discount</span>
                     <span>-₹{discount.toFixed(2)}</span>
                   </div>
                 )}
-                {angelPointsDiscount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Angel Coins Discount:</span>
-                    <span>-₹{angelPointsDiscount.toFixed(2)}</span>
+                {angelCoinsDiscount > 0 && (
+                  <div className="flex justify-between text-purple-600">
+                    <span>Angel Coins ({angelCoinsToRedeem[0]} redeemed)</span>
+                    <span>-₹{angelCoinsDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {angelCoinsDiscount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Discounted Amount</span>
+                    <span>₹{discountedBaseAmount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>GST (18%):</span>
-                  <span>₹{gstBreakdown.gstAmount.toFixed(2)}</span>
+                  <span>GST (18%)</span>
+                  <span>₹{finalGstAmount.toFixed(2)}</span>
                 </div>
-                <Separator className="my-2" />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total Amount:</span>
+                <Separator />
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Total Amount</span>
                   <span className="text-primary">₹{total.toFixed(2)}</span>
                 </div>
               </div>
 
-              <Button 
-                onClick={handleCheckout}
-                className="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium py-3"
-              >
-                Place Order
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={clearCart}
-                className="w-full mt-3 text-gray-600 hover:text-red-600 hover:border-red-300"
-              >
-                Clear Cart
-              </Button>
+              {/* Checkout Actions */}
+              <div className="space-y-3 pt-6">
+                <Button 
+                  onClick={handleCheckout} 
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  Place Order
+                </Button>
+                <Button 
+                  onClick={clearCart} 
+                  variant="outline" 
+                  className="w-full"
+                >
+                  Clear Cart
+                </Button>
+              </div>
             </Card>
           </div>
         </div>
 
-        {/* Related Products Section - Desktop Horizontal Layout */}
+        {/* Related Products Section - Conditional Layout */}
         {relatedProducts.length > 0 && (() => {
           const cartItemsCount = items.length;
-          // Show this section:
-          // - Always on desktop (lg:block)
-          // - On mobile/tablet only when cart items > 3 (since mobile vertical section won't show)
+          // Show this section only if:
+          // - Desktop/large screens (lg:block)
+          // - OR Mobile/tablet with >3 cart items (since mobile vertical section won't show)
           const showBottomSection = cartItemsCount > 3;
           
           return (
-            <div className={`mt-16 ${showBottomSection ? 'block' : 'hidden lg:block'}`}>
+            <div className={`mt-16 ${showAsCard ? 'max-w-4xl mx-auto' : ''} ${showBottomSection ? 'block' : 'hidden lg:block'}`}>
               <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
                 Customers Also Bought
               </h2>
 
-              {/* Desktop Horizontal Layout */}
-              <div className="hidden lg:block">
-                <div className="relative">
-                  {/* Navigation for Desktop Layout */}
-                  {relatedProducts.length > 4 && (
-                    <>
-                      <button
-                        onClick={prevRelatedProducts}
-                        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
-                        aria-label="Previous products"
-                        disabled={relatedProductsStartIndex === 0}
-                      >
-                        <ChevronLeft className="w-5 h-5 text-gray-700" />
-                      </button>
+            {showAsCard ? (
+              <div className="relative">
+                {/* Navigation for Card Layout */}
+                {relatedProducts.length > 3 && (
+                  <>
+                    <button
+                      onClick={prevRelatedProducts}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-2 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Previous products"
+                      disabled={relatedProductsStartIndex === 0}
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-700" />
+                    </button>
 
-                      <button
-                        onClick={nextRelatedProducts}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
-                        aria-label="Next products"
-                        disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
-                      >
-                        <ChevronRight className="w-5 h-5 text-gray-700" />
-                      </button>
-                    </>
-                  )}
+                    <button
+                      onClick={nextRelatedProducts}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-2 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Next products"
+                      disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 3)}
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-700" />
+                    </button>
+                  </>
+                )}
 
-                  <div className="px-16">
-                    <div className="relative group">
-                      <div className="overflow-hidden">
-                        <div className={`grid transition-all duration-300 ${
-                          relatedProducts.length === 1
-                            ? 'grid-cols-1 justify-items-center'
-                            : relatedProducts.length === 2
-                            ? 'grid-cols-2 gap-6'
-                            : relatedProducts.length === 3
-                            ? 'grid-cols-3 gap-4'
-                            : 'grid-cols-4 gap-6'
-                        }`}>
-                          {relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + 4).map((relatedProduct) => {
-                            const relatedProductId = relatedProduct.product_id;
-                            const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                            const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-                            const relatedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-8">
+                {relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + 3).map((relatedProduct) => {
+                  const relatedProductId = relatedProduct.product_id;
+                  const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                  const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
 
-                            return (
-                              <Card key={relatedProductId} className="group hover:shadow-xl transition-all duration-300 overflow-hidden">
-                                <div className="relative">
-                                  <Link to={`/product/${relatedProductSlug}`}>
-                                    <div className="aspect-square overflow-hidden">
-                                      <img
-                                        src={relatedImageUrl}
-                                        alt={relatedProduct.name}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                      />
-                                    </div>
-                                  </Link>
-                                </div>
-                                <div className="p-4 space-y-3">
-                                  <div className="flex items-center gap-1">
-                                    {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                                      <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                                    ))}
-                                  </div>
-                                  <Link to={`/product/${relatedProductSlug}`}>
-                                    <h3 className="font-playfair font-semibold text-angelic-deep hover:text-primary transition-colors line-clamp-2 min-h-[3rem]">
-                                      {relatedProduct.name}
-                                    </h3>
-                                  </Link>
-                                  <p className="text-sm text-angelic-deep/70 line-clamp-2 min-h-[2.5rem]">
-                                    {relatedProduct.description}
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-primary">₹{relatedProduct.price}</span>
-                                    {relatedProduct.original_price && (
-                                      <span className="text-sm text-muted-foreground line-through">
-                                        ₹{relatedProduct.original_price}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center justify-between pt-2">
-                                    <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => updateRelatedProductQuantity(relatedProductId, relatedQuantity - 1)}
-                                        className="h-6 w-6 p-0 hover:bg-gray-200"
-                                        disabled={relatedQuantity <= 1}
-                                      >
-                                        <Minus className="w-3 h-3" />
-                                      </Button>
-                                      <span className="font-semibold text-sm w-6 text-center">{relatedQuantity}</span>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => updateRelatedProductQuantity(relatedProductId, relatedQuantity + 1)}
-                                        className="h-6 w-6 p-0 hover:bg-gray-200"
-                                      >
-                                        <Plus className="w-3 h-3" />
-                                      </Button>
-                                    </div>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      className="h-8 px-3 text-xs"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        addItem({
-                                          id: relatedProductId,
-                                          name: relatedProduct.name,
-                                          price: relatedProduct.price,
-                                          image: relatedImageUrl
-                                        }, relatedQuantity);
-                                      }}
-                                    >
-                                      <ShoppingCart className="w-3 h-3 mr-1" />
-                                      Add Cart
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            );
-                          })}
+                  return (
+                    <Card key={relatedProductId} className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
+                      <Link to={`/product/${relatedProductSlug}`}>
+                        <div className="relative group/image">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         </div>
+                      </Link>
+                      <div className="related-product-content p-4">
+                        <div className="flex items-center gap-1 mb-2">
+                          {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                          ))}
+                        </div>
+                        <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                          {relatedProduct.name}
+                        </h3>
+                        <div className="related-product-description">
+                          <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
+                            {relatedProduct.description.slice(0, 80)}...
+                          </p>
+                          <div className="related-product-read-more">
+                            <Link to={`/product/${relatedProductSlug}`} className="inline">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
+                              >
+                                Read More→
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                          {relatedProduct.original_price && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              ₹{relatedProduct.original_price}
+                            </span>
+                          )}
+                        </div>
+                        {/* Action Buttons for Card Layout */}
+                        {(() => {
+                          const cartItem = items.find(item => item.id === relatedProductId);
+                          const currentQuantity = cartItem?.quantity || 0;
+                          const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                          const availableQuantity = relatedProduct.available_quantity || 10;
+
+                          const handleAddToCart = (e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            if (selectedQuantity > availableQuantity) {
+                              alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+                              return;
+                            }
+
+                            addItem({
+                              id: relatedProductId,
+                              name: relatedProduct.name,
+                              price: relatedProduct.price,
+                              image: relatedImageUrl
+                            }, selectedQuantity);
+                          };
+
+                          return (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-center gap-2">
+                                <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
+                                <Select
+                                  value={(currentQuantity || selectedQuantity).toString()}
+                                  onValueChange={(value) => setRelatedProductQuantities(prev => ({
+                                    ...prev,
+                                    [relatedProductId]: parseInt(value)
+                                  }))}
+                                >
+                                  <SelectTrigger className="w-16 h-8 text-xs">
+                                    <SelectValue placeholder="1" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                      <SelectItem
+                                        key={num}
+                                        value={num.toString()}
+                                        disabled={num > availableQuantity}
+                                        className={num > availableQuantity ? "text-gray-400" : ""}
+                                      >
+                                        {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={handleAddToCart}
+                              >
+                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
+                              </Button>
+                              <div className="text-center">
+                                <span className="text-xs text-angelic-deep/70">
+                                  Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </Card>
+                  );
+                })}
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                {/* Slider Navigation - OUTSIDE the product container */}
+                <button
+                  onClick={prevRelatedProducts}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+                  aria-label="Previous products"
+                  disabled={relatedProductsStartIndex === 0}
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
+                </button>
+
+                <button
+                  onClick={nextRelatedProducts}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 hover:opacity-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+                  aria-label="Next products"
+                  disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
+                </button>
+
+                <div className="px-16">
+                  <div className="relative group">
+                    <div className="overflow-hidden">
+                      <div className={`grid transition-all duration-300 ${
+                        relatedProducts.length === 1
+                          ? 'grid-cols-1 justify-items-center'
+                          : relatedProducts.length === 2
+                          ? 'grid-cols-2 gap-6'
+                          : relatedProducts.length === 3
+                          ? 'grid-cols-3 gap-4'
+                          : 'flex gap-6'
+                      }`} style={
+                        relatedProducts.length > 3
+                          ? { transform: `translateX(-${relatedProductsStartIndex * 25}%)` }
+                          : {}
+                      }>
+                        {(relatedProducts.length > 3 
+                          ? relatedProducts 
+                          : relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + Math.min(4, relatedProducts.length))
+                        ).map((relatedProduct) => {
+                        const relatedProductId = relatedProduct.product_id;
+                        const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                        const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+
+                        return (
+                          <div
+                            key={relatedProductId}
+                            className={`group ${relatedProducts.length > 3 ? 'flex-shrink-0 w-60' : 'w-full'}`}
+                          >
+                            <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300">
+                              <Link to={`/product/${relatedProductSlug}`}>
+                                <div className="relative group/image">
+                                  <img
+                                    src={relatedImageUrl}
+                                    alt={relatedProduct.name}
+                                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </div>
+                              </Link>
+                              <div className="related-product-content p-4">
+                                <div className="flex items-center gap-1 mb-2">
+                                  {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                                    <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                                  ))}
+                                </div>
+                                <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                                  {relatedProduct.name}
+                                </h3>
+                                <div className="related-product-description">
+                                  <p className="text-sm text-angelic-deep/70 mb-1 line-clamp-2">
+                                    {relatedProduct.description.slice(0, 80)}...
+                                  </p>
+                                  <div className="related-product-read-more">
+                                    <Link to={`/product/${relatedProductSlug}`} className="inline">
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-xs transition-all duration-300 ease-in-out transform hover:scale-105"
+                                      >
+                                        Read More→
+                                      </Button>
+                                    </Link>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="font-bold text-primary">₹{relatedProduct.price}</span>
+                                  {relatedProduct.original_price && (
+                                    <span className="text-sm text-muted-foreground line-through">
+                                      ₹{relatedProduct.original_price}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="space-y-2">
+                                  {/* New Quantity Controls Design for Related Products */}
+                                  {(() => {
+                                    const cartItem = items.find(item => item.id === relatedProductId);
+                                    const currentQuantity = cartItem?.quantity || 0;
+                                    const selectedQuantity = relatedProductQuantities[relatedProductId] || 1;
+                                    const availableQuantity = relatedProduct.available_quantity || 10;
+
+                                    const handleAddToCart = (e: React.MouseEvent) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+
+                                      if (selectedQuantity > availableQuantity) {
+                                        alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
+                                        return;
+                                      }
+
+                                      addItem({
+                                        id: relatedProductId,
+                                        name: relatedProduct.name,
+                                        price: relatedProduct.price,
+                                        image: relatedImageUrl
+                                      }, selectedQuantity);
+                                    };
+
+                                    return (
+                                      <div className="space-y-2">
+                                        {/* Quantity Dropdown - Same Line - Centered */}
+                                        <div className="flex items-center justify-center gap-2">
+                                          <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
+                                          <Select
+                                            value={(currentQuantity || selectedQuantity).toString()}
+                                            onValueChange={(value) => setRelatedProductQuantities(prev => ({
+                                              ...prev,
+                                              [relatedProductId]: parseInt(value)
+                                            }))}
+                                          >
+                                            <SelectTrigger className="w-16 h-8 text-xs">
+                                              <SelectValue placeholder="1" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                                <SelectItem
+                                                  key={num}
+                                                  value={num.toString()}
+                                                  disabled={num > availableQuantity}
+                                                  className={num > availableQuantity ? "text-gray-400" : ""}
+                                                >
+                                                  {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+
+                                        {/* Add to Cart Button */}
+                                        <Button
+                                          variant="default"
+                                          size="sm"
+                                          className="w-full text-xs"
+                                          onClick={handleAddToCart}
+                                        >
+                                          <ShoppingCart className="w-3 h-3 mr-1" />
+                                          Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
+                                        </Button>
+
+                                        {/* Available Quantity Info */}
+                                        <div className="text-center">
+                                          <span className="text-xs text-angelic-deep/70">
+                                            Available: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </Card>
+                          </div>
+                        );
+                      })}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Mobile/Tablet Layout - Only when >3 cart items */}
-              {showBottomSection && (
-                <div className="lg:hidden">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {relatedProducts.slice(0, 2).map((relatedProduct) => {
-                      const relatedProductId = relatedProduct.product_id;
-                      const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                      const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-
-                      return (
-                        <Card key={relatedProductId} className="flex gap-4 p-4 hover:shadow-lg transition-all duration-300">
-                          <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
-                            <img
-                              src={relatedImageUrl}
-                              alt={relatedProduct.name}
-                              className="w-20 h-20 object-cover rounded-lg"
-                            />
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-1">
-                              {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                                <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                              ))}
-                            </div>
-                            <Link to={`/product/${relatedProductSlug}`}>
-                              <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2">
-                                {relatedProduct.name}
-                              </h4>
-                            </Link>
-                            <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
-                              {relatedProduct.description.slice(0, 50)}...
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
-                                {relatedProduct.original_price && (
-                                  <span className="text-xs text-muted-foreground line-through">
-                                    ₹{relatedProduct.original_price}
-                                  </span>
-                                )}
-                              </div>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="h-7 px-3 text-xs"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  addItem({
-                                    id: relatedProductId,
-                                    name: relatedProduct.name,
-                                    price: relatedProduct.price,
-                                    image: relatedImageUrl
-                                  }, 1);
-                                }}
-                              >
-                                <ShoppingCart className="w-3 h-3 mr-1" />
-                                Add
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+            )}
             </div>
           );
         })()}
       </div>
 
-      <LoginDialog 
-        open={showLoginDialog} 
+      <LoginDialog
+        open={showLoginDialog}
         onOpenChange={setShowLoginDialog}
+        onLoginSuccess={handleLoginSuccess}
       />
     </div>
   );
