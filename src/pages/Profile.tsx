@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle } from "lucide-react";
+import { useCurrency } from "@/hooks/useCurrency";
+import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe } from "lucide-react";
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currency, loading: currencyLoading, formatPrice, changeCurrency, supportedCurrencies } = useCurrency();
 
   // Active section state
   const [activeSection, setActiveSection] = useState('profile');
@@ -339,10 +341,16 @@ const Profile = () => {
             {activeSection === 'coins' && (
               <Card className="bg-white/70 backdrop-blur-sm border-white/50">
                 <CardHeader>
-                  <CardTitle className="text-2xl flex items-center gap-2">
-                    <Coins className="w-6 h-6" />
-                    Angel Coins
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      <Coins className="w-6 h-6" />
+                      Angel Coins
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Globe className="w-4 h-4" />
+                      <span>Currency: {currency.name}</span>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-8">
@@ -358,9 +366,14 @@ const Profile = () => {
                         </div>
                       </div>
                     </div>
-                    <p className="text-gray-600 mt-4">
-                      Earn Angel Coins with every purchase and redeem them for exclusive rewards!
-                    </p>
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                      <p className="text-gray-700 mb-2">
+                        <strong>Exchange Rate:</strong> 1 Angel Coin = {formatPrice(0.01)}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        Earn Angel Coins with every purchase and redeem them for exclusive rewards!
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -497,10 +510,30 @@ const Profile = () => {
             {activeSection === 'orders' && (
               <Card className="bg-white/70 backdrop-blur-sm border-white/50">
                 <CardHeader>
-                  <CardTitle className="text-2xl flex items-center gap-2">
-                    <Package className="w-6 h-6" />
-                    Order History
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      <Package className="w-6 h-6" />
+                      Order History
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-gray-500" />
+                      <select
+                        value={currency.code}
+                        onChange={(e) => changeCurrency(e.target.value)}
+                        className="px-3 py-1 border rounded-md text-sm"
+                        disabled={currencyLoading}
+                      >
+                        {Object.values(supportedCurrencies).map((curr) => (
+                          <option key={curr.code} value={curr.code}>
+                            {curr.symbol} {curr.code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {currencyLoading && (
+                    <p className="text-sm text-gray-500">Detecting your location for currency...</p>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -525,8 +558,13 @@ const Profile = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-gray-800">${order.total}</p>
-                            <Button size="sm" variant="outline" className="mt-2">
+                            <p className="text-2xl font-bold text-gray-800">
+                              {formatPrice(order.total)}
+                            </p>
+                            <p className="text-xs text-gray-500 mb-2">
+                              {currency.name}
+                            </p>
+                            <Button size="sm" variant="outline">
                               Track Order
                             </Button>
                           </div>
