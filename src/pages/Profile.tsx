@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useAngelCoins } from "@/hooks/useAngelCoins";
 import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe } from "lucide-react";
 
 const Profile = () => {
@@ -18,6 +19,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currency, loading: currencyLoading, formatPrice, formatAngelCoinValue, changeCurrency, supportedCurrencies } = useCurrency();
+  const { angelCoins, loading: angelCoinsLoading } = useAngelCoins();
 
   // Active section state
   const [activeSection, setActiveSection] = useState('profile');
@@ -39,7 +41,6 @@ const Profile = () => {
     fullName: 'Sarah Angel',
     email: user?.email || 'sarah.angel@example.com',
     mobile: '+1 (555) 123-4567',
-    angelCoins: 1250,
     orders: [
       {
         id: 'ORD-001',
@@ -368,7 +369,7 @@ const Profile = () => {
                         <div>
                           <p className="text-lg font-medium text-yellow-700">Current Balance</p>
                           <p className="text-4xl font-bold text-yellow-600">
-                            {userProfile.angelCoins.toLocaleString()}
+                            {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
                           </p>
                           <p className="text-sm text-yellow-600">Angel Coins</p>
                         </div>

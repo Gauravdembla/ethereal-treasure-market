@@ -8,38 +8,37 @@ import { Card } from "@/components/ui/card";
 import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import { useAngelCoins } from "@/hooks/useAngelCoins";
 import { useNavigate } from "react-router-dom";
 import LoginDialog from "@/components/LoginDialog";
 
 const Checkout = () => {
   const { items, updateQuantity, removeItem, clearCart } = useCart();
   const { user } = useAuth();
+  const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, calculateRedemptionValue, loading: angelCoinsLoading } = useAngelCoins();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState("");
   const [angelCoinsToRedeem, setAngelCoinsToRedeem] = useState([0]);
   const [discount, setDiscount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  
+
   // Admin settings - in real app, these would come from API/context
   const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
   const [showCouponSection, setShowCouponSection] = useState(true);
 
-  // Mock user angel coins - 10000 available
-  const userAngelCoins = 10000;
-  const minAngelCoinsRequired = 7500;
-  const angelCoinValue = 0.05; // Rs.0.05 per coin
+  // Minimum Angel Coins required to redeem (can be adjusted)
+  const minAngelCoinsRequired = 100;
 
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
-  
-  // Calculate max redeemable amount (10% of order)
-  const maxRedeemableAmount = subtotal * 0.1;
-  const maxRedeemableCoins = Math.floor(maxRedeemableAmount / angelCoinValue);
-  
+
+  // Calculate max redeemable coins using the centralized hook
+  const maxRedeemableCoins = getMaxRedeemableCoins(subtotal);
+
   // Check if user has enough coins and meets minimum requirement
-  const canRedeemAngelCoins = userAngelCoins >= minAngelCoinsRequired;
-  const actualMaxRedeemableCoins = canRedeemAngelCoins ? Math.min(maxRedeemableCoins, userAngelCoins) : 0;
-  
-  const angelCoinsDiscount = angelCoinsToRedeem[0] * angelCoinValue;
+  const canRedeemAngelCoins = angelCoins >= minAngelCoinsRequired && !angelCoinsLoading;
+  const actualMaxRedeemableCoins = canRedeemAngelCoins ? maxRedeemableCoins : 0;
+
+  const angelCoinsDiscount = calculateRedemptionValue(angelCoinsToRedeem[0]);
   const total = Math.max(0, subtotal - discount - angelCoinsDiscount);
 
   const applyCoupon = () => {
@@ -179,7 +178,9 @@ const Checkout = () => {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>Available Angel Coins:</span>
-                      <span className="font-medium">{userAngelCoins.toLocaleString()}</span>
+                      <span className="font-medium">
+                        {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
+                      </span>
                     </div>
                     
                     <div className="space-y-3">
@@ -204,7 +205,7 @@ const Checkout = () => {
                         </div>
                       </div>
                       <p className="text-xs text-angelic-deep/60">
-                        1 Angel Coin = ₹{angelCoinValue} | Max 10% of order value
+                        1 Angel Coin = ₹{exchangeRateINR.toFixed(2)} | Max 50% of order value
                       </p>
                     </div>
                   </div>
