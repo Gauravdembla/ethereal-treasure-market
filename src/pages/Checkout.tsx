@@ -5,12 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User } from "lucide-react";
+import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User, UserCircle, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useAngelCoins } from "@/hooks/useAngelCoins";
 import { useNavigate } from "react-router-dom";
 import LoginDialog from "@/components/LoginDialog";
+import { PRODUCTS } from "@/data/products";
 
 const Checkout = () => {
   const { items, updateQuantity, removeItem, clearCart } = useCart();
@@ -23,10 +24,17 @@ const Checkout = () => {
   const userEmail = user?.email || '';
   const userMobile = user?.user_metadata?.mobile || '';
   const userRole = getUserRole();
+
+  // Mock user profile data (in real app, this would come from user profile API)
+  const userAlternativeMobile = user?.user_metadata?.alternativeMobile || '';
+  const userMembershipType = user?.user_metadata?.membershipType || 'Diamond';
   const [couponCode, setCouponCode] = useState("");
   const [angelCoinsToRedeem, setAngelCoinsToRedeem] = useState([0]);
   const [discount, setDiscount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+
+  // Frequently Bought Together state
+  const [frequentlyBoughtStartIndex, setFrequentlyBoughtStartIndex] = useState(0);
 
   // Admin settings - in real app, these would come from API/context
   const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
@@ -72,6 +80,31 @@ const Checkout = () => {
   const finalGstAmount = discountedBaseAmount * 0.18;
   const total = discountedBaseAmount + finalGstAmount;
 
+  // Load Angel Coins selection from localStorage on component mount
+  useEffect(() => {
+    if (user) {
+      const userId = user.id || user.email || 'default';
+      const storageKey = `angelCoinsRedemption_${userId}`;
+      const savedRedemption = localStorage.getItem(storageKey);
+
+      if (savedRedemption) {
+        const savedValue = parseInt(savedRedemption, 10);
+        if (!isNaN(savedValue) && savedValue >= 0) {
+          setAngelCoinsToRedeem([savedValue]);
+        }
+      }
+    }
+  }, [user]);
+
+  // Save Angel Coins selection to localStorage whenever it changes
+  useEffect(() => {
+    if (user && angelCoinsToRedeem[0] !== undefined) {
+      const userId = user.id || user.email || 'default';
+      const storageKey = `angelCoinsRedemption_${userId}`;
+      localStorage.setItem(storageKey, angelCoinsToRedeem[0].toString());
+    }
+  }, [user, angelCoinsToRedeem]);
+
   // Auto-adjust Angel Coins when cart value changes
   useEffect(() => {
     const currentMaxRedemptionValue = getMaxRedemptionValue(subtotal);
@@ -107,6 +140,23 @@ const Checkout = () => {
     navigate("/address");
   };
 
+  // Get products not in cart for "Frequently Bought Together"
+  const getFrequentlyBoughtProducts = () => {
+    const cartProductIds = items.map(item => item.id);
+    return PRODUCTS.filter(product => !cartProductIds.includes(product.id));
+  };
+
+  // Navigation functions for frequently bought together
+  const nextFrequentlyBought = () => {
+    const availableProducts = getFrequentlyBoughtProducts();
+    const maxStartIndex = Math.max(0, availableProducts.length - 3);
+    setFrequentlyBoughtStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
+  };
+
+  const prevFrequentlyBought = () => {
+    setFrequentlyBoughtStartIndex((prev) => Math.max(prev - 1, 0));
+  };
+
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-angelic-cream/30 to-white/50 flex items-center justify-center">
@@ -123,16 +173,30 @@ const Checkout = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-angelic-cream/30 to-white/50">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Shop
-          </Button>
-          <h1 className="font-playfair text-3xl text-angelic-deep">Checkout</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Shop
+            </Button>
+            <h1 className="font-playfair text-3xl text-angelic-deep">Checkout</h1>
+          </div>
+
+          {/* Profile Icon */}
+          {user && (
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/profile")}
+              className="flex items-center gap-2 text-angelic-deep hover:text-primary"
+            >
+              <UserCircle className="w-6 h-6" />
+              <span className="hidden sm:inline">{userName}</span>
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -218,6 +282,16 @@ const Checkout = () => {
                       <span className="text-sm text-gray-800">{userMobile}</span>
                     </div>
                   )}
+                  {userAlternativeMobile && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Alternative Mobile:</span>
+                      <span className="text-sm text-gray-800">{userAlternativeMobile}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Membership Type:</span>
+                    <span className="text-sm text-gray-800 font-semibold text-primary">{userMembershipType}</span>
+                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-600">Account Type:</span>
                     <span className="text-sm text-gray-800 capitalize">
@@ -390,10 +464,99 @@ const Checkout = () => {
             </Card>
           </div>
         </div>
+
+        {/* Frequently Bought Together Section */}
+        {getFrequentlyBoughtProducts().length > 0 && (
+          <div className="mt-12">
+            <Card className="p-6">
+              <h2 className="font-playfair text-xl text-angelic-deep mb-6 text-center">
+                Frequently Bought Together
+              </h2>
+
+              <div className="relative">
+                {/* Navigation Arrows */}
+                {frequentlyBoughtStartIndex > 0 && (
+                  <button
+                    onClick={prevFrequentlyBought}
+                    className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
+
+                {frequentlyBoughtStartIndex < getFrequentlyBoughtProducts().length - 3 && (
+                  <button
+                    onClick={nextFrequentlyBought}
+                    className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
+
+                {/* Products Grid */}
+                <div className="overflow-hidden">
+                  <div
+                    className="flex gap-4 transition-transform duration-300"
+                    style={{
+                      transform: `translateX(-${frequentlyBoughtStartIndex * (100 / 3)}%)`
+                    }}
+                  >
+                    {getFrequentlyBoughtProducts().map((product) => (
+                      <div key={product.id} className="flex-shrink-0 w-1/3">
+                        <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
+                          <div className="aspect-video relative overflow-hidden">
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                            />
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-semibold text-sm text-angelic-deep mb-2 line-clamp-2">
+                              {product.name}
+                            </h3>
+                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                              {product.description}
+                            </p>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-primary text-sm">₹{product.price}</span>
+                                {product.originalPrice && (
+                                  <span className="text-xs text-gray-500 line-through">
+                                    ₹{product.originalPrice}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full text-xs"
+                              onClick={() => {
+                                addItem({
+                                  id: product.id,
+                                  name: product.name,
+                                  price: product.price,
+                                  image: product.image
+                                }, 1);
+                              }}
+                            >
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              Add to Cart
+                            </Button>
+                          </div>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
-      
-      <LoginDialog 
-        open={showLoginDialog} 
+
+      <LoginDialog
+        open={showLoginDialog}
         onOpenChange={setShowLoginDialog}
         onLoginSuccess={handleLoginSuccess}
       />

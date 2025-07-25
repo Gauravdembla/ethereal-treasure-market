@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import AddressForm from "@/components/AddressForm";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,6 +52,8 @@ const Profile = () => {
     fullName: 'Sarah Angel',
     email: user?.email || 'sarah.angel@example.com',
     mobile: '+1 (555) 123-4567',
+    alternativeMobile: '', // Optional field
+    membershipType: 'Diamond', // Default membership type
     orders: [
       {
         id: 'ORD-001',
@@ -111,7 +114,9 @@ const Profile = () => {
   const [editForm, setEditForm] = useState({
     fullName: userProfile.fullName,
     email: userProfile.email,
-    mobile: userProfile.mobile
+    mobile: userProfile.mobile,
+    alternativeMobile: userProfile.alternativeMobile,
+    membershipType: userProfile.membershipType
   });
 
   const [newAddress, setNewAddress] = useState({
@@ -142,7 +147,9 @@ const Profile = () => {
       ...prev,
       fullName: editForm.fullName,
       email: editForm.email,
-      mobile: editForm.mobile
+      mobile: editForm.mobile,
+      alternativeMobile: editForm.alternativeMobile,
+      membershipType: editForm.membershipType
     }));
     setIsEditingProfile(false);
     toast({
@@ -385,6 +392,30 @@ const Profile = () => {
                           onChange={(e) => setEditForm(prev => ({ ...prev, mobile: e.target.value }))}
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="alternativeMobile">Alternative Mobile Number (Optional)</Label>
+                        <Input
+                          id="alternativeMobile"
+                          placeholder="Enter alternative mobile number"
+                          value={editForm.alternativeMobile}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, alternativeMobile: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="membershipType">Membership Type</Label>
+                        <Select value={editForm.membershipType} onValueChange={(value) => setEditForm(prev => ({ ...prev, membershipType: value }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select membership type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Diamond">Diamond</SelectItem>
+                            <SelectItem value="Platinum">Platinum</SelectItem>
+                            <SelectItem value="Gold">Gold</SelectItem>
+                            <SelectItem value="Silver">Silver</SelectItem>
+                            <SelectItem value="Bronze">Bronze</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="flex gap-2">
                         <Button onClick={handleSaveProfile}>Save Changes</Button>
                         <Button variant="outline" onClick={() => setIsEditingProfile(false)}>Cancel</Button>
@@ -411,6 +442,24 @@ const Profile = () => {
                         <div>
                           <label className="text-sm font-medium text-gray-600">Mobile Number</label>
                           <p className="text-lg text-gray-800">{userProfile.mobile}</p>
+                        </div>
+                      </div>
+                      {userProfile.alternativeMobile && (
+                        <div className="flex items-center gap-3">
+                          <Phone className="w-5 h-5 text-gray-500" />
+                          <div>
+                            <label className="text-sm font-medium text-gray-600">Alternative Mobile Number</label>
+                            <p className="text-lg text-gray-800">{userProfile.alternativeMobile}</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary" className="w-5 h-5 p-0 flex items-center justify-center">
+                          <span className="text-xs">★</span>
+                        </Badge>
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">Membership Type</label>
+                          <p className="text-lg text-gray-800 font-semibold text-primary">{userProfile.membershipType}</p>
                         </div>
                       </div>
                     </div>
