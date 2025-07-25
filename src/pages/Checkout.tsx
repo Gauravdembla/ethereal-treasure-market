@@ -195,8 +195,10 @@ const Checkout = () => {
         const orderItemsHeight = orderItemsElement.clientHeight;
         const orderSummaryHeight = orderSummaryElement.clientHeight;
 
-        // Show as card if Order Items height is less than Order Summary height
-        setShowAsCard(orderItemsHeight < orderSummaryHeight);
+        // For mobile/tablet: Show as card if Order Items height is less than Order Summary height
+        // For desktop: Always show as slider (full-width layout)
+        const isMobile = window.innerWidth < 1024; // lg breakpoint
+        setShowAsCard(isMobile && orderItemsHeight < orderSummaryHeight);
       }
     };
 
@@ -314,49 +316,52 @@ const Checkout = () => {
               </div>
             </Card>
 
-            {/* Dynamic Customers Also Bought - Vertical Layout for Mobile/Tablet */}
-            {relatedProducts.length > 0 && showAsCard && (
-              <div className="space-y-6 lg:hidden">
-                <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
-                  Customers Also Bought
-                </h3>
-                <div className="space-y-4">
-                  {relatedProducts.slice(0, (() => {
-                    // Logic: 1 item = max 3 products, 2 items = max 2 products, 3 items = max 1 product, >3 items = show under summary
-                    const cartItemsCount = items.length;
-                    if (cartItemsCount === 1) return 3;
-                    if (cartItemsCount === 2) return 2;
-                    if (cartItemsCount === 3) return 1;
-                    return 0; // >3 items = don't show here
-                  })()).map((relatedProduct) => {
+            {/* Dynamic Customers Also Bought - Horizontal Layout for Mobile/Tablet */}
+            {relatedProducts.length > 0 && showAsCard && (() => {
+              const cartItemsCount = items.length;
+              const maxProducts = cartItemsCount === 1 ? 3 : cartItemsCount === 2 ? 2 : cartItemsCount === 3 ? 1 : 0;
+
+              // Only show if we have products to display (i.e., ≤3 cart items)
+              if (maxProducts === 0) return null;
+
+              return (
+                <div className="space-y-6 lg:hidden">
+                  <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
+                    Customers Also Bought
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {relatedProducts.slice(0, maxProducts).map((relatedProduct) => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
                     const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
                     
                     return (
-                      <Card key={relatedProductId} className="flex gap-4 p-4 hover:shadow-lg transition-all duration-300">
-                        <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
-                          <img
-                            src={relatedImageUrl}
-                            alt={relatedProduct.name}
-                            className="w-20 h-20 object-cover rounded-lg"
-                          />
+                      <Card key={relatedProductId} className="overflow-hidden hover:shadow-lg transition-all duration-300">
+                        <Link to={`/product/${relatedProductSlug}`}>
+                          <div className="relative group/image">
+                            <img
+                              src={relatedImageUrl}
+                              alt={relatedProduct.name}
+                              className="w-full aspect-square object-cover transition-transform duration-300 group-hover/image:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          </div>
                         </Link>
-                        <div className="flex-1 min-w-0">
+                        <div className="p-3">
                           <div className="flex items-center gap-1 mb-1">
                             {[...Array(relatedProduct.rating || 5)].map((_, i) => (
                               <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
                             ))}
                           </div>
                           <Link to={`/product/${relatedProductSlug}`}>
-                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2">
+                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2 mb-1">
                               {relatedProduct.name}
                             </h4>
                           </Link>
                           <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
-                            {relatedProduct.description.slice(0, 50)}...
+                            {relatedProduct.description.slice(0, 40)}...
                           </p>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1">
                               <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
                               {relatedProduct.original_price && (
@@ -365,32 +370,33 @@ const Checkout = () => {
                                 </span>
                               )}
                             </div>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="h-7 px-3 text-xs"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                addItem({
-                                  id: relatedProductId,
-                                  name: relatedProduct.name,
-                                  price: relatedProduct.price,
-                                  image: relatedImageUrl
-                                }, 1);
-                              }}
-                            >
-                              <ShoppingCart className="w-3 h-3 mr-1" />
-                              Add
-                            </Button>
                           </div>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full h-8 text-xs"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              addItem({
+                                id: relatedProductId,
+                                name: relatedProduct.name,
+                                price: relatedProduct.price,
+                                image: relatedImageUrl
+                              }, 1);
+                            }}
+                          >
+                            <ShoppingCart className="w-3 h-3 mr-1" />
+                            Add
+                          </Button>
                         </div>
                       </Card>
                     );
                   })}
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Order Summary */}
@@ -605,18 +611,21 @@ const Checkout = () => {
         {/* Related Products Section - Conditional Layout */}
         {relatedProducts.length > 0 && (() => {
           const cartItemsCount = items.length;
-          // Show this section only if:
-          // - Desktop/large screens (lg:block)
-          // - OR Mobile/tablet with >3 cart items (since mobile vertical section won't show)
-          const showBottomSection = cartItemsCount > 3;
-          
-          return (
-            <div className={`mt-16 ${showAsCard ? 'max-w-4xl mx-auto' : ''} ${showBottomSection ? 'block' : 'hidden lg:block'}`}>
+          const isMobile = window.innerWidth < 1024; // lg breakpoint
+
+          // Show this section:
+          // - Always on desktop (full-width slider)
+          // - On mobile/tablet only when >3 cart items (since mobile vertical section won't show for >3 items)
+          const showBottomSection = !isMobile || cartItemsCount > 3;
+
+          return showBottomSection ? (
+            <div className="mt-16">
               <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
                 Customers Also Bought
               </h2>
 
-            {showAsCard ? (
+            {/* Always use slider layout for bottom section */}
+            {false ? (
               <div className="relative">
                 {/* Navigation for Card Layout */}
                 {relatedProducts.length > 3 && (
@@ -951,7 +960,7 @@ const Checkout = () => {
               </div>
             )}
             </div>
-          );
+          ) : null;
         })()}
       </div>
 
