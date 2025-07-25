@@ -353,7 +353,9 @@ const Profile = () => {
                         setEditForm({
                           fullName: userProfile.fullName,
                           email: userProfile.email,
-                          mobile: userProfile.mobile
+                          mobile: userProfile.mobile,
+                          alternativeMobile: userProfile.alternativeMobile || '',
+                          membershipType: userProfile.membershipType || ''
                         });
                         setIsEditingProfile(true);
                       }}
