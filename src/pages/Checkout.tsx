@@ -54,9 +54,15 @@ const Checkout = () => {
   const maxRedeemableCoins = getMaxRedeemableCoins(subtotal);
   const maxRedemptionValue = getMaxRedemptionValue(subtotal);
 
+  // Calculate theoretical maximum based on 5% rule only (not limited by user balance)
+  const theoreticalMaxCoins = Math.floor(maxRedemptionValue / exchangeRateINR);
+
   // Check if user has enough coins and meets minimum requirement
   const canRedeemAngelCoins = angelCoins >= minAngelCoinsRequired && !angelCoinsLoading;
-  const actualMaxRedeemableCoins = canRedeemAngelCoins ? maxRedeemableCoins : 0;
+
+  // For slider maximum, use theoretical max but ensure user has enough coins
+  const actualMaxRedeemableCoins = canRedeemAngelCoins ?
+    Math.min(theoreticalMaxCoins, angelCoins) : 0;
 
   // Calculate Angel Coins discount (applied to base amount)
   const angelCoinsDiscount = calculateRedemptionValue(angelCoinsToRedeem[0]);
@@ -68,14 +74,16 @@ const Checkout = () => {
 
   // Auto-adjust Angel Coins when cart value changes
   useEffect(() => {
-    const currentMaxRedeemableCoins = getMaxRedeemableCoins(baseAmount);
+    const currentMaxRedemptionValue = getMaxRedemptionValue(subtotal);
+    const currentTheoreticalMaxCoins = Math.floor(currentMaxRedemptionValue / exchangeRateINR);
+    const currentMaxRedeemableCoins = Math.min(currentTheoreticalMaxCoins, angelCoins);
     const currentRedemption = angelCoinsToRedeem[0];
 
     // If current redemption exceeds new maximum, adjust it down
     if (currentRedemption > currentMaxRedeemableCoins) {
       setAngelCoinsToRedeem([currentMaxRedeemableCoins]);
     }
-  }, [baseAmount, getMaxRedeemableCoins, angelCoinsToRedeem]);
+  }, [subtotal, getMaxRedemptionValue, exchangeRateINR, angelCoins, angelCoinsToRedeem]);
 
   const applyCoupon = () => {
     if (couponCode.toLowerCase() === "welcome10") {
@@ -317,7 +325,7 @@ const Checkout = () => {
                       <div className="text-xs text-angelic-deep/60 space-y-1">
                         <p>1 Angel Coin = ₹{exchangeRateINR.toFixed(2)}</p>
                         <p>Max 5% of base amount (₹{baseAmount.toFixed(2)}) = ₹{maxRedemptionValue.toFixed(2)}</p>
-                        <p>Max redeemable: {maxRedeemableCoins.toLocaleString()} coins</p>
+                        <p>Max redeemable: {theoreticalMaxCoins.toLocaleString()} coins</p>
                       </div>
                     </div>
                   </div>
