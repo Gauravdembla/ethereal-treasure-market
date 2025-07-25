@@ -16,8 +16,11 @@ interface LoginDialogProps {
 const LoginDialog = ({ open, onOpenChange, onLoginSuccess }: LoginDialogProps) => {
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
   const [activeTab, setActiveTab] = useState("email");
-  const { login } = useAuth();
+  const [otpSent, setOtpSent] = useState(false);
+  const [demoOtp, setDemoOtp] = useState("");
+  const { login, loginWithMobile, sendMobileOTP } = useAuth();
 
   const handleEmailLogin = () => {
     if (!email) {
@@ -30,15 +33,42 @@ const LoginDialog = ({ open, onOpenChange, onLoginSuccess }: LoginDialogProps) =
     onLoginSuccess?.();
   };
 
-  const handleMobileLogin = () => {
+  const handleSendOTP = async () => {
     if (!mobile) {
       alert("Please enter your mobile number");
       return;
     }
-    // Mock login - WhatsApp OTP will be implemented later
-    login();
-    onOpenChange(false);
-    onLoginSuccess?.();
+
+    const result = await sendMobileOTP(mobile);
+    if (result.success) {
+      setOtpSent(true);
+      setDemoOtp(result.otp || "");
+      if (mobile === '919891324442') {
+        alert(`Demo OTP sent: ${result.otp} (This is for testing only)`);
+      }
+    } else {
+      alert("Failed to send OTP. Try demo number: 919891324442");
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otp) {
+      alert("Please enter the OTP");
+      return;
+    }
+
+    const success = await loginWithMobile(mobile, otp);
+    if (success) {
+      onOpenChange(false);
+      onLoginSuccess?.();
+      // Reset form
+      setMobile("");
+      setOtp("");
+      setOtpSent(false);
+      setDemoOtp("");
+    } else {
+      alert("Invalid OTP. Please try again.");
+    }
   };
 
   return (
@@ -82,22 +112,66 @@ const LoginDialog = ({ open, onOpenChange, onLoginSuccess }: LoginDialogProps) =
           </TabsContent>
           
           <TabsContent value="mobile" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="mobile">Mobile Number</Label>
-              <Input
-                id="mobile"
-                type="tel"
-                placeholder="Enter your mobile number"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleMobileLogin} variant="divine" className="w-full">
-              Send OTP via WhatsApp
-            </Button>
-            <p className="text-xs text-center text-angelic-deep/60">
-              We'll send you a verification code via WhatsApp
-            </p>
+            {!otpSent ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="mobile">Mobile Number</Label>
+                  <Input
+                    id="mobile"
+                    type="tel"
+                    placeholder="Enter your mobile number"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleSendOTP} variant="divine" className="w-full">
+                  Send OTP via WhatsApp
+                </Button>
+                <p className="text-xs text-center text-angelic-deep/60">
+                  Try demo number: 919891324442
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Enter OTP</Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="Enter 4-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    maxLength={4}
+                  />
+                </div>
+                <Button onClick={handleVerifyOTP} variant="divine" className="w-full">
+                  Verify OTP
+                </Button>
+                <div className="flex justify-between text-xs">
+                  <button
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtp("");
+                      setDemoOtp("");
+                    }}
+                    className="text-angelic-deep/60 hover:text-angelic-deep"
+                  >
+                    Change Number
+                  </button>
+                  <button
+                    onClick={handleSendOTP}
+                    className="text-angelic-deep/60 hover:text-angelic-deep"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+                {demoOtp && (
+                  <p className="text-xs text-center text-green-600 bg-green-50 p-2 rounded">
+                    Demo OTP: {demoOtp}
+                  </p>
+                )}
+              </>
+            )}
           </TabsContent>
         </Tabs>
         

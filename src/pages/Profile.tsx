@@ -17,7 +17,7 @@ const Profile = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { currency, loading: currencyLoading, formatPrice, changeCurrency, supportedCurrencies } = useCurrency();
+  const { currency, loading: currencyLoading, formatPrice, formatAngelCoinValue, changeCurrency, supportedCurrencies } = useCurrency();
 
   // Active section state
   const [activeSection, setActiveSection] = useState('profile');
@@ -61,9 +61,17 @@ const Profile = () => {
         id: 'ORD-003',
         date: '2024-01-05',
         total: 125.75,
-        status: 'Delivered',
+        status: 'Processing',
         items: ['Chakra Kit', 'Meditation Candle', 'Crystal Journal'],
-        trackingNumber: 'TRK456789123'
+        trackingNumber: null
+      },
+      {
+        id: 'ORD-004',
+        date: '2024-01-02',
+        total: 67.25,
+        status: 'Shipped',
+        items: ['Healing Stones Set'],
+        trackingNumber: 'TRK789123456'
       }
     ],
     addresses: [
@@ -368,7 +376,7 @@ const Profile = () => {
                     </div>
                     <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                       <p className="text-gray-700 mb-2">
-                        <strong>Exchange Rate:</strong> 1 Angel Coin = {formatPrice(0.01)}
+                        <strong>Exchange Rate:</strong> 1 Angel Coin = {formatAngelCoinValue()}
                       </p>
                       <p className="text-gray-600 text-sm">
                         Earn Angel Coins with every purchase and redeem them for exclusive rewards!
@@ -554,7 +562,7 @@ const Profile = () => {
                             <div className="space-y-1 text-sm text-gray-600">
                               <p><strong>Date:</strong> {order.date}</p>
                               <p><strong>Items:</strong> {order.items.join(', ')}</p>
-                              <p><strong>Tracking:</strong> {order.trackingNumber}</p>
+                              <p><strong>Tracking:</strong> {order.trackingNumber || 'Not Available'}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -564,9 +572,11 @@ const Profile = () => {
                             <p className="text-xs text-gray-500 mb-2">
                               {currency.name}
                             </p>
-                            <Button size="sm" variant="outline">
-                              Track Order
-                            </Button>
+                            {order.status !== 'Delivered' && order.trackingNumber && (
+                              <Button size="sm" variant="outline">
+                                Track Order
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -99,7 +99,7 @@ export const useCurrency = () => {
 
   const formatPrice = (usdPrice: number): string => {
     const convertedPrice = convertPrice(usdPrice);
-    
+
     // Format based on currency
     switch (currency.code) {
       case 'INR':
@@ -112,6 +112,24 @@ export const useCurrency = () => {
         return `${currency.symbol}${convertedPrice.toFixed(2)}`;
       default:
         return `${currency.symbol}${convertedPrice.toFixed(2)}`;
+    }
+  };
+
+  const formatAngelCoinValue = (): string => {
+    // 1 Angel Coin = Rs. 0.10 (Indian Rupees)
+    const angelCoinValueInINR = 0.10;
+
+    switch (currency.code) {
+      case 'INR':
+        return `₹${angelCoinValueInINR.toFixed(2)}`;
+      case 'USD':
+        return `$${(angelCoinValueInINR / SUPPORTED_CURRENCIES.INR.rate).toFixed(4)}`;
+      case 'GBP':
+        return `£${(angelCoinValueInINR / SUPPORTED_CURRENCIES.INR.rate * SUPPORTED_CURRENCIES.GBP.rate).toFixed(4)}`;
+      case 'EUR':
+        return `€${(angelCoinValueInINR / SUPPORTED_CURRENCIES.INR.rate * SUPPORTED_CURRENCIES.EUR.rate).toFixed(4)}`;
+      default:
+        return `$${(angelCoinValueInINR / SUPPORTED_CURRENCIES.INR.rate).toFixed(4)}`;
     }
   };
 
@@ -129,6 +147,7 @@ export const useCurrency = () => {
     error,
     convertPrice,
     formatPrice,
+    formatAngelCoinValue,
     changeCurrency,
     supportedCurrencies: SUPPORTED_CURRENCIES
   };

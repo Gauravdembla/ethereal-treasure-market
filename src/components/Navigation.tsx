@@ -8,11 +8,20 @@ import LoginDialog from "./LoginDialog";
 
 const Navigation = () => {
   const { totalItems } = useCart();
-  const { user } = useAuth();
+  const { user, getUserRole } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
 
-  // Get user name from email
-  const userName = user?.email?.split('@')[0] || 'User';
+  // Get user name from email or metadata
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const userRole = getUserRole();
+
+  const handleProfileClick = () => {
+    if (userRole === 'admin' || userRole === 'team') {
+      window.location.href = '/admin';
+    } else {
+      window.location.href = '/profile';
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-white/50 shadow-soft">
@@ -56,7 +65,8 @@ const Navigation = () => {
                   variant="ghost"
                   size="icon"
                   className="text-angelic-deep hover:text-primary"
-                  onClick={() => window.location.href = '/profile'}
+                  onClick={handleProfileClick}
+                  title={userRole === 'admin' || userRole === 'team' ? 'Admin Dashboard' : 'My Profile'}
                 >
                   <User className="w-4 h-4" />
                 </Button>
