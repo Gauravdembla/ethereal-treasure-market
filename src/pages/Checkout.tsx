@@ -314,14 +314,21 @@ const Checkout = () => {
               </div>
             </Card>
 
-            {/* Dynamic Customers Also Bought - Vertical Layout */}
+            {/* Dynamic Customers Also Bought - Vertical Layout for Mobile/Tablet */}
             {relatedProducts.length > 0 && showAsCard && (
-              <div className="space-y-6">
+              <div className="space-y-6 lg:hidden">
                 <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
                   Customers Also Bought
                 </h3>
                 <div className="space-y-4">
-                  {relatedProducts.slice(0, 6).map((relatedProduct) => {
+                  {relatedProducts.slice(0, (() => {
+                    // Logic: 1 item = max 3 products, 2 items = max 2 products, 3 items = max 1 product, >3 items = show under summary
+                    const cartItemsCount = items.length;
+                    if (cartItemsCount === 1) return 3;
+                    if (cartItemsCount === 2) return 2;
+                    if (cartItemsCount === 3) return 1;
+                    return 0; // >3 items = don't show here
+                  })()).map((relatedProduct) => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
                     const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
@@ -596,11 +603,18 @@ const Checkout = () => {
         </div>
 
         {/* Related Products Section - Conditional Layout */}
-        {relatedProducts.length > 0 && (
-          <div className={`mt-16 ${showAsCard ? 'max-w-4xl mx-auto' : ''}`}>
-            <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
-              Customers Also Bought
-            </h2>
+        {relatedProducts.length > 0 && (() => {
+          const cartItemsCount = items.length;
+          // Show this section only if:
+          // - Desktop/large screens (lg:block)
+          // - OR Mobile/tablet with >3 cart items (since mobile vertical section won't show)
+          const showBottomSection = cartItemsCount > 3;
+          
+          return (
+            <div className={`mt-16 ${showAsCard ? 'max-w-4xl mx-auto' : ''} ${showBottomSection ? 'block' : 'hidden lg:block'}`}>
+              <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
+                Customers Also Bought
+              </h2>
 
             {showAsCard ? (
               <div className="relative">
@@ -936,8 +950,9 @@ const Checkout = () => {
                 </div>
               </div>
             )}
-          </div>
-        )}
+            </div>
+          );
+        })()}
       </div>
 
       <LoginDialog
