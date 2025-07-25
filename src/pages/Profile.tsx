@@ -21,7 +21,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currency, loading: currencyLoading, formatPrice, formatAngelCoinValue, changeCurrency, supportedCurrencies } = useCurrency();
-  const { angelCoins, loading: angelCoinsLoading, updateBalance } = useAngelCoins();
+  const { angelCoins, loading: angelCoinsLoading, updateBalance, clearAngelCoinsData } = useAngelCoins();
   const [searchParams] = useSearchParams();
 
   // Get user ID from URL params for unique URLs
@@ -490,9 +490,19 @@ const Profile = () => {
                       <p className="text-gray-700 mb-2">
                         <strong>Exchange Rate:</strong> 1 Angel Coin = ₹0.05
                       </p>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-gray-600 text-sm mb-3">
                         Earn Angel Coins with every purchase and redeem them for exclusive rewards!
                       </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={clearAngelCoinsData}
+                          className="text-xs"
+                        >
+                          Reset to Default (Testing)
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

@@ -27,15 +27,29 @@ export const useAngelCoins = () => {
       }
 
       try {
-        // In a real app, this would fetch from the database
-        // For now, using demo data based on user
+        // Get user identifier for localStorage key
+        const userId = user.id || user.email || 'default';
+        const storageKey = `angelCoins_${userId}`;
+
+        // Check if we have saved balance in localStorage
+        const savedBalance = localStorage.getItem(storageKey);
         let balance = 1250; // Default balance
 
-        // Different balances for different users (demo)
-        if (user.email === 'admin@angelsonearth.com') {
-          balance = 5000; // Admin has more coins
-        } else if (user.user_metadata?.mobile === '919891324442') {
-          balance = 1250; // Demo mobile user
+        if (savedBalance !== null) {
+          // Use saved balance if available
+          balance = parseInt(savedBalance, 10);
+          console.log(`Loaded saved Angel Coins balance: ${balance} for user ${userId}`);
+        } else {
+          // Set default balances for different users (demo)
+          if (user.email === 'admin@angelsonearth.com') {
+            balance = 5000; // Admin has more coins
+          } else if (user.user_metadata?.mobile === '919891324442') {
+            balance = 1250; // Demo mobile user
+          }
+
+          // Save the default balance to localStorage
+          localStorage.setItem(storageKey, balance.toString());
+          console.log(`Set default Angel Coins balance: ${balance} for user ${userId}`);
         }
 
         setAngelCoinsData({
@@ -73,16 +87,27 @@ export const useAngelCoins = () => {
   };
 
   const redeemCoins = async (coins: number): Promise<boolean> => {
-    if (!canRedeem(coins)) {
+    if (!canRedeem(coins) || !user) {
       return false;
     }
 
     try {
-      // In a real app, this would update the database
+      const newBalance = angelCoinsData.balance - coins;
+
+      // Get user identifier for localStorage key
+      const userId = user.id || user.email || 'default';
+      const storageKey = `angelCoins_${userId}`;
+
+      // Save to localStorage
+      localStorage.setItem(storageKey, newBalance.toString());
+      console.log(`Redeemed ${coins} Angel Coins. New balance: ${newBalance} for user ${userId}`);
+
+      // Update state
       setAngelCoinsData(prev => ({
         ...prev,
-        balance: prev.balance - coins
+        balance: newBalance
       }));
+
       return true;
     } catch (error) {
       console.error('Error redeeming Angel Coins:', error);
@@ -92,16 +117,46 @@ export const useAngelCoins = () => {
 
   const updateBalance = async (newBalance: number): Promise<boolean> => {
     try {
-      // In a real app, this would update the database
+      if (!user) {
+        console.error('No user found for updating Angel Coins balance');
+        return false;
+      }
+
+      // Get user identifier for localStorage key
+      const userId = user.id || user.email || 'default';
+      const storageKey = `angelCoins_${userId}`;
+
+      // Save to localStorage
+      localStorage.setItem(storageKey, newBalance.toString());
+      console.log(`Saved Angel Coins balance: ${newBalance} for user ${userId}`);
+
+      // Update state
       setAngelCoinsData(prev => ({
         ...prev,
         balance: newBalance
       }));
+
       return true;
     } catch (error) {
       console.error('Error updating Angel Coins balance:', error);
       return false;
     }
+  };
+
+  const clearAngelCoinsData = () => {
+    if (!user) return;
+
+    const userId = user.id || user.email || 'default';
+    const storageKey = `angelCoins_${userId}`;
+    localStorage.removeItem(storageKey);
+    console.log(`Cleared Angel Coins data for user ${userId}`);
+
+    // Reset to default balance
+    const defaultBalance = user.email === 'admin@angelsonearth.com' ? 5000 : 1250;
+    setAngelCoinsData(prev => ({
+      ...prev,
+      balance: defaultBalance
+    }));
   };
 
   return {
@@ -112,6 +167,7 @@ export const useAngelCoins = () => {
     getMaxRedeemableCoins,
     canRedeem,
     redeemCoins,
-    updateBalance
+    updateBalance,
+    clearAngelCoinsData
   };
 };

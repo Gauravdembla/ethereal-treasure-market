@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft } from "lucide-react";
+import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useAngelCoins } from "@/hooks/useAngelCoins";
@@ -14,9 +14,15 @@ import LoginDialog from "@/components/LoginDialog";
 
 const Checkout = () => {
   const { items, updateQuantity, removeItem, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, getUserRole } = useAuth();
   const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, calculateRedemptionValue, loading: angelCoinsLoading } = useAngelCoins();
   const navigate = useNavigate();
+
+  // Get user information
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
+  const userMobile = user?.user_metadata?.mobile || '';
+  const userRole = getUserRole();
   const [couponCode, setCouponCode] = useState("");
   const [angelCoinsToRedeem, setAngelCoinsToRedeem] = useState([0]);
   const [discount, setDiscount] = useState(0);
@@ -139,6 +145,46 @@ const Checkout = () => {
 
           {/* Order Summary */}
           <div className="space-y-6">
+            {/* Customer Information */}
+            {user && (
+              <Card className="p-6">
+                <h2 className="font-playfair text-xl text-angelic-deep mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Customer Information
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Name:</span>
+                    <span className="text-sm text-gray-800">{userName}</span>
+                  </div>
+                  {userEmail && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Email:</span>
+                      <span className="text-sm text-gray-800">{userEmail}</span>
+                    </div>
+                  )}
+                  {userMobile && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Mobile:</span>
+                      <span className="text-sm text-gray-800">{userMobile}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Account Type:</span>
+                    <span className="text-sm text-gray-800 capitalize">
+                      {userRole === 'admin' ? 'Administrator' : userRole === 'team' ? 'Team Member' : 'Customer'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Angel Coins:</span>
+                    <span className="text-sm font-semibold text-yellow-600">
+                      {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} coins
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <Card className="p-6">
               <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Summary</h2>
               
