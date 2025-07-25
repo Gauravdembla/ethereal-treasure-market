@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,15 @@ const Checkout = () => {
   // Minimum Angel Coins required to redeem
   const minAngelCoinsRequired = 10000;
 
+  // Helper function to get available quantity (same logic as ProductCard)
+  const getAvailableQuantity = (productId: string) => {
+    const hash = productId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
+  };
+
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.replace(/,/g, '')) * item.quantity), 0);
 
   // Calculate GST breakdown
@@ -56,6 +65,17 @@ const Checkout = () => {
   const discountedBaseAmount = Math.max(0, baseAmount - discount - angelCoinsDiscount);
   const finalGstAmount = discountedBaseAmount * 0.18;
   const total = discountedBaseAmount + finalGstAmount;
+
+  // Auto-adjust Angel Coins when cart value changes
+  useEffect(() => {
+    const currentMaxRedeemableCoins = getMaxRedeemableCoins(baseAmount);
+    const currentRedemption = angelCoinsToRedeem[0];
+
+    // If current redemption exceeds new maximum, adjust it down
+    if (currentRedemption > currentMaxRedeemableCoins) {
+      setAngelCoinsToRedeem([currentMaxRedeemableCoins]);
+    }
+  }, [baseAmount, getMaxRedeemableCoins, angelCoinsToRedeem]);
 
   const applyCoupon = () => {
     if (couponCode.toLowerCase() === "welcome10") {
@@ -133,8 +153,19 @@ const Checkout = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => {
+                          const availableQuantity = getAvailableQuantity(item.id);
+                          const maxSelectQuantity = 15;
+                          const maxAllowed = Math.min(availableQuantity, maxSelectQuantity);
+
+                          if (item.quantity >= maxAllowed) {
+                            alert(`Maximum quantity allowed: ${maxAllowed} (Available: ${availableQuantity})`);
+                            return;
+                          }
+                          updateQuantity(item.id, item.quantity + 1);
+                        }}
                         className="w-8 h-8 p-0"
+                        disabled={item.quantity >= Math.min(getAvailableQuantity(item.id), 15)}
                       >
                         <Plus className="w-3 h-3" />
                       </Button>
@@ -315,10 +346,12 @@ const Checkout = () => {
                     <span>-₹{angelCoinsDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span>Discounted Base</span>
-                  <span>₹{discountedBaseAmount.toFixed(2)}</span>
-                </div>
+                {angelCoinsDiscount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Discounted Amount</span>
+                    <span>₹{discountedBaseAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>GST (18%)</span>
                   <span>₹{finalGstAmount.toFixed(2)}</span>
