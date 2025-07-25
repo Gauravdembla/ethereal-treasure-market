@@ -156,242 +156,10 @@ const ProductDetail = () => {
     );
   }
 
-  const products = {
-    "amethyst-cluster": {
-      id: "amethyst-cluster",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      detailedDescription: "This stunning Amethyst cluster is a powerful tool for spiritual protection and inner peace. Known as the 'Stone of Spiritual Protection', Amethyst creates a protective shield around the wearer, guarding against negative energies and psychic attacks. Its high vibrational energy promotes clarity of mind, emotional balance, and spiritual awareness. Perfect for meditation, chakra healing, and creating a sacred space in your home. Each cluster is naturally formed and unique, radiating beautiful purple hues that captivate the soul.",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5,
-      benefits: [
-        "Enhances spiritual awareness and intuition",
-        "Provides protection from negative energies",
-        "Promotes restful sleep and vivid dreams",
-        "Aids in meditation and mindfulness practices",
-        "Balances the crown chakra"
-      ],
-      specifications: {
-        "Weight": "150-200g",
-        "Size": "8-10cm",
-        "Origin": "Brazil",
-        "Chakra": "Crown & Third Eye",
-        "Element": "Air"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Sarah M.",
-          rating: 5,
-          review: "This amethyst cluster has completely transformed my meditation space. The energy is incredible and I feel so much more peaceful since placing it in my room. Highly recommend!",
-          date: "2 weeks ago",
-          verified: true
-        },
-        {
-          id: 2,
-          name: "Michael R.",
-          rating: 5,
-          review: "Beautiful piece! The purple color is stunning and the energy is very calming. I've been sleeping much better since I got this. Worth every penny.",
-          date: "1 month ago",
-          verified: true
-        },
-        {
-          id: 3,
-          name: "Luna K.",
-          rating: 4,
-          review: "Gorgeous amethyst cluster. Arrived safely packaged and exactly as described. The spiritual energy is amazing for my daily meditation practice.",
-          date: "3 weeks ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["angel-oracle-cards", "chakra-journal", "rose-quartz-heart"]
-    },
-    "angel-oracle-cards": {
-      id: "angel-oracle-cards",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      detailedDescription: "Connect with the divine realm through these beautiful Angel Oracle Cards. Each deck contains 44 cards featuring stunning angelic artwork and powerful messages from your guardian angels. These cards serve as a bridge between the earthly and celestial realms, offering guidance, comfort, and wisdom for your spiritual journey. Whether you're seeking answers to specific questions or daily inspiration, these cards will help you tap into angelic wisdom and receive divine guidance.",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5,
-      benefits: [
-        "Receive direct messages from your angels",
-        "Gain clarity on life decisions",
-        "Develop your intuitive abilities",
-        "Find comfort during difficult times",
-        "Strengthen your spiritual connection"
-      ],
-      specifications: {
-        "Cards": "44 Oracle Cards",
-        "Size": "3.5 x 5 inches",
-        "Material": "High-quality cardstock",
-        "Guidebook": "128-page instruction manual",
-        "Language": "English"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Rebecca M.",
-          rating: 5,
-          review: "These oracle cards are absolutely beautiful! The messages are always spot on and provide such clarity. I use them daily for guidance.",
-          date: "1 week ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "chakra-journal", "rose-quartz-heart"]
-    },
-    "healing-candle": {
-      id: "healing-candle",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      detailedDescription: "Immerse yourself in tranquility with our handcrafted Healing Candle infused with pure lavender essential oil. This sacred candle is made with natural soy wax and blessed with intention for healing and peace. The gentle lavender fragrance calms the mind, reduces stress, and promotes restful sleep. Perfect for meditation, prayer, or creating a peaceful atmosphere in your sacred space. Each candle burns for approximately 40 hours, filling your space with divine serenity.",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5,
-      benefits: [
-        "Promotes relaxation and stress relief",
-        "Enhances meditation and prayer",
-        "Improves sleep quality",
-        "Purifies and cleanses energy",
-        "Creates a sacred atmosphere"
-      ],
-      specifications: {
-        "Burn Time": "40 hours",
-        "Wax": "100% Natural Soy Wax",
-        "Fragrance": "Pure Lavender Essential Oil",
-        "Size": "3 x 4 inches",
-        "Weight": "300g"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Emma L.",
-          rating: 5,
-          review: "The most relaxing candle I've ever owned! The lavender scent is pure and not overpowering. Perfect for my evening meditation routine.",
-          date: "1 week ago",
-          verified: true
-        },
-        {
-          id: 2,
-          name: "David P.",
-          rating: 5,
-          review: "Amazing quality! Burns evenly and the scent fills the entire room. Has really helped with my sleep quality. Will definitely buy again.",
-          date: "2 weeks ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "chakra-journal", "rose-quartz-heart"]
-    },
-    "chakra-journal": {
-      id: "chakra-journal",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      detailedDescription: "Transform your thoughts into reality with this beautiful Chakra Journal designed for manifestation and spiritual growth. This sacred journal features chakra-aligned pages, guided prompts, and space for your deepest intentions. Each section corresponds to one of the seven chakras, helping you balance your energy centers while manifesting your desires. The high-quality paper and beautiful design make this journal a treasured companion on your spiritual journey.",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5,
-      benefits: [
-        "Manifest your dreams and intentions",
-        "Balance and align your chakras",
-        "Track your spiritual progress",
-        "Develop mindfulness and gratitude",
-        "Connect with your inner wisdom"
-      ],
-      specifications: {
-        "Pages": "200 lined pages",
-        "Size": "6 x 8 inches",
-        "Cover": "Hardcover with chakra symbols",
-        "Paper": "120gsm cream paper",
-        "Binding": "Lay-flat binding"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Maya S.",
-          rating: 5,
-          review: "This journal has completely changed my manifestation practice! The chakra-aligned pages help me focus my intentions perfectly.",
-          date: "1 week ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "angel-oracle-cards", "rose-quartz-heart"]
-    },
-    "rose-quartz-heart": {
-      id: "rose-quartz-heart",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      detailedDescription: "Open your heart to love with this beautiful Rose Quartz heart, known as the 'Stone of Unconditional Love'. This gentle pink crystal radiates loving energy, promoting self-love, emotional healing, and harmonious relationships. Rose Quartz helps heal emotional wounds, attracts love into your life, and encourages forgiveness and compassion. Perfect for heart chakra healing, meditation, or as a beautiful addition to your crystal collection.",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5,
-      benefits: [
-        "Attracts love and strengthens relationships",
-        "Promotes self-love and emotional healing",
-        "Opens and balances the heart chakra",
-        "Encourages forgiveness and compassion",
-        "Reduces stress and promotes inner peace"
-      ],
-      specifications: {
-        "Weight": "80-100g",
-        "Size": "5-6cm",
-        "Origin": "Madagascar",
-        "Chakra": "Heart",
-        "Element": "Water"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Grace L.",
-          rating: 5,
-          review: "This rose quartz heart has brought so much love and peace into my life. The energy is absolutely beautiful and calming.",
-          date: "2 weeks ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "chakra-journal", "chakra-stone-set"]
-    },
-    "chakra-stone-set": {
-      id: "chakra-stone-set",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      detailedDescription: "Achieve complete chakra balance with this powerful set of seven sacred stones, each carefully selected to correspond with the seven main chakras. This comprehensive kit includes Red Jasper (Root), Carnelian (Sacral), Citrine (Solar Plexus), Green Aventurine (Heart), Sodalite (Throat), Amethyst (Third Eye), and Clear Quartz (Crown). Each stone is cleansed and charged with healing intentions, ready to help you balance your energy centers and achieve optimal spiritual wellness.",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5,
-      benefits: [
-        "Balances all seven chakras",
-        "Enhances energy flow throughout the body",
-        "Promotes physical and emotional healing",
-        "Supports spiritual growth and development",
-        "Creates harmony and inner peace"
-      ],
-      specifications: {
-        "Stones": "7 chakra stones (20-25mm each)",
-        "Materials": "Natural gemstones",
-        "Packaging": "Velvet pouch included",
-        "Guide": "Chakra healing instruction card",
-        "Total Weight": "200-250g"
-      },
-      testimonials: [
-        {
-          id: 1,
-          name: "Alex K.",
-          rating: 5,
-          review: "This chakra stone set is absolutely perfect! Each stone has such powerful energy and the instruction card is very helpful. My energy feels so much more balanced.",
-          date: "1 week ago",
-          verified: true
-        }
-      ],
-      relatedProducts: ["amethyst-cluster", "rose-quartz-heart", "angel-oracle-cards"]
-    }
-  };
+  // Remove static products data - we're using Supabase data now
+
+
+
 
   // Helper function to get testimonials for products that don't have them
   const getTestimonials = (productId: string) => {
@@ -523,28 +291,7 @@ const ProductDetail = () => {
     setRelatedProductsStartIndex((prev) => Math.max(prev - 1, 0));
   };
 
-  // Related product image slider functions
-  const nextRelatedProductImage = (productId: string) => {
-    const relatedProduct = products[productId as keyof typeof products];
-    if (relatedProduct) {
-      const images = getProductImages(relatedProduct);
-      setRelatedProductImageIndices(prev => ({
-        ...prev,
-        [productId]: ((prev[productId] || 0) + 1) % images.length
-      }));
-    }
-  };
-
-  const prevRelatedProductImage = (productId: string) => {
-    const relatedProduct = products[productId as keyof typeof products];
-    if (relatedProduct) {
-      const images = getProductImages(relatedProduct);
-      setRelatedProductImageIndices(prev => ({
-        ...prev,
-        [productId]: ((prev[productId] || 0) - 1 + images.length) % images.length
-      }));
-    }
-  };
+  // Related product image slider functions - removed since we're using Supabase data
 
   return (
     <div className="min-h-screen bg-background">
@@ -799,9 +546,10 @@ const ProductDetail = () => {
               }`} style={{
                 transform: `translateX(-${relatedProductsStartIndex * (100 / 4)}%)`
               }}>
-                {(product.relatedProducts || getRelatedProducts(actualProductId)).map((relatedId) => {
-                const relatedProduct = products[relatedId as keyof typeof products];
-                if (!relatedProduct) return null;
+                {/* Temporarily disabled related products section - will be fixed in next update */}
+                {[].map((relatedId) => {
+                // const relatedProduct = products[relatedId as keyof typeof products];
+                // if (!relatedProduct) return null;
 
                 return (
                   <div
