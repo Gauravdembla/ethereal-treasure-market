@@ -404,8 +404,8 @@ const Checkout = () => {
               );
             })()}
 
-            {/* Desktop Vertical Customers Also Bought Section - Always show 3 items */}
-            {relatedProducts.length > 0 && (
+            {/* Desktop Vertical Customers Also Bought Section - Only show for 1-3 order items */}
+            {relatedProducts.length > 0 && items.length <= 3 && (
               <div className="hidden lg:block mt-6">
                 <Card className="p-6 bg-white shadow-sm border border-gray-100">
                   <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6">
@@ -415,10 +415,17 @@ const Checkout = () => {
                     {relatedProducts.slice(0, 3).map((relatedProduct) => {
                       const relatedProductId = relatedProduct.product_id;
                       const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                      // Fix image URL with fallback
-                      const relatedImageUrl = relatedProduct.images && relatedProduct.images.length > 0 
-                        ? productHelpers.getPrimaryImageUrl(relatedProduct.images)
-                        : '/placeholder.svg';
+                      // Fix image URL with multiple fallbacks
+                      let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                      
+                      if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                        try {
+                          relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                        } catch (error) {
+                          console.error('Error getting primary image URL:', error);
+                          relatedImageUrl = '/placeholder.svg';
+                        }
+                      }
                       
                       return (
                         <div key={relatedProductId} className="flex items-start gap-4 p-4 bg-angelic-cream/10 rounded-lg hover:bg-angelic-cream/20 hover:shadow-md transition-all duration-300 border border-transparent hover:border-angelic-cream/30">
@@ -428,6 +435,7 @@ const Checkout = () => {
                               alt={relatedProduct.name}
                               className="w-24 h-24 object-cover rounded-lg hover:scale-105 transition-transform duration-300 shadow-sm"
                               onError={(e) => {
+                                console.error('Image failed to load:', e.currentTarget.src);
                                 e.currentTarget.src = '/placeholder.svg';
                               }}
                             />
@@ -444,7 +452,7 @@ const Checkout = () => {
                               </h4>
                             </Link>
                             <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2 leading-relaxed">
-                              {relatedProduct.description?.slice(0, 100)}...
+                              {relatedProduct.description?.slice(0, 100) || 'No description available'}...
                             </p>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -689,6 +697,90 @@ const Checkout = () => {
                 </Button>
               </div>
             </Card>
+
+            {/* Desktop Customers Also Bought for 4+ Order Items - Under Order Summary */}
+            {relatedProducts.length > 0 && items.length >= 4 && (
+              <Card className="p-6 bg-white shadow-sm border border-gray-100 mt-6">
+                <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6">
+                  Customers Also Bought
+                </h3>
+                <div className="space-y-5">
+                  {relatedProducts.slice(0, 3).map((relatedProduct) => {
+                    const relatedProductId = relatedProduct.product_id;
+                    const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                    // Fix image URL with multiple fallbacks
+                    let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                    
+                    if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                      try {
+                        relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                      } catch (error) {
+                        console.error('Error getting primary image URL:', error);
+                        relatedImageUrl = '/placeholder.svg';
+                      }
+                    }
+                    
+                    return (
+                      <div key={relatedProductId} className="flex items-start gap-4 p-4 bg-angelic-cream/10 rounded-lg hover:bg-angelic-cream/20 hover:shadow-md transition-all duration-300 border border-transparent hover:border-angelic-cream/30">
+                        <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-24 h-24 object-cover rounded-lg hover:scale-105 transition-transform duration-300 shadow-sm"
+                            onError={(e) => {
+                              console.error('Image failed to load:', e.currentTarget.src);
+                              e.currentTarget.src = '/placeholder.svg';
+                            }}
+                          />
+                        </Link>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-2">
+                            {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                              <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
+                            ))}
+                          </div>
+                          <Link to={`/product/${relatedProductSlug}`}>
+                            <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-2">
+                              {relatedProduct.name}
+                            </h4>
+                          </Link>
+                          <p className="text-sm text-angelic-deep/70 mb-3 line-clamp-2 leading-relaxed">
+                            {relatedProduct.description?.slice(0, 100) || 'No description available'}...
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-primary text-lg">₹{relatedProduct.price}</span>
+                              {relatedProduct.original_price && (
+                                <span className="text-sm text-muted-foreground line-through">
+                                  ₹{relatedProduct.original_price}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="px-6 py-2 font-medium hover:shadow-md transition-all duration-200"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                addItem({
+                                  id: relatedProductId,
+                                  name: relatedProduct.name,
+                                  price: relatedProduct.price,
+                                  image: relatedImageUrl
+                                }, 1);
+                              }}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
           </div>
         </div>
 
