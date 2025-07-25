@@ -257,13 +257,15 @@ const ProductDetail = () => {
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+    const images = getProductImages();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+    const images = getProductImages();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const selectImage = (index: number, e: React.MouseEvent) => {
@@ -272,10 +274,10 @@ const ProductDetail = () => {
     setCurrentImageIndex(index);
   };
 
-  // Get images for the product (same as ProductCard)
-  const getProductImages = (product: any) => {
+  // Get images for the product (using Supabase data)
+  const getProductImages = () => {
     return [
-      product.image,   // Original product image
+      primaryImage,   // Primary product image from Supabase
       banner1, // Mockup 2 - lifestyle/banner image
       banner2, // Mockup 3 - lifestyle/banner image
       banner3, // Mockup 4 - lifestyle/banner image
@@ -312,7 +314,7 @@ const ProductDetail = () => {
               {/* Image Slider */}
               <div className="relative">
                 <img
-                  src={getProductImages(product)[currentImageIndex]}
+                  src={getProductImages()[currentImageIndex]}
                   alt={`${product.name} - Image ${currentImageIndex + 1}`}
                   className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-105"
                   key={currentImageIndex}
@@ -320,7 +322,7 @@ const ProductDetail = () => {
 
                 {/* Image Counter */}
                 <div className="absolute top-4 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  {currentImageIndex + 1}/{getProductImages(product).length}
+                  {currentImageIndex + 1}/{getProductImages().length}
                 </div>
 
                 {/* Slider Navigation */}
@@ -342,7 +344,7 @@ const ProductDetail = () => {
 
                 {/* Image Indicators */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  {getProductImages(product).map((_, index) => (
+                  {getProductImages().map((_, index) => (
                     <button
                       key={index}
                       onClick={(e) => selectImage(index, e)}
