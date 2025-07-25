@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import AddressForm from "@/components/AddressForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -513,72 +514,16 @@ const Profile = () => {
                           Add Address
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="max-w-2xl">
                         <DialogHeader>
                           <DialogTitle>Add New Address</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="addressType">Address Type</Label>
-                            <Input
-                              id="addressType"
-                              placeholder="e.g., Home, Work, Other"
-                              value={newAddress.type}
-                              onChange={(e) => setNewAddress(prev => ({ ...prev, type: e.target.value }))}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="fullAddress">Street Address</Label>
-                            <Input
-                              id="fullAddress"
-                              placeholder="123 Main Street"
-                              value={newAddress.fullAddress}
-                              onChange={(e) => setNewAddress(prev => ({ ...prev, fullAddress: e.target.value }))}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="city">City</Label>
-                              <Input
-                                id="city"
-                                placeholder="City"
-                                value={newAddress.city}
-                                onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="state">State</Label>
-                              <Input
-                                id="state"
-                                placeholder="State"
-                                value={newAddress.state}
-                                onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value }))}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="zipCode">ZIP Code</Label>
-                            <Input
-                              id="zipCode"
-                              placeholder="12345"
-                              value={newAddress.zipCode}
-                              onChange={(e) => setNewAddress(prev => ({ ...prev, zipCode: e.target.value }))}
-                            />
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="isDefault"
-                              checked={newAddress.isDefault}
-                              onChange={(e) => setNewAddress(prev => ({ ...prev, isDefault: e.target.checked }))}
-                            />
-                            <Label htmlFor="isDefault">Set as default address</Label>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button onClick={handleAddAddress}>Add Address</Button>
-                            <Button variant="outline" onClick={() => setIsAddingAddress(false)}>Cancel</Button>
-                          </div>
-                        </div>
+                        <AddressForm
+                          address={newAddress}
+                          onAddressChange={setNewAddress}
+                          onSave={handleAddAddress}
+                          onCancel={() => setIsAddingAddress(false)}
+                        />
                       </DialogContent>
                     </Dialog>
                   </div>
