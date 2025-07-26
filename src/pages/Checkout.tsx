@@ -7,7 +7,6 @@ import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User, UserCircle, ShoppingCart, Star } from "lucide-react";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useAngelCoins } from "@/hooks/useAngelCoins";
@@ -730,14 +729,8 @@ const Checkout = () => {
               Customers Also Bought
             </h2>
             <div className="w-full">
-              <Carousel
-                opts={{
-                  align: "start",
-                  slidesToScroll: "auto",
-                }}
-                className="w-full"
-              >
-                <CarouselContent className="-ml-2 md:-ml-4">
+              <div className="overflow-x-auto scroll-smooth">
+                <div className="flex gap-4 pb-4 px-2" style={{ width: 'max-content' }}>
                   {relatedProducts.map((relatedProduct) => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
@@ -754,7 +747,7 @@ const Checkout = () => {
                     }
 
                     return (
-                      <CarouselItem key={relatedProductId} className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                      <div key={relatedProductId} className="w-72 flex-shrink-0">
                         <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300 h-full">
                           <Link to={`/product/${relatedProductSlug}`}>
                             <div className="relative group/image">
@@ -879,11 +872,11 @@ const Checkout = () => {
                             </div>
                           </div>
                         </Card>
-                      </CarouselItem>
+                      </div>
                     );
                   })}
-                </CarouselContent>
-              </Carousel>
+                </div>
+              </div>
             </div>
           </div>
         )}
