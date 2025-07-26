@@ -370,8 +370,16 @@ const Checkout = () => {
                            <p className="text-xs text-gray-600 truncate mt-0.5">
                              {relatedProduct.description || 'Divine Protection & Peace - Enhance...'}
                            </p>
-                           <div className="flex items-center gap-2 mt-1">
-                             <span className="font-bold text-sm text-angelic-deep">
+                           
+                           {/* Star Rating */}
+                           <div className="flex items-center gap-1 mt-1 mb-1">
+                             {[...Array(5)].map((_, i) => (
+                               <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                             ))}
+                           </div>
+                           
+                           <div className="flex items-center gap-2">
+                             <span className="font-bold text-sm text-angelic-purple">
                                ₹{relatedProduct.price}
                              </span>
                              {relatedProduct.original_price && (
@@ -394,8 +402,9 @@ const Checkout = () => {
                                image: relatedImageUrl
                              }, 1);
                            }}
-                           className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0"
+                           className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0 flex items-center gap-1"
                          >
+                           <ShoppingCart className="w-3 h-3" />
                            Add
                          </button>
                        </div>
