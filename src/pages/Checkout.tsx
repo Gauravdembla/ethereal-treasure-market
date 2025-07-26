@@ -261,7 +261,7 @@ const Checkout = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Order Items */}
+          {/* Left Column - Order Items & Customers Also Bought */}
           <div className="space-y-6" data-order-items>
             <Card className="p-6">
               <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Items</h2>
@@ -318,11 +318,11 @@ const Checkout = () => {
 
             {/* Customers Also Bought - Show under Order Items when cart has 1-3 items */}
             {relatedProducts.length > 0 && items.length <= 3 && (
-              <div className="mt-8">
-                <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6 text-center">
+              <Card className="p-6">
+                <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6">
                   Customers Also Bought
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-4">
                   {relatedProducts.slice(0, items.length === 1 ? 3 : items.length === 2 ? 2 : 1).map((relatedProduct) => {
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
@@ -340,49 +340,58 @@ const Checkout = () => {
                     }
 
                     return (
-                      <Card key={relatedProductId} className="overflow-hidden hover:shadow-lg transition-all duration-300">
-                        <Link to={`/product/${relatedProductSlug}`}>
-                          <div className="relative group/image">
-                            <img
-                              src={relatedImageUrl}
-                              alt={relatedProduct.name}
-                              className="w-full aspect-square object-cover transition-transform duration-300 group-hover/image:scale-105"
-                              onError={(e) => {
-                                console.error('Image failed to load:', e.currentTarget.src);
-                                e.currentTarget.src = '/placeholder.svg';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                          </div>
+                      <div key={relatedProductId} className="flex items-center gap-4 p-4 bg-white rounded-lg border hover:shadow-md transition-all duration-300">
+                        {/* Product Image */}
+                        <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
+                          <img
+                            src={relatedImageUrl}
+                            alt={relatedProduct.name}
+                            className="w-16 h-16 object-cover rounded-md transition-transform duration-300 hover:scale-105"
+                            onError={(e) => {
+                              console.error('Image failed to load:', e.currentTarget.src);
+                              e.currentTarget.src = '/placeholder.svg';
+                            }}
+                          />
                         </Link>
-                        <div className="p-4">
-                          <div className="flex items-center gap-1 mb-2">
+
+                        {/* Product Details */}
+                        <div className="flex-1 min-w-0">
+                          {/* Rating */}
+                          <div className="flex items-center gap-1 mb-1">
                             {[...Array(relatedProduct.rating || 5)].map((_, i) => (
                               <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
                             ))}
                           </div>
+
+                          {/* Product Name */}
                           <Link to={`/product/${relatedProductSlug}`}>
-                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2 mb-2">
+                            <h4 className="font-playfair font-semibold text-base text-angelic-deep hover:text-primary transition-colors line-clamp-1 mb-1">
                               {relatedProduct.name}
                             </h4>
                           </Link>
-                          <p className="text-xs text-angelic-deep/70 mb-3 line-clamp-2">
-                            {relatedProduct.description?.slice(0, 60)}...
+
+                          {/* Description */}
+                          <p className="text-sm text-angelic-deep/70 line-clamp-2 mb-2">
+                            {relatedProduct.description?.slice(0, 80)}...
                           </p>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-1">
-                              <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
-                              {relatedProduct.original_price && (
-                                <span className="text-xs text-muted-foreground line-through">
-                                  ₹{relatedProduct.original_price}
-                                </span>
-                              )}
-                            </div>
+
+                          {/* Price */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="font-bold text-primary text-lg">₹{relatedProduct.price}</span>
+                            {relatedProduct.original_price && (
+                              <span className="text-sm text-muted-foreground line-through">
+                                ₹{relatedProduct.original_price}
+                              </span>
+                            )}
                           </div>
+                        </div>
+
+                        {/* Add Button */}
+                        <div className="flex-shrink-0">
                           <Button
                             variant="default"
                             size="sm"
-                            className="w-full h-8 text-xs"
+                            className="px-4 py-2"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -394,19 +403,19 @@ const Checkout = () => {
                               }, 1);
                             }}
                           >
-                            <ShoppingCart className="w-3 h-3 mr-1" />
+                            <ShoppingCart className="w-4 h-4 mr-1" />
                             Add
                           </Button>
                         </div>
-                      </Card>
+                      </div>
                     );
                   })}
                 </div>
-              </div>
+              </Card>
             )}
           </div>
 
-          {/* Order Summary */}
+          {/* Right Column - Customer Information & Order Summary */}
           <div className="space-y-6" data-order-summary>
             {/* Customer Information */}
             {user && (
