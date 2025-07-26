@@ -390,19 +390,20 @@ const Checkout = () => {
                            </div>
                          </div>
                          
-                         {/* Add Button */}
-                         <button
-                           onClick={(e) => {
-                             e.preventDefault();
-                             e.stopPropagation();
-                             addItem({
-                               id: relatedProductId,
-                               name: relatedProduct.name,
-                               price: relatedProduct.price,
-                               image: relatedImageUrl
-                             }, 1);
-                           }}
-                            className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0 flex items-center gap-1"
+                          {/* Add Button */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('Add button clicked for:', relatedProduct.name);
+                              addItem({
+                                id: relatedProductId,
+                                name: relatedProduct.name,
+                                price: relatedProduct.price,
+                                image: relatedImageUrl
+                              }, 1);
+                            }}
+                            className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0 flex items-center gap-1 min-w-[60px]"
                           >
                             <ShoppingCart className="w-3 h-3" />
                             Add
