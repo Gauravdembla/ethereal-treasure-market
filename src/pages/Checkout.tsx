@@ -402,11 +402,11 @@ const Checkout = () => {
                                image: relatedImageUrl
                              }, 1);
                            }}
-                           className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0 flex items-center gap-1"
-                         >
-                           <ShoppingCart className="w-3 h-3" />
-                           Add
-                         </button>
+                            className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0 flex items-center gap-1"
+                          >
+                            <ShoppingCart className="w-3 h-3" />
+                            Add
+                          </button>
                        </div>
                      );
                    })}
