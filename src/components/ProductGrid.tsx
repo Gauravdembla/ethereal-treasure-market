@@ -1,82 +1,98 @@
+import { useState, useMemo } from "react";
 import ProductCard from "./ProductCard";
-
-// Import product images
-import amethystImage from "@/assets/product-amethyst.jpg";
-import angelCardsImage from "@/assets/product-angel-cards.jpg";
-import candleImage from "@/assets/product-candle.jpg";
-import journalImage from "@/assets/product-journal.jpg";
-import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+import SearchAndFilter, { FilterOptions } from "./SearchAndFilter";
+import { PRODUCTS, Product } from "@/data/products";
 
 const ProductGrid = () => {
-  // Centralized product data - this ensures consistency across components
-  const products = [
-    {
-      id: "amethyst-cluster",
-      sku: "654567652",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5
-    },
-    {
-      id: "angel-oracle-cards",
-      sku: "789123456",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5
-    },
-    {
-      id: "healing-candle",
-      sku: "321987654",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5
-    },
-    {
-      id: "chakra-journal",
-      sku: "456789123",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5
-    },
-    {
-      id: "rose-quartz-heart",
-      sku: "987654321",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5
-    },
-    {
-      id: "chakra-stone-set",
-      sku: "147258369",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5
+  const [filters, setFilters] = useState<FilterOptions>({
+    searchQuery: "",
+    category: "all",
+    priceRange: "all",
+    sortBy: "featured",
+    inStockOnly: false,
+  });
+
+  // Helper function to convert price string to number
+  const getPriceAsNumber = (priceString: string): number => {
+    return parseInt(priceString.replace(/,/g, ""));
+  };
+
+  // Filter and sort products based on current filters
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = [...PRODUCTS];
+
+    // Apply search filter
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query)
+      );
     }
-  ];
+
+    // Apply category filter
+    if (filters.category !== "all") {
+      filtered = filtered.filter(product => product.category === filters.category);
+    }
+
+    // Apply price range filter
+    if (filters.priceRange !== "all") {
+      filtered = filtered.filter(product => {
+        const price = getPriceAsNumber(product.price);
+        switch (filters.priceRange) {
+          case "0-1000":
+            return price < 1000;
+          case "1000-2000":
+            return price >= 1000 && price < 2000;
+          case "2000-3000":
+            return price >= 2000 && price < 3000;
+          case "3000+":
+            return price >= 3000;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply in stock filter
+    if (filters.inStockOnly) {
+      filtered = filtered.filter(product => product.inStock);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "price-low":
+          return getPriceAsNumber(a.price) - getPriceAsNumber(b.price);
+        case "price-high":
+          return getPriceAsNumber(b.price) - getPriceAsNumber(a.price);
+        case "rating":
+          return b.rating - a.rating;
+        case "featured":
+        default:
+          // Featured products first, then by name
+          if (a.featured && !b.featured) return -1;
+          if (!a.featured && b.featured) return 1;
+          return a.name.localeCompare(b.name);
+      }
+    });
+
+    return filtered;
+  }, [filters]);
+
+  const handleFilterChange = (newFilters: FilterOptions) => {
+    setFilters(newFilters);
+  };
 
   return (
-    <section id="products" className="py-16 px-6 bg-gradient-hero">
+    <section id="products" className="py-16 bg-gradient-hero">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
+        <div className="text-center mb-12 px-6">
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-angelic-deep mb-4">
             Sacred Collection
           </h2>
@@ -84,21 +100,55 @@ const ProductGrid = () => {
             Each treasure is blessed with intention and chosen for its powerful healing properties
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              sku={product.sku}
-              image={product.image}
-              name={product.name}
-              description={product.description}
-              price={product.price}
-              originalPrice={product.originalPrice}
-              rating={product.rating}
-            />
-          ))}
+
+        {/* Search and Filter Component */}
+        <SearchAndFilter
+          onFilterChange={handleFilterChange}
+          totalProducts={PRODUCTS.length}
+          filteredCount={filteredAndSortedProducts.length}
+        />
+
+        {/* Products Grid */}
+        <div className="px-6">
+          {filteredAndSortedProducts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredAndSortedProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  sku={product.sku}
+                  image={product.image}
+                  name={product.name}
+                  description={product.description}
+                  price={product.price}
+                  originalPrice={product.originalPrice}
+                  rating={product.rating}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">🔍</div>
+              <h3 className="text-2xl font-playfair font-bold text-angelic-deep mb-2">
+                No products found
+              </h3>
+              <p className="text-angelic-deep/70 mb-6">
+                Try adjusting your search or filter criteria
+              </p>
+              <button
+                onClick={() => setFilters({
+                  searchQuery: "",
+                  category: "all",
+                  priceRange: "all",
+                  sortBy: "featured",
+                  inStockOnly: false,
+                })}
+                className="text-primary hover:text-primary/80 font-medium"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>
