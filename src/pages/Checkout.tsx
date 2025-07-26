@@ -316,7 +316,94 @@ const Checkout = () => {
               </div>
             </Card>
 
-            {/* Removed redundant Customers Also Bought sections - now using single optimized section at bottom */}
+            {/* Customers Also Bought - Show under Order Items when cart has 1-3 items */}
+            {relatedProducts.length > 0 && items.length <= 3 && (
+              <div className="mt-8">
+                <h3 className="font-playfair font-bold text-xl text-angelic-deep mb-6 text-center">
+                  Customers Also Bought
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {relatedProducts.slice(0, items.length === 1 ? 3 : items.length === 2 ? 2 : 1).map((relatedProduct) => {
+                    const relatedProductId = relatedProduct.product_id;
+                    const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+
+                    // Fix image URL with multiple fallbacks
+                    let relatedImageUrl = '/placeholder.svg'; // Default fallback
+
+                    if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                      try {
+                        relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                      } catch (error) {
+                        console.error('Error getting primary image URL:', error);
+                        relatedImageUrl = '/placeholder.svg';
+                      }
+                    }
+
+                    return (
+                      <Card key={relatedProductId} className="overflow-hidden hover:shadow-lg transition-all duration-300">
+                        <Link to={`/product/${relatedProductSlug}`}>
+                          <div className="relative group/image">
+                            <img
+                              src={relatedImageUrl}
+                              alt={relatedProduct.name}
+                              className="w-full aspect-square object-cover transition-transform duration-300 group-hover/image:scale-105"
+                              onError={(e) => {
+                                console.error('Image failed to load:', e.currentTarget.src);
+                                e.currentTarget.src = '/placeholder.svg';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          </div>
+                        </Link>
+                        <div className="p-4">
+                          <div className="flex items-center gap-1 mb-2">
+                            {[...Array(relatedProduct.rating || 5)].map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
+                            ))}
+                          </div>
+                          <Link to={`/product/${relatedProductSlug}`}>
+                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2 mb-2">
+                              {relatedProduct.name}
+                            </h4>
+                          </Link>
+                          <p className="text-xs text-angelic-deep/70 mb-3 line-clamp-2">
+                            {relatedProduct.description?.slice(0, 60)}...
+                          </p>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
+                              {relatedProduct.original_price && (
+                                <span className="text-xs text-muted-foreground line-through">
+                                  ₹{relatedProduct.original_price}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full h-8 text-xs"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              addItem({
+                                id: relatedProductId,
+                                name: relatedProduct.name,
+                                price: relatedProduct.price,
+                                image: relatedImageUrl
+                              }, 1);
+                            }}
+                          >
+                            <ShoppingCart className="w-3 h-3 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Order Summary */}
@@ -528,8 +615,8 @@ const Checkout = () => {
           </div>
         </div>
 
-        {/* Optimized Customers Also Bought Section - Single section for all screen sizes */}
-        {relatedProducts.length > 0 && (
+        {/* Customers Also Bought - Show at bottom when cart has 4+ items */}
+        {relatedProducts.length > 0 && items.length >= 4 && (
           <div className="mt-16">
             <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
               Customers Also Bought
