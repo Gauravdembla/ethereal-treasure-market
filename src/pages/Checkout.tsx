@@ -329,85 +329,79 @@ const Checkout = () => {
                   <h3 className="font-playfair font-bold text-xl text-angelic-deep text-center">
                     Customers Also Bought
                   </h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    {relatedProducts.slice(0, maxProducts).map((relatedProduct) => {
-                    const relatedProductId = relatedProduct.product_id;
-                    const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                    // Fix image URL with fallback
-                    let relatedImageUrl = '/placeholder.svg'; // Default fallback
-                    
-                    if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
-                      try {
-                        relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
-                      } catch (error) {
-                        console.error('Error getting primary image URL:', error);
-                        relatedImageUrl = '/placeholder.svg';
-                      }
-                    }
-                    
-                    return (
-                      <Card key={relatedProductId} className="overflow-hidden hover:shadow-lg transition-all duration-300">
-                        <Link to={`/product/${relatedProductSlug}`}>
-                          <div className="relative group/image">
-                            <img
-                              src={relatedImageUrl}
-                              alt={relatedProduct.name}
-                              className="w-full aspect-square object-cover transition-transform duration-300 group-hover/image:scale-105"
-                              onError={(e) => {
-                                console.error('Image failed to load:', e.currentTarget.src);
-                                e.currentTarget.src = '/placeholder.svg';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                          </div>
-                        </Link>
-                        <div className="p-3">
-                          <div className="flex items-center gap-1 mb-1">
-                            {[...Array(relatedProduct.rating || 5)].map((_, i) => (
-                              <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
-                            ))}
-                          </div>
-                          <Link to={`/product/${relatedProductSlug}`}>
-                            <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors line-clamp-2 mb-1">
-                              {relatedProduct.name}
-                            </h4>
-                          </Link>
-                          <p className="text-xs text-angelic-deep/70 mb-2 line-clamp-1">
-                            {relatedProduct.description?.slice(0, 40) || 'No description available'}...
-                          </p>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1">
-                              <span className="font-bold text-primary text-sm">₹{relatedProduct.price}</span>
-                              {relatedProduct.original_price && (
-                                <span className="text-xs text-muted-foreground line-through">
-                                  ₹{relatedProduct.original_price}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="w-full h-8 text-xs"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              addItem({
-                                id: relatedProductId,
-                                name: relatedProduct.name,
-                                price: relatedProduct.price,
-                                image: relatedImageUrl
-                              }, 1);
-                            }}
-                          >
-                            <ShoppingCart className="w-3 h-3 mr-1" />
-                            Add
-                          </Button>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
+                   <div className="space-y-3">
+                     {relatedProducts.slice(0, maxProducts).map((relatedProduct) => {
+                     const relatedProductId = relatedProduct.product_id;
+                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
+                     // Fix image URL with fallback
+                     let relatedImageUrl = '/placeholder.svg'; // Default fallback
+                     
+                     if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
+                       try {
+                         relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                       } catch (error) {
+                         console.error('Error getting primary image URL:', error);
+                         relatedImageUrl = '/placeholder.svg';
+                       }
+                     }
+                     
+                     return (
+                       <div key={relatedProductId} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 hover:shadow-md transition-shadow">
+                         {/* Product Image */}
+                         <Link to={`/product/${relatedProductSlug}`} className="flex-shrink-0">
+                           <img
+                             src={relatedImageUrl}
+                             alt={relatedProduct.name}
+                             className="w-16 h-16 object-cover rounded-md"
+                             onError={(e) => {
+                               console.error('Image failed to load:', e.currentTarget.src);
+                               e.currentTarget.src = '/placeholder.svg';
+                             }}
+                           />
+                         </Link>
+                         
+                         {/* Product Details */}
+                         <div className="flex-1 min-w-0">
+                           <Link to={`/product/${relatedProductSlug}`}>
+                             <h4 className="font-playfair font-semibold text-sm text-angelic-deep hover:text-primary transition-colors truncate">
+                               {relatedProduct.name}
+                             </h4>
+                           </Link>
+                           <p className="text-xs text-gray-600 truncate mt-0.5">
+                             {relatedProduct.description || 'Divine Protection & Peace - Enhance...'}
+                           </p>
+                           <div className="flex items-center gap-2 mt-1">
+                             <span className="font-bold text-sm text-angelic-deep">
+                               ₹{relatedProduct.price}
+                             </span>
+                             {relatedProduct.original_price && (
+                               <span className="text-xs text-gray-400 line-through">
+                                 ₹{relatedProduct.original_price}
+                               </span>
+                             )}
+                           </div>
+                         </div>
+                         
+                         {/* Add Button */}
+                         <button
+                           onClick={(e) => {
+                             e.preventDefault();
+                             e.stopPropagation();
+                             addItem({
+                               id: relatedProductId,
+                               name: relatedProduct.name,
+                               price: relatedProduct.price,
+                               image: relatedImageUrl
+                             }, 1);
+                           }}
+                           className="bg-angelic-purple text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-angelic-purple/90 transition-colors flex-shrink-0"
+                         >
+                           Add
+                         </button>
+                       </div>
+                     );
+                   })}
+                 </div>
               </div>
               );
             })()}
