@@ -102,145 +102,147 @@ const SearchAndFilter = ({ onFilterChange, totalProducts, filteredCount }: Searc
 
   return (
     <div className="w-full max-w-6xl mx-auto px-6 mb-6 md:mb-8">
-      {/* Search Bar */}
-      <div className="relative mb-4 md:mb-6">
+      {/* Mobile: Search Bar + Filter Button Inline */}
+      <div className="flex md:hidden gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-angelic-deep/50 w-5 h-5" />
+          <Input
+            type="text"
+            placeholder="Search products..."
+            value={filters.searchQuery}
+            onChange={(e) => updateFilters({ searchQuery: e.target.value })}
+            className="pl-10 pr-4 py-2.5 text-base border-2 border-angelic-cream focus:border-primary rounded-lg bg-white/80 backdrop-blur-sm"
+          />
+        </div>
+        <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="bg-white/80 backdrop-blur-sm relative px-3 py-2.5 flex-shrink-0">
+              <Filter className="w-4 h-4" />
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs min-w-[18px] h-[18px] flex items-center justify-center">
+                  {activeFiltersCount}
+                </Badge>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent className="w-full sm:w-[400px]">
+            <SheetHeader>
+              <SheetTitle>Filter & Sort Products</SheetTitle>
+              <SheetDescription>
+                Refine your search to find the perfect spiritual treasures
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-6 mt-6">
+              {/* Category Filter */}
+              <div>
+                <label className="text-sm font-medium text-angelic-deep mb-2 block">
+                  Category
+                </label>
+                <Select value={filters.category} onValueChange={(value) => updateFilters({ category: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort Filter */}
+              <div>
+                <label className="text-sm font-medium text-angelic-deep mb-2 block">
+                  Sort By
+                </label>
+                <Select value={filters.sortBy} onValueChange={(value) => updateFilters({ sortBy: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <label className="text-sm font-medium text-angelic-deep mb-2 block">
+                  Price Range
+                </label>
+                <Select value={filters.priceRange} onValueChange={(value) => updateFilters({ priceRange: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select price range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priceRanges.map((range) => (
+                      <SelectItem key={range.value} value={range.value}>
+                        {range.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* In Stock Only */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="inStockOnly"
+                  checked={filters.inStockOnly}
+                  onChange={(e) => updateFilters({ inStockOnly: e.target.checked })}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label htmlFor="inStockOnly" className="text-sm font-medium text-angelic-deep">
+                  In Stock Only
+                </label>
+              </div>
+
+              {/* Results Count */}
+              <div className="pt-4 border-t">
+                <span className="text-sm text-angelic-deep/70">
+                  Showing {filteredCount} of {totalProducts} products
+                </span>
+              </div>
+
+              {/* Clear Filters */}
+              <Button
+                variant="outline"
+                onClick={clearAllFilters}
+                className="w-full"
+                disabled={activeFiltersCount === 0}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Clear All Filters
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop: Search Bar */}
+      <div className="hidden md:block relative mb-6">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-angelic-deep/50 w-5 h-5" />
         <Input
           type="text"
           placeholder="Search for crystals, oracle cards, candles..."
           value={filters.searchQuery}
           onChange={(e) => updateFilters({ searchQuery: e.target.value })}
-          className="pl-10 pr-4 py-2.5 md:py-3 text-base md:text-lg border-2 border-angelic-cream focus:border-primary rounded-lg bg-white/80 backdrop-blur-sm"
+          className="pl-10 pr-4 py-3 text-lg border-2 border-angelic-cream focus:border-primary rounded-lg bg-white/80 backdrop-blur-sm"
         />
       </div>
 
-      {/* Filter Controls - Mobile vs Desktop */}
-      <div className="flex items-center justify-between">
-        {/* Mobile: Only Filter Button */}
-        <div className="flex md:hidden items-center gap-3 w-full">
-          <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="bg-white/80 backdrop-blur-sm relative">
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
-                    {activeFiltersCount}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-full sm:w-[400px]">
-              <SheetHeader>
-                <SheetTitle>Filter & Sort Products</SheetTitle>
-                <SheetDescription>
-                  Refine your search to find the perfect spiritual treasures
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="space-y-6 mt-6">
-                {/* Category Filter */}
-                <div>
-                  <label className="text-sm font-medium text-angelic-deep mb-2 block">
-                    Category
-                  </label>
-                  <Select value={filters.category} onValueChange={(value) => updateFilters({ category: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
-                          {category.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Sort Filter */}
-                <div>
-                  <label className="text-sm font-medium text-angelic-deep mb-2 block">
-                    Sort By
-                  </label>
-                  <Select value={filters.sortBy} onValueChange={(value) => updateFilters({ sortBy: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Price Range */}
-                <div>
-                  <label className="text-sm font-medium text-angelic-deep mb-2 block">
-                    Price Range
-                  </label>
-                  <Select value={filters.priceRange} onValueChange={(value) => updateFilters({ priceRange: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select price range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {priceRanges.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* In Stock Only */}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="inStockOnly"
-                    checked={filters.inStockOnly}
-                    onChange={(e) => updateFilters({ inStockOnly: e.target.checked })}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <label htmlFor="inStockOnly" className="text-sm font-medium text-angelic-deep">
-                    In Stock Only
-                  </label>
-                </div>
-
-                {/* Results Count */}
-                <div className="pt-4 border-t">
-                  <span className="text-sm text-angelic-deep/70">
-                    Showing {filteredCount} of {totalProducts} products
-                  </span>
-                </div>
-
-                {/* Clear Filters */}
-                <Button
-                  variant="outline"
-                  onClick={clearAllFilters}
-                  className="w-full"
-                  disabled={activeFiltersCount === 0}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Clear All Filters
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {/* Results count for mobile */}
-          <span className="text-sm text-angelic-deep/70 ml-auto">
-            {filteredCount} of {totalProducts}
-          </span>
-        </div>
-
-        {/* Desktop: Full Filter Controls */}
-        <div className="hidden md:flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between w-full">
-          {/* Left side - Quick filters */}
-          <div className="flex flex-wrap gap-3 items-center">
+      {/* Desktop: Filter Controls */}
+      <div className="hidden md:flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+        {/* Left side - Quick filters */}
+        <div className="flex flex-wrap gap-3 items-center">
             {/* Category Filter */}
             <Select value={filters.category} onValueChange={(value) => updateFilters({ category: value })}>
               <SelectTrigger className="w-[180px] bg-white/80 backdrop-blur-sm">
