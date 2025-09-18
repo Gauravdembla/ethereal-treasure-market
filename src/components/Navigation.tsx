@@ -3,25 +3,30 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, User } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import MembershipBadge from "./MembershipBadge";
 
 import LoginDialog from "./LoginDialog";
+import { useNavigate } from 'react-router-dom';
 
 const Navigation = () => {
   const { totalItems } = useCart();
-  const { user, getUserRole } = useAuth();
+  const { user, externalUser, getUserRole, isAuthenticated } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
 
-  // Get user name from email or metadata
-  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  // Get user name - prioritize external user data
+  const userName = externalUser?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
   const userRole = getUserRole();
+  const isUserAuthenticated = isAuthenticated;
+
+  const navigate = useNavigate();
 
   const handleProfileClick = () => {
-    if (userRole === 'admin' || userRole === 'team') {
-      window.location.href = '/admin';
-    } else {
-      const userId = user?.id || 'user';
-      window.location.href = `/profile?user=${userId}`;
-    }
+    const userId = externalUser?.userId || user?.id || 'user';
+    navigate(`/profile?user=${userId}`);
+  };
+
+  const handleAdminClick = () => {
+    navigate('/admin');
   };
 
   return (
@@ -56,23 +61,56 @@ const Navigation = () => {
               </Button>
             </div>
 
-            {/* Login/User */}
-            {user ? (
-              <div className="flex items-center gap-2">
+            {/* Admin Access (admin only) */}
+            {userRole === 'admin' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-angelic-deep hover:text-primary"
+                onClick={handleAdminClick}
+              >
+                Admin Access
+              </Button>
+            )}
+
+            {/* User Info - Show if authenticated via external system or regular auth */}
+            {isUserAuthenticated ? (
+              <div className="flex items-center gap-3">
+                {/* Membership Badge for external users */}
+                {externalUser && (
+                  <MembershipBadge size="sm" />
+                )}
+
+                {/* User Profile Picture (if available) */}
+                {externalUser?.pic && (
+                  <img
+                    src={externalUser.pic}
+                    alt={userName}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+
+                {/* User Name */}
                 <span className="text-sm text-angelic-deep font-medium">
                   {userName}
                 </span>
+
+                {/* Profile Button */}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="text-angelic-deep hover:text-primary"
                   onClick={handleProfileClick}
-                  title={userRole === 'admin' || userRole === 'team' ? 'Admin Dashboard' : 'My Profile'}
+                  title="My Profile"
                 >
                   <User className="w-4 h-4" />
                 </Button>
               </div>
             ) : (
+              /* Only show login button if not authenticated via external system */
               <Button
                 variant="angelic"
                 size="sm"
