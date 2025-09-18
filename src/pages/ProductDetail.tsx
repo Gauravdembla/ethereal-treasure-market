@@ -96,10 +96,28 @@ const ProductDetail = () => {
         .eq('category', productData.data.category)
         .neq('product_id', productData.data.product_id)
         .eq('status', 'published')
-        .limit(6);
+        .limit(12); // Increased from 6 to 12 for more variety
 
       if (!relatedError && relatedData) {
         setRelatedProducts(relatedData);
+      } else {
+        // Fallback to local products data
+        const { PRODUCTS } = await import('@/data/products');
+        const fallbackProducts = PRODUCTS
+          .filter(product => product.id !== productData.data.product_id)
+          .slice(0, 12)
+          .map(product => ({
+            product_id: product.id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            original_price: product.originalPrice,
+            rating: product.rating,
+            sku: product.sku,
+            category: product.category,
+            images: [{ url: product.image, is_primary: true }]
+          }));
+        setRelatedProducts(fallbackProducts as any);
       }
 
     } catch (err) {
@@ -310,9 +328,11 @@ const ProductDetail = () => {
     ];
   };
 
-  // Related products slider functions (non-cyclic, max 4 visible)
+  // Related products slider functions - Updated for responsive display
   const nextRelatedProducts = () => {
-    const maxStartIndex = Math.max(0, relatedProducts.length - 4);
+    // Show more products: 5 on desktop, 3 on tablet, 2 on mobile
+    const visibleProducts = window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 3 : 2;
+    const maxStartIndex = Math.max(0, relatedProducts.length - visibleProducts);
     setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
   };
 
@@ -559,7 +579,7 @@ const ProductDetail = () => {
             onClick={nextRelatedProducts}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
             aria-label="Next products"
-            disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - 4)}
+            disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - (window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 3 : 2))}
           >
             <ChevronRight className="w-5 h-5 text-gray-700" />
           </button>
@@ -569,11 +589,11 @@ const ProductDetail = () => {
 
             <div className="overflow-hidden">
               <div className={`flex gap-6 transition-transform duration-300 ${
-                relatedProducts.length <= 3 
-                  ? 'justify-center' 
+                relatedProducts.length <= 3
+                  ? 'justify-center'
                   : ''
               }`} style={{
-                transform: `translateX(-${relatedProductsStartIndex * (100 / 4)}%)`
+                transform: `translateX(-${relatedProductsStartIndex * (100 / (window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 3 : 2))}%)`
               }}>
                 {/* Display related products from Supabase */}
                 {relatedProducts.map((relatedProduct) => {
@@ -584,7 +604,7 @@ const ProductDetail = () => {
                 return (
                   <div
                     key={relatedProductId}
-                    className="flex-shrink-0 w-60 group"
+                    className="flex-shrink-0 w-48 sm:w-56 md:w-60 lg:w-52 xl:w-60 group"
                   >
                     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
                       <Link to={`/product/${relatedProductSlug}`}>

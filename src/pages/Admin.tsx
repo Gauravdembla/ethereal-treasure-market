@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare, ChevronDown, ChevronRight, Contact, CreditCard, GraduationCap, Radio, Video } from "lucide-react";
+import { Users, Package, Coins, Settings, LogOut, Menu, ShoppingCart, Plus, Edit, Trash2, Upload, Eye, BarChart3, Trophy, FileText, Calendar, MessageSquare, ChevronDown, ChevronRight, Contact, CreditCard, GraduationCap, Radio, Video, Database } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 // AngelThon Components
@@ -23,7 +23,20 @@ import EmailSettings from "@/components/angelthon/EmailSettings";
 import RolesManagement from "@/components/angelthon/RolesManagement";
 import LeaderboardManagement from "@/components/angelthon/LeaderboardManagement";
 import CalendarManagement from "@/components/angelthon/CalendarManagement";
+
+// Shop Management Components
+import ProductsManagement from "@/components/shop/ProductsManagement";
+import HeroSectionManagement from "@/components/shop/HeroSectionManagement";
+import NavigationManagement from "@/components/shop/NavigationManagement";
+import FooterManagement from "@/components/shop/FooterManagement";
+import TestimonialsManagement from "@/components/shop/TestimonialsManagement";
+import OrdersManagement from "@/components/shop/OrdersManagement";
+import ShopSettingsManagement from "@/components/shop/ShopSettingsManagement";
+import DatabaseMigration from "@/components/admin/DatabaseMigration";
+import ReviewsManagement from "@/components/admin/ReviewsManagement";
+
 import { useAuth } from "@/hooks/useAuth";
+import externalAuthService from "@/services/externalAuthService";
 
 // Import product images
 import amethystImage from "@/assets/product-amethyst.jpg";
@@ -158,13 +171,13 @@ const Admin = () => {
 
   // Mock data
   const mockUsers = [
-    { id: "1", name: "Sarah Angel", email: "sarah@example.com", angelCoins: 10000, orders: 5 },
+    { id: "1", name: "Gaurav Dembla", email: "gaurav262001@gmail.com", angelCoins: 10000, orders: 5 },
     { id: "2", name: "John Divine", email: "john@example.com", angelCoins: 7500, orders: 3 },
     { id: "3", name: "Mary Grace", email: "mary@example.com", angelCoins: 15000, orders: 8 },
   ];
 
   const mockOrders = [
-    { id: "ORD001", customer: "Sarah Angel", total: 1299, status: "completed", angelCoinsRedeemed: 200 },
+    { id: "ORD001", customer: "Gaurav Dembla", total: 1299, status: "completed", angelCoinsRedeemed: 200 },
     { id: "ORD002", customer: "John Divine", total: 899, status: "pending", angelCoinsRedeemed: 0 },
     { id: "ORD003", customer: "Mary Grace", total: 2499, status: "completed", angelCoinsRedeemed: 500 },
   ];
@@ -173,13 +186,16 @@ const Admin = () => {
     e.preventDefault();
     setLoginError("");
 
-    // Demo login fallback
+    // CRITICAL: Admin login with dual authentication system
     if (credentials.email === "admin@angelsonearth.com" && credentials.password === "divine123") {
-      // Set a demo user in the auth store
+      // Set admin user ID in localStorage for strict access control
+      externalAuthService.setAdminUser();
+
+      // Set a demo admin user in the auth store
       const demoUser = {
         id: "demo-admin-id",
         email: "admin@angelsonearth.com",
-        user_metadata: { role: "admin", name: "Demo Admin" },
+        user_metadata: { role: "admin", name: "Admin User" },
         app_metadata: {},
         aud: "authenticated",
         created_at: new Date().toISOString(),
@@ -198,16 +214,18 @@ const Admin = () => {
         user: demoUser,
         isAuthenticated: true
       }));
+
+      console.log('Admin login successful, admin user ID set');
       return;
     }
 
     try {
       const success = await login(credentials.email, credentials.password);
       if (!success) {
-        setLoginError("Invalid email or password. Please try demo credentials: admin@angelsonearth.com / divine123");
+        setLoginError("Invalid email or password. Please try demo credentials: gaurav262001@gmail.com / divine123");
       }
     } catch (error) {
-      setLoginError("Login failed. Please try demo credentials: admin@angelsonearth.com / divine123");
+      setLoginError("Login failed. Please try demo credentials: gaurav262001@gmail.com / divine123");
     }
   };
 
@@ -419,11 +437,16 @@ const Admin = () => {
         { id: "shop-customers", label: "Customers", icon: Users },
         { id: "shop-angelcoins", label: "Angel Coins", icon: Coins },
         { id: "shop-reviews", label: "Reviews", icon: MessageSquare },
+        { id: "shop-hero", label: "Hero Section", icon: Eye },
+        { id: "shop-navigation", label: "Navigation", icon: Menu },
+        { id: "shop-footer", label: "Footer", icon: Contact },
+        { id: "shop-testimonials", label: "Testimonials", icon: MessageSquare },
         { id: "shop-settings", label: "Shop Settings", icon: Settings },
       ]
     },
 
     // Additional Menu Items
+    { id: "database-migration", label: "Database Migration", icon: Database, type: "single" },
     { id: "send-broadcast", label: "Send Broadcast", icon: Radio, type: "single" },
     { id: "setup-sessions", label: "Setup Sessions", icon: Video, type: "single" },
     { id: "settings", label: "Settings", icon: Settings, type: "single" },
@@ -651,16 +674,7 @@ const Admin = () => {
         return <CalendarManagement />;
 
       case "shop-products":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Shop Products</h2>
-            <p className="text-slate-600 mb-4">This is the existing product management from Ethereal Treasure Market</p>
-            {/* This will contain the existing product management code */}
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-green-800">Product management functionality will be moved here.</p>
-            </div>
-          </Card>
-        );
+        return <ProductsManagement />;
 
       case "users":
         return (
@@ -829,16 +843,7 @@ const Admin = () => {
           </Card>
         );
       case "shop-orders":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Shop Orders</h2>
-            <p className="text-slate-600 mb-4">Manage e-commerce orders from Ethereal Treasure Market</p>
-            {/* This will contain the existing order management code */}
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-green-800">Order management functionality will be moved here.</p>
-            </div>
-          </Card>
-        );
+        return <OrdersManagement />;
 
       case "shop-customers":
         return (
@@ -864,27 +869,26 @@ const Admin = () => {
         );
 
       case "shop-reviews":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Product Reviews</h2>
-            <p className="text-slate-600 mb-4">Moderate and manage customer product reviews</p>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-green-800">Review management functionality will be implemented here.</p>
-            </div>
-          </Card>
-        );
+        return <ReviewsManagement />;
+
+      case "shop-hero":
+        return <HeroSectionManagement />;
+
+      case "shop-navigation":
+        return <NavigationManagement />;
+
+      case "shop-footer":
+        return <FooterManagement />;
+
+      case "shop-testimonials":
+        return <TestimonialsManagement />;
 
       case "shop-settings":
-        return (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Shop Settings</h2>
-            <p className="text-slate-600 mb-4">Configure e-commerce settings and checkout options</p>
-            {/* This will contain the existing checkout settings code */}
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-green-800">Shop settings functionality will be moved here.</p>
-            </div>
-          </Card>
-        );
+        return <ShopSettingsManagement />;
+
+      // System Cases
+      case "database-migration":
+        return <DatabaseMigration />;
 
       case "settings":
         return (
@@ -1251,14 +1255,26 @@ const Admin = () => {
         <main className="flex-1 flex flex-col">
           {/* Header */}
           <div className="bg-white shadow-sm border-b p-4">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger />
-              <div>
-                <h1 className="font-playfair text-2xl font-bold text-slate-800">
-                  {menuItems.find(item => item.id === activeSection)?.label}
-                </h1>
-                <p className="text-slate-600">Angels On Earth Management</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger />
+                <div>
+                  <h1 className="font-playfair text-2xl font-bold text-slate-800">
+                    {menuItems.find(item => item.id === activeSection)?.label}
+                  </h1>
+                  <p className="text-slate-600">Angels On Earth Management</p>
+                </div>
               </div>
+
+              {/* Preview Frontend Button */}
+              <Button
+                variant="outline"
+                onClick={() => window.open('http://localhost:8080/', '_blank')}
+                className="flex items-center gap-2 bg-primary text-white hover:bg-primary/90"
+              >
+                <Eye className="w-4 h-4" />
+                Preview Frontend
+              </Button>
             </div>
           </div>
 

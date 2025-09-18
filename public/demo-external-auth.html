@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>External Auth Demo - Ethereal Treasure Market</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .user-info {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+        .no-user {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        .loading {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid rgba(255, 165, 0, 0.3);
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #d32f2f;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 External Authentication Demo</h1>
+        <p>This demo simulates the external authentication system for Ethereal Treasure Market.</p>
+        
+        <div class="container">
+            <h2>👤 User Authentication</h2>
+            
+            <div>
+                <label>Select User:</label>
+                <select id="userSelect" onchange="setUser()">
+                    <option value="">-- No User (Logout) --</option>
+                    <option value="regular_user">👤 Regular User (677943f14693fccceb1a256a)</option>
+                    <option value="admin_user">👑 Admin User (66f1851e9b5fc4e6c571a7ab)</option>
+                    <option value="test_user_1">🧪 Test User 1 (680150b068d45abc42b53c99)</option>
+                    <option value="test_user_2">🧪 Test User 2 (68275cba5a77c2de8ca09457)</option>
+                </select>
+            </div>
+
+            <div style="margin-top:10px;">
+                <label>Or enter User ID manually:</label>
+                <input id="manualUserId" type="text" placeholder="Enter userId" style="width:360px;" />
+                <button onclick="setUserManual()">Load User</button>
+            </div>
+
+            <button onclick="testAdminAccess()">Test Admin Access</button>
+            <button onclick="clearUser()">Clear User (Logout)</button>
+            <button onclick="refreshAuth()">Refresh Auth</button>
+            
+            <div id="status" class="status no-user">
+                <strong>Status:</strong> No user authenticated
+            </div>
+        </div>
+        
+        <div class="container">
+            <h2>🛍️ Shop Integration</h2>
+            <button onclick="openShop()">Open Ethereal Treasure Market</button>
+            <button onclick="openShopAdmin()">Open Admin Panel</button>
+            <p><em>The shop will automatically detect your authentication status!</em></p>
+        </div>
+        
+        <div class="container">
+            <h2>📊 Current localStorage Data</h2>
+            <div id="localStorageData" class="status">
+                <em>No external auth data found</em>
+            </div>
+            <button onclick="showLocalStorage()">Refresh Data</button>
+        </div>
+    </div>
+
+    <script>
+        // Real API endpoint
+        const API_ENDPOINT = 'https://twilight-silence-539c.connect-17d.workers.dev/api/aoe-profile';
+
+        // Test user IDs for development
+        const testUsers = {
+            regular_user: {
+                id: '677943f14693fccceb1a256a',
+                label: 'Regular User (677943f14693fccceb1a256a)'
+            },
+            admin_user: {
+                id: '66f1851e9b5fc4e6c571a7ab',
+                label: 'Admin User (66f1851e9b5fc4e6c571a7ab)'
+            },
+            test_user_1: {
+                id: '680150b068d45abc42b53c99',
+                label: 'Test User 1 (680150b068d45abc42b53c99)'
+            },
+            test_user_2: {
+                id: '68275cba5a77c2de8ca09457',
+                label: 'Test User 2 (68275cba5a77c2de8ca09457)'
+            }
+        };
+
+        // Determine membership tier with strict chain rules using DESCRIPTION-ONLY matching
+        function extractMembershipTierFromPayload(badges, subs) {
+            const normalize = (v) => String(v || '').toLowerCase();
+
+            if (Array.isArray(subs) && subs.length > 0) {
+                // Order-independent scan: check all subs for each tier and prefer any active entry
+                const scanTier = (tier) => {
+                    const needle = `${tier} membership`;
+                    let present = false;
+                    let active = false;
+                    for (const s of subs) {
+                        const status = normalize(s?.status);
+                        const desc = normalize(s?.mango?.description);
+                        if (!desc || !desc.includes(needle)) continue;
+                        present = true;
+                        if (status === 'active') active = true;
+                    }
+                    return { present, active };
+                };
+
+                const gold = scanTier('gold');
+                if (!gold.present || !gold.active) {
+                    return 'none';
+                }
+
+                const platinum = scanTier('platinum');
+                if (!platinum.present || !platinum.active) {
+                    return 'gold';
+                }
+
+                const diamond = scanTier('diamond');
+                if (diamond.present && diamond.active) return 'diamond';
+                return 'platinum';
+            }
+
+            // If no subs, fallback to badges as a very loose heuristic
+            if (Array.isArray(badges)) {
+                const tierPriority = ['diamond', 'platinum', 'gold'];
+                for (const tier of tierPriority) {
+                    const found = badges.find(badge => badge && badge.name && badge.name.toLowerCase().includes(tier));
+                    if (found) return tier;
+                }
+            }
+
+            return 'none';
+        }
+
+        // Show loading state
+        function showLoading(show) {
+            const status = document.getElementById('status');
+            if (show) {
+                status.innerHTML = '<strong>Status:</strong> Loading user data...';
+                status.className = 'status loading';
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const status = document.getElementById('status');
+            status.innerHTML = `<strong>Error:</strong> ${message}`;
+            status.className = 'status error';
+        }
+
+        // Fetch real user data from API
+        async function fetchUserData(userId) {
+            try {
+                showLoading(true);
+                console.log(`Fetching user data for userId: ${userId}`);
+
+                const response = await fetch(`${API_ENDPOINT}?userId=${userId}`);
+
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                }
+
+                const apiResponse = await response.json();
+                console.log('API Response:', apiResponse);
+
+                if (!apiResponse.result || !apiResponse.result.userProfile) {
+                    throw new Error('Invalid API response structure');
+                }
+
+                const userProfile = apiResponse.result.userProfile;
+
+                // Extract data using the exact mapping specified
+                const extractedData = {
+                    name: userProfile.name || 'User',
+                    email: userProfile.email || '',
+                    phone: (userProfile.countryCode || '') + (userProfile.phone || ''),
+                    profilePic: userProfile.profilePicUrl || '',
+                    angelCoins: userProfile.score || 0,
+                    badges: userProfile.badges || []
+                };
+
+                // Determine membership tier using subs (active) first, then badges
+                const membershipTier = extractMembershipTierFromPayload(extractedData.badges, apiResponse.result.subs || []);
+
+                return {
+                    name: extractedData.name,
+                    pic: extractedData.profilePic,
+                    membership_tier: membershipTier,
+                    profile_full: userProfile,
+                    userId: userId
+                };
+
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                showError(`Failed to fetch user data: ${error.message}`);
+                return null;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function setUser() {
+            const selectedUser = document.getElementById('userSelect').value;
+
+            if (!selectedUser) {
+                clearUser();
+                return;
+            }
+
+            const userId = testUsers[selectedUser].id;
+            await setUserById(userId);
+        }
+
+        async function setUserManual() {
+            const userId = (document.getElementById('manualUserId').value || '').trim();
+            if (!userId) {
+                alert('Please enter a userId');
+                return;
+            }
+            await setUserById(userId);
+        }
+
+        async function setUserById(userId) {
+            const userData = await fetchUserData(userId);
+            if (!userData) return;
+
+            // Store in localStorage with the expected keys
+            localStorage.setItem('AOE_name', userData.name);
+            localStorage.setItem('AOE_pic', userData.pic);
+            localStorage.setItem('AOE_membership_tier', userData.membership_tier);
+            localStorage.setItem('AOE_userId', userData.userId);
+            localStorage.setItem('AOE_profile_full', JSON.stringify(userData.profile_full));
+
+            updateStatus();
+            showLocalStorage();
+        }
+
+        async function testAdminAccess() {
+            // Set admin user ID directly for testing
+            const adminUserId = '66f1851e9b5fc4e6c571a7ab';
+            const userData = await fetchUserData(adminUserId);
+
+            if (userData) {
+                // Store admin data
+                localStorage.setItem('AOE_name', userData.name);
+                localStorage.setItem('AOE_pic', userData.pic);
+                localStorage.setItem('AOE_membership_tier', userData.membership_tier);
+                localStorage.setItem('AOE_userId', userData.userId);
+                localStorage.setItem('AOE_profile_full', JSON.stringify(userData.profile_full));
+
+                // Update UI
+                document.getElementById('userSelect').value = 'admin_user';
+                updateStatus();
+                showLocalStorage();
+
+                alert('Admin access set! You can now access the admin panel.');
+            }
+        }
+
+        function clearUser() {
+            // Clear all external auth data
+            localStorage.removeItem('AOE_name');
+            localStorage.removeItem('AOE_pic');
+            localStorage.removeItem('AOE_membership_tier');
+            localStorage.removeItem('AOE_userId');
+            localStorage.removeItem('AOE_profile_full');
+
+            document.getElementById('userSelect').value = '';
+            updateStatus();
+            showLocalStorage();
+        }
+
+        function refreshAuth() {
+            // Simulate refreshing auth data (in real app, this would call the Worker API)
+            updateStatus();
+            showLocalStorage();
+        }
+
+        function updateStatus() {
+            const statusDiv = document.getElementById('status');
+            const name = localStorage.getItem('AOE_name');
+            const tier = localStorage.getItem('AOE_membership_tier');
+            
+            if (name) {
+                statusDiv.className = 'status user-info';
+                statusDiv.innerHTML = `
+                    <strong>Status:</strong> Authenticated<br>
+                    <strong>User:</strong> ${name}<br>
+                    <strong>Membership:</strong> ${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : 'None'}
+                `;
+            } else {
+                statusDiv.className = 'status no-user';
+                statusDiv.innerHTML = '<strong>Status:</strong> No user authenticated';
+            }
+        }
+
+        function showLocalStorage() {
+            const dataDiv = document.getElementById('localStorageData');
+            const keys = ['AOE_name', 'AOE_pic', 'AOE_membership_tier', 'AOE_userId', 'AOE_profile_full'];
+            
+            let html = '<strong>External Auth Data:</strong><br>';
+            let hasData = false;
+            
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    hasData = true;
+                    if (key === 'AOE_profile_full') {
+                        html += `<strong>${key}:</strong> ${value.substring(0, 100)}...<br>`;
+                    } else {
+                        html += `<strong>${key}:</strong> ${value}<br>`;
+                    }
+                }
+            });
+            
+            if (!hasData) {
+                html = '<em>No external auth data found</em>';
+            }
+            
+            dataDiv.innerHTML = html;
+        }
+
+        function openShop() {
+            // Open the shop in a new tab
+            window.open(window.location.origin, '_blank');
+        }
+
+        function openShopAdmin() {
+            // Open the admin panel in a new tab
+            window.open(window.location.origin + '/admin', '_blank');
+        }
+
+        // Initialize on page load
+        updateStatus();
+        showLocalStorage();
+    </script>
+</body>
+</html>

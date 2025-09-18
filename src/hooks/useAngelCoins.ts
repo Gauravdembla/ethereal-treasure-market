@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import appConfig from '@/services/appConfig';
 
 export interface AngelCoinsData {
   balance: number;
-  exchangeRateINR: number; // 1 Angel Coin = Rs. 0.10
+  exchangeRateINR: number; // 1 Angel Coin = Rs. 0.05
   loading: boolean;
 }
 
 export const useAngelCoins = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, externalUser, isAuthenticated, getUserRole } = useAuth();
   const [angelCoinsData, setAngelCoinsData] = useState<AngelCoinsData>({
     balance: 0,
     exchangeRateINR: 0.05, // 1 Angel Coin = Rs. 0.05
@@ -17,39 +18,43 @@ export const useAngelCoins = () => {
 
   useEffect(() => {
     const fetchAngelCoins = async () => {
-      if (!isAuthenticated || !user) {
-        setAngelCoinsData({
-          balance: 0,
-          exchangeRateINR: 0.05,
-          loading: false
-        });
+      // Wait for auth context to be ready to avoid flicker
+      if (!isAuthenticated || (!user && !externalUser)) {
+        setAngelCoinsData(prev => ({ ...prev, loading: true }));
         return;
       }
 
       try {
-        // Get user identifier for localStorage key
-        const userId = user.id || user.email || 'default';
+        // Prefer external auth userId if available
+        const extId = localStorage.getItem('AOE_userId');
+        const userId = extId || user?.id || user?.email || 'default';
         const storageKey = `angelCoins_${userId}`;
 
         // Check if we have saved balance in localStorage
         const savedBalance = localStorage.getItem(storageKey);
-        let balance = 1250; // Default balance
+        let balance = 1250; // Default balance for demo
 
         if (savedBalance !== null) {
-          // Use saved balance if available
           balance = parseInt(savedBalance, 10);
           console.log(`Loaded saved Angel Coins balance: ${balance} for user ${userId}`);
         } else {
-          // Set default balances for different users (demo)
-          if (user.email === 'admin@angelsonearth.com') {
-            balance = 5000; // Admin has more coins
-          } else if (user.user_metadata?.mobile === '919891324442') {
-            balance = 1250; // Demo mobile user
+          // Try to get balance from API profile cache first
+          try {
+            const profileFullStr = localStorage.getItem('AOE_profile_full');
+            if (profileFullStr) {
+              const profileFull = JSON.parse(profileFullStr);
+              if (typeof profileFull.score === 'number') {
+                balance = profileFull.score;
+                console.log(`Loaded Angel Coins from AOE_profile_full.score: ${balance} for user ${userId}`);
+              }
+            }
+          } catch (error) {
+            console.error('Error reading Angel Coins from API data:', error);
           }
 
-          // Save the default balance to localStorage
+          // Save the balance to localStorage
           localStorage.setItem(storageKey, balance.toString());
-          console.log(`Set default Angel Coins balance: ${balance} for user ${userId}`);
+          console.log(`Set Angel Coins balance: ${balance} for user ${userId}`);
         }
 
         setAngelCoinsData({
@@ -68,42 +73,54 @@ export const useAngelCoins = () => {
     };
 
     fetchAngelCoins();
-  }, [user, isAuthenticated]);
+  }, [user, externalUser, isAuthenticated]);
 
   const calculateRedemptionValue = (coins: number): number => {
-    // 1 Angel Coin = Rs. 0.10
     return coins * angelCoinsData.exchangeRateINR;
   };
 
   const calculateGSTBreakdown = (cartTotal: number) => {
-    // Calculate base amount from total (reverse GST calculation)
-    // If total includes 18% GST: Total = Base + (Base * 0.18) = Base * 1.18
-    // So Base = Total / 1.18
     const baseAmount = cartTotal / 1.18;
     const gstAmount = cartTotal - baseAmount;
 
     return {
-      baseAmount: Math.round(baseAmount * 100) / 100, // Round to 2 decimal places
+      baseAmount: Math.round(baseAmount * 100) / 100,
       gstAmount: Math.round(gstAmount * 100) / 100,
       gstPercentage: 18
     };
   };
 
+  const getTierKey = (): 'gold' | 'platinum' | 'diamond' | 'none' => {
+    try {
+      const role = getUserRole?.() || 'user';
+      // Allow admin override via localStorage key AOE_admin_membership_override
+      // Accepts: 'gold' | 'platinum' | 'diamond' | 'none'
+      const adminOverride = String(localStorage.getItem('AOE_admin_membership_override') || '').toLowerCase();
+      if (role === 'admin' && ['gold','platinum','diamond','none'].includes(adminOverride)) {
+        return adminOverride as any;
+      }
+      const tier = String(localStorage.getItem('AOE_membership_tier') || 'none').toLowerCase();
+      if (tier === 'gold' || tier === 'platinum' || tier === 'diamond') return tier;
+      return 'none';
+    } catch {
+      return 'none';
+    }
+  };
+
   const getMaxRedeemableCoins = (cartTotal: number): number => {
-    // Calculate base amount (before GST)
     const { baseAmount } = calculateGSTBreakdown(cartTotal);
-
-    // Maximum 5% of base amount can be paid with Angel Coins
-    const maxRedemptionValue = baseAmount * 0.05;
+    const tier = getTierKey();
+    const percent = appConfig.getAngelCoinsRedemptionPercent(tier);
+    const maxRedemptionValue = baseAmount * percent;
     const maxCoins = Math.floor(maxRedemptionValue / angelCoinsData.exchangeRateINR);
-
-    // Return the minimum of calculated max coins and user's actual balance
     return Math.min(maxCoins, angelCoinsData.balance);
   };
 
   const getMaxRedemptionValue = (cartTotal: number): number => {
     const { baseAmount } = calculateGSTBreakdown(cartTotal);
-    return baseAmount * 0.05; // 5% of base amount
+    const tier = getTierKey();
+    const percent = appConfig.getAngelCoinsRedemptionPercent(tier);
+    return baseAmount * percent;
   };
 
   const canRedeem = (coins: number): boolean => {
@@ -111,22 +128,20 @@ export const useAngelCoins = () => {
   };
 
   const redeemCoins = async (coins: number): Promise<boolean> => {
-    if (!canRedeem(coins) || !user) {
+    if (!canRedeem(coins) || (!user && !externalUser)) {
       return false;
     }
 
     try {
       const newBalance = angelCoinsData.balance - coins;
 
-      // Get user identifier for localStorage key
-      const userId = user.id || user.email || 'default';
+      const extId = localStorage.getItem('AOE_userId');
+      const userId = extId || user?.id || user?.email || 'default';
       const storageKey = `angelCoins_${userId}`;
 
-      // Save to localStorage
       localStorage.setItem(storageKey, newBalance.toString());
       console.log(`Redeemed ${coins} Angel Coins. New balance: ${newBalance} for user ${userId}`);
 
-      // Update state
       setAngelCoinsData(prev => ({
         ...prev,
         balance: newBalance
@@ -141,20 +156,13 @@ export const useAngelCoins = () => {
 
   const updateBalance = async (newBalance: number): Promise<boolean> => {
     try {
-      if (!user) {
-        console.error('No user found for updating Angel Coins balance');
-        return false;
-      }
-
-      // Get user identifier for localStorage key
-      const userId = user.id || user.email || 'default';
+      const extId = localStorage.getItem('AOE_userId');
+      const userId = extId || user?.id || user?.email || 'default';
       const storageKey = `angelCoins_${userId}`;
 
-      // Save to localStorage
       localStorage.setItem(storageKey, newBalance.toString());
       console.log(`Saved Angel Coins balance: ${newBalance} for user ${userId}`);
 
-      // Update state
       setAngelCoinsData(prev => ({
         ...prev,
         balance: newBalance
@@ -168,18 +176,15 @@ export const useAngelCoins = () => {
   };
 
   const clearAngelCoinsData = () => {
-    if (!user) return;
-
-    const userId = user.id || user.email || 'default';
+    const extId = localStorage.getItem('AOE_userId');
+    const userId = extId || user?.id || user?.email || 'default';
     const storageKey = `angelCoins_${userId}`;
     localStorage.removeItem(storageKey);
     console.log(`Cleared Angel Coins data for user ${userId}`);
 
-    // Reset to default balance
-    const defaultBalance = user.email === 'admin@angelsonearth.com' ? 5000 : 1250;
     setAngelCoinsData(prev => ({
       ...prev,
-      balance: defaultBalance
+      balance: 1250
     }));
   };
 
@@ -194,6 +199,9 @@ export const useAngelCoins = () => {
     canRedeem,
     redeemCoins,
     updateBalance,
-    clearAngelCoinsData
+    clearAngelCoinsData,
+    getTierKey,
   };
 };
+
+export default useAngelCoins;

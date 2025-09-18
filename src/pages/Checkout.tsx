@@ -6,26 +6,69 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User, UserCircle, ShoppingCart, Star } from "lucide-react";
+import { Minus, Plus, Trash2, Gift, Coins, ArrowLeft, User, UserCircle, ShoppingCart, Star, MapPin } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useAngelCoins } from "@/hooks/useAngelCoins";
 import { useNavigate, Link } from "react-router-dom";
+import { useMembershipPricing } from "@/hooks/useMembershipPricing";
 import LoginDialog from "@/components/LoginDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import AddressForm from "@/components/AddressForm";
+import CompanyDetailsForm from "@/components/CompanyDetailsForm";
+
 import { PRODUCTS } from "@/data/products";
 import { supabase, type Product, productHelpers } from "@/integrations/supabase/client";
+import appConfig from "@/services/appConfig";
+import MembershipBadge from "@/components/MembershipBadge";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 const Checkout = () => {
   const { items, updateQuantity, removeItem, clearCart, addItem } = useCart();
-  const { user, getUserRole } = useAuth();
-  const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, getMaxRedemptionValue, calculateGSTBreakdown, calculateRedemptionValue, loading: angelCoinsLoading } = useAngelCoins();
+  const { user, externalUser, getUserRole } = useAuth();
+  const { angelCoins, exchangeRateINR, getMaxRedeemableCoins, getMaxRedemptionValue, calculateGSTBreakdown, calculateRedemptionValue, loading: angelCoinsLoading, getTierKey } = useAngelCoins();
+  const userRole = getUserRole();
   const navigate = useNavigate();
 
-  // Get user information
-  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  // Get user information (prefer external user)
+  const userName = externalUser?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || '';
-  const userMobile = user?.user_metadata?.mobile || '';
-  const userRole = getUserRole();
+  let userMobile = '';
+  try {
+    const pfRaw = localStorage.getItem('AOE_profile_full');
+    if (pfRaw) {
+      const pf = JSON.parse(pfRaw);
+      userMobile = (pf.countryCode || '') + (pf.phone || '');
+    }
+  } catch {}
+  if (!userMobile) {
+    userMobile = (user?.user_metadata as any)?.mobile || '';
+  }
+
+
+	  // Address persistence keys (prefer external user id to match Profile)
+	  const userId = externalUser?.userId || localStorage.getItem('AOE_userId') || user?.id || user?.email || 'default';
+	  const addressesKey = `AOE_addresses_${userId}`;
+
+
+  // Delivery address state
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    type: '', customType: '', name: '', address1: '', address2: '', nearby: '', city: '', state: '', customState: '', country: '', zipCode: '', isDefault: false,
+  });
+
+  const companyKey = `AOE_companyDetails_${userId}`;
+  const [companyDetails, setCompanyDetails] = useState<any>(() => {
+    try { const raw = localStorage.getItem(companyKey); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  });
+  useEffect(() => {
+    try { const raw = localStorage.getItem(companyKey); setCompanyDetails(raw ? JSON.parse(raw) : null); } catch {}
+  }, [companyKey]);
+  const [gstInvoiceEnabled, setGstInvoiceEnabled] = useState<boolean>(false);
+  const [showCompanyDialog, setShowCompanyDialog] = useState(false);
 
   // Mock user profile data (in real app, this would come from user profile API)
   const userAlternativeMobile = user?.user_metadata?.alternativeMobile || '';
@@ -34,6 +77,59 @@ const Checkout = () => {
   const [angelCoinsToRedeem, setAngelCoinsToRedeem] = useState([0]);
   const [discount, setDiscount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+
+
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(addressesKey);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          setAddresses(arr);
+          const def = arr.find((a: any) => a.isDefault) || arr[0];
+          setSelectedAddressId(def ? String(def.id) : '');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load addresses for checkout', e);
+    }
+  }, [addressesKey]);
+
+  const persistAddresses = (next: any[]) => {
+    setAddresses(next);
+    try { localStorage.setItem(addressesKey, JSON.stringify(next)); } catch {}
+  };
+
+  const handleSaveNewAddress = () => {
+    // minimal validation
+    if (!newAddress.type || !newAddress.name || !newAddress.address1 || !newAddress.city || (!newAddress.state && !newAddress.customState) || !newAddress.country || !newAddress.zipCode) {
+      alert('Please fill required address fields');
+      return;
+    }
+    const stateName = newAddress.state === 'Others' ? newAddress.customState : newAddress.state;
+    const addressToAdd = {
+      id: Date.now(),
+      type: newAddress.type === 'Others' ? newAddress.customType : newAddress.type,
+      name: newAddress.name,
+      fullAddress: `${newAddress.address1}${newAddress.address2 ? ', ' + newAddress.address2 : ''}${newAddress.nearby ? ', Near ' + newAddress.nearby : ''}`,
+      address1: newAddress.address1,
+      address2: newAddress.address2,
+      nearby: newAddress.nearby,
+      city: newAddress.city,
+      state: stateName,
+      country: newAddress.country,
+      zipCode: newAddress.zipCode,
+      isDefault: addresses.length === 0 ? true : newAddress.isDefault,
+    };
+    const next = newAddress.isDefault
+      ? [addressToAdd, ...addresses.map(a => ({ ...a, isDefault: false }))]
+      : [...addresses, addressToAdd];
+    persistAddresses(next);
+    setSelectedAddressId(String(addressToAdd.id));
+    setIsAddingAddress(false);
+    setNewAddress({ type: '', customType: '', name: '', address1: '', address2: '', nearby: '', city: '', state: '', customState: '', country: '', zipCode: '', isDefault: false });
+  };
 
   // Related Products state (matching ProductDetail.tsx)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -45,8 +141,8 @@ const Checkout = () => {
   const [showAngelCoinsSection, setShowAngelCoinsSection] = useState(true);
   const [showCouponSection, setShowCouponSection] = useState(true);
 
-  // Minimum Angel Coins required to redeem
-  const minAngelCoinsRequired = 10000;
+  // Minimum Angel Coins required to redeem (configurable)
+  const minAngelCoinsRequired = appConfig.getMinAngelCoinsRequired();
 
   // Helper function to get available quantity (same logic as ProductCard)
   const getAvailableQuantity = (productId: string) => {
@@ -69,24 +165,62 @@ const Checkout = () => {
     return price.replace(commaRegex, '');
   };
 
-  const subtotal = items.reduce((sum, item) => {
+  const { calculatePrice, hasDiscount, isAuthenticated } = useMembershipPricing();
+
+  const originalSubtotal = items.reduce((sum, item) => {
     const cleanPrice = cleanPriceString(item.price);
     return sum + (parseFloat(cleanPrice) * item.quantity);
   }, 0);
+
+  const discountedSubtotal = items.reduce((sum, item) => {
+    const effective = (isAuthenticated() && hasDiscount())
+      ? calculatePrice(item.price).discountedPrice
+      : parseFloat(cleanPriceString(item.price));
+    return sum + (effective * item.quantity);
+  }, 0);
+
+  const membershipDiscount = Math.max(0, originalSubtotal - discountedSubtotal);
+  const subtotal = discountedSubtotal;
 
   // Calculate GST breakdown
   const gstBreakdown = calculateGSTBreakdown(subtotal);
   const { baseAmount, gstAmount } = gstBreakdown;
 
-  // Calculate max redeemable coins (5% of base amount)
+  // Calculate max redeemable coins (tier-based % of base amount)
   const maxRedeemableCoins = getMaxRedeemableCoins(subtotal);
+  // Mock payment popup state
+  const [showPayment, setShowPayment] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [orderId, setOrderId] = useState<string>('');
+
+  const selectedAddress = addresses.find(a => String(a.id) === selectedAddressId) || null;
+
+  const handleCheckout = () => {
+    if (!user && !externalUser) {
+      setShowLoginDialog(true);
+      return;
+    }
+    if (!selectedAddress) {
+      alert('Please select a delivery address');
+      return;
+    }
+    setShowSummary(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginDialog(false);
+  };
+
   const maxRedemptionValue = getMaxRedemptionValue(subtotal);
 
   // Calculate theoretical maximum based on 5% rule only (not limited by user balance)
+  const tierKey = getTierKey();
+  const isMembershipEligible = tierKey !== 'none';
+
   const theoreticalMaxCoins = Math.floor(maxRedemptionValue / exchangeRateINR);
 
   // Check if user has enough coins and meets minimum requirement
-  const canRedeemAngelCoins = angelCoins >= minAngelCoinsRequired && !angelCoinsLoading;
+  const canRedeemAngelCoins = !angelCoinsLoading && angelCoins >= minAngelCoinsRequired;
 
   // For slider maximum, use theoretical max but ensure user has enough coins
   const actualMaxRedeemableCoins = canRedeemAngelCoins ?
@@ -102,8 +236,9 @@ const Checkout = () => {
 
   // Load Angel Coins selection from localStorage on component mount
   useEffect(() => {
-    if (user) {
-      const userId = user.id || user.email || 'default';
+    if (true) {
+      const extId = localStorage.getItem('AOE_userId');
+      const userId = extId || user?.id || user?.email || 'default';
       const storageKey = `angelCoinsRedemption_${userId}`;
       const savedRedemption = localStorage.getItem(storageKey);
 
@@ -118,8 +253,9 @@ const Checkout = () => {
 
   // Save Angel Coins selection to localStorage whenever it changes
   useEffect(() => {
-    if (user && angelCoinsToRedeem[0] !== undefined) {
-      const userId = user.id || user.email || 'default';
+    if (angelCoinsToRedeem[0] !== undefined) {
+      const extId = localStorage.getItem('AOE_userId');
+      const userId = extId || user?.id || user?.email || 'default';
       const storageKey = `angelCoinsRedemption_${userId}`;
       localStorage.setItem(storageKey, angelCoinsToRedeem[0].toString());
     }
@@ -146,19 +282,6 @@ const Checkout = () => {
     }
   };
 
-  const handleCheckout = () => {
-    if (!user) {
-      setShowLoginDialog(true);
-      return;
-    }
-    console.log("Navigating to address page...");
-    navigate("/address");
-  };
-
-  const handleLoginSuccess = () => {
-    setShowLoginDialog(false);
-    navigate("/address");
-  };
 
   // Fetch related products from Supabase (matching ProductDetail.tsx logic)
   useEffect(() => {
@@ -172,13 +295,48 @@ const Checkout = () => {
           .select('*')
           .eq('status', 'published')
           .not('product_id', 'in', `(${cartProductIds.length > 0 ? cartProductIds.join(',') : 'null'})`)
-          .limit(8);
+          .limit(20); // Increased from 8 to 20 for more variety
 
         if (!relatedError && relatedData) {
           setRelatedProducts(relatedData);
+        } else {
+          // Fallback to local products data
+          const { PRODUCTS } = await import('@/data/products');
+          const cartProductIds = items.map(item => item.id);
+          const fallbackProducts = PRODUCTS
+            .filter(product => !cartProductIds.includes(product.id))
+            .slice(0, 20)
+            .map(product => ({
+              product_id: product.id,
+              name: product.name,
+              description: product.description,
+              price: product.price,
+              original_price: product.originalPrice,
+              rating: product.rating,
+              sku: product.sku,
+              images: [{ url: product.image, is_primary: true }]
+            }));
+          setRelatedProducts(fallbackProducts as any);
         }
       } catch (err) {
         console.error('Error fetching related products:', err);
+        // Fallback to local products data on error
+        const { PRODUCTS } = await import('@/data/products');
+        const cartProductIds = items.map(item => item.id);
+        const fallbackProducts = PRODUCTS
+          .filter(product => !cartProductIds.includes(product.id))
+          .slice(0, 20)
+          .map(product => ({
+            product_id: product.id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            original_price: product.originalPrice,
+            rating: product.rating,
+            sku: product.sku,
+            images: [{ url: product.image, is_primary: true }]
+          }));
+        setRelatedProducts(fallbackProducts as any);
       }
     };
 
@@ -207,9 +365,10 @@ const Checkout = () => {
     return () => clearTimeout(timer);
   }, [items]);
 
-  // Navigation functions for related products - Fixed for proper scrolling
+  // Navigation functions for related products - Updated for more products
   const nextRelatedProducts = () => {
-    const visibleProducts = showAsCard ? 3 : 4; // Show 3 in card mode, 4 in full width
+    // Show more products: 6 on desktop, 4 on tablet, 2 on mobile
+    const visibleProducts = window.innerWidth >= 1024 ? 6 : window.innerWidth >= 768 ? 4 : 2;
     const maxStartIndex = Math.max(0, relatedProducts.length - visibleProducts);
     setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
   };
@@ -244,19 +403,71 @@ const Checkout = () => {
               <ArrowLeft className="w-4 h-4" />
               Back to Shop
             </Button>
+          {/* Admin-only Membership Override for testing */}
+          {userRole === 'admin' && (
+            <div className="flex items-center gap-2">
+              <Select
+                onValueChange={(v) => {
+                  if (v === 'no-override') {
+                    localStorage.removeItem('AOE_admin_membership_override');
+                  } else {
+                    localStorage.setItem('AOE_admin_membership_override', v);
+                  }
+                  // Force recalculation by triggering state change
+                  setAngelCoinsToRedeem((prev) => [...prev]);
+                }}
+                defaultValue={localStorage.getItem('AOE_admin_membership_override') || ''}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Test as Membership" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-override">No Override</SelectItem>
+                  <SelectItem value="gold">Gold Membership</SelectItem>
+                  <SelectItem value="platinum">Platinum Membership</SelectItem>
+                  <SelectItem value="diamond">Diamond Membership</SelectItem>
+                  <SelectItem value="none">No Membership</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
             <h1 className="font-playfair text-3xl text-angelic-deep">Checkout</h1>
           </div>
 
-          {/* Profile Icon */}
-          {user && (
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/profile")}
-              className="flex items-center gap-2 text-angelic-deep hover:text-primary"
-            >
-              <UserCircle className="w-6 h-6" />
-              <span className="hidden sm:inline">{userName}</span>
-            </Button>
+          {/* User Block: Membership badge, profile pic/name, profile icon */}
+          {(user || externalUser) && (
+            <div className="flex items-center gap-3">
+              {/* Membership Badge for external users */}
+              {(externalUser || userRole === 'admin') && <MembershipBadge size="sm" />}
+
+              {/* Profile picture from external auth if available */}
+              {externalUser?.pic && (
+                <img
+                  src={externalUser.pic}
+                  alt={userName}
+                  className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+
+              {/* Name */}
+              <span className="text-sm text-angelic-deep font-medium hidden sm:inline">
+                {userName}
+              </span>
+
+              {/* Profile button */}
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/profile")}
+                className="flex items-center gap-2 text-angelic-deep hover:text-primary"
+                title="My Profile"
+              >
+                <UserCircle className="w-6 h-6" />
+              </Button>
+            </div>
           )}
         </div>
 
@@ -323,7 +534,7 @@ const Checkout = () => {
                   Customers Also Bought
                 </h3>
                 <div className="space-y-4">
-                  {relatedProducts.slice(0, items.length === 1 ? 3 : items.length === 2 ? 2 : 1).map((relatedProduct) => {
+                  {relatedProducts.slice(0, 6).map((relatedProduct) => { // Show up to 6 products instead of limiting by cart size
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
 
@@ -410,8 +621,11 @@ const Checkout = () => {
                       </div>
                     );
                   })}
+
+
                 </div>
               </Card>
+
             )}
           </div>
 
@@ -467,10 +681,117 @@ const Checkout = () => {
               </Card>
             )}
 
+
+	            {/* Delivery Address */}
+	            <Card className="p-6">
+	              <h2 className="font-playfair text-xl text-angelic-deep mb-4">Delivery Details</h2>
+	              <div className="space-y-2">
+	                <Label className="flex items-center gap-2 text-angelic-deep">
+	                  <MapPin className="w-4 h-4" />
+	                  <span>Select Delivery Address</span>
+	                </Label>
+	                <div className="flex items-center gap-2">
+	                  <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
+	                    <SelectTrigger className="w-full truncate whitespace-nowrap overflow-hidden text-ellipsis">
+	                      <SelectValue placeholder={addresses.length ? 'Choose saved address' : 'No saved addresses'} />
+	                    </SelectTrigger>
+	                    <SelectContent>
+	                      {addresses.map((addr) => (
+	                        <SelectItem key={addr.id} value={String(addr.id)}>
+	                          <div className="flex items-center gap-2">
+	                            <MapPin className="w-4 h-4" />
+	                            <span>{addr.type} - {addr.address1}, {addr.city}</span>
+	                          </div>
+	                        </SelectItem>
+	                      ))}
+	                    </SelectContent>
+	                  </Select>
+	                  <Dialog open={isAddingAddress} onOpenChange={setIsAddingAddress}>
+	                    <DialogTrigger asChild>
+	                      <Button variant="outline">Add New</Button>
+	                    </DialogTrigger>
+	                    <DialogContent className="max-w-2xl">
+	                      <DialogHeader>
+	                        <DialogTitle>Add New Address</DialogTitle>
+	                      </DialogHeader>
+	                      <AddressForm
+	                        address={newAddress}
+	                        onAddressChange={setNewAddress}
+	                        onSave={handleSaveNewAddress}
+	                        onCancel={() => setIsAddingAddress(false)}
+                      />
+
+	                    </DialogContent>
+
+            {/* Company Details Dialog (add/edit) */}
+            <Dialog open={showCompanyDialog} onOpenChange={setShowCompanyDialog}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{companyDetails ? 'Edit Company Details' : 'Add Company Details'}</DialogTitle>
+                </DialogHeader>
+                <CompanyDetailsForm
+                  initial={companyDetails}
+                  confirmText={companyDetails ? 'Save' : 'Confirm'}
+                  onConfirm={(d) => { try { localStorage.setItem(companyKey, JSON.stringify(d)); } catch {}; setCompanyDetails(d); setShowCompanyDialog(false); }}
+                  onCancel={() => setShowCompanyDialog(false)}
+                />
+              </DialogContent>
+            </Dialog>
+
+	                  </Dialog>
+	                </div>
+	                {selectedAddressId && (
+	                  <div className="text-xs text-angelic-deep/70">
+	                    {(() => {
+	                      const addr = addresses.find((a) => String(a.id) === selectedAddressId);
+	                      return addr ? `${addr.name}, ${addr.address1}${addr.address2 ? ', ' + addr.address2 : ''}, ${addr.city}, ${addr.state}, ${addr.country} - ${addr.zipCode}` : '';
+	                    })()}
+	                  </div>
+	                )}
+
+                        <div className="text-xs text-angelic-deep/70">Mobile: {userMobile || 'Not provided'}</div>
+
+
+
+	              </div>
+	            </Card>
+
+
+            {/* GST Invoice - standalone section */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="font-playfair text-xl text-angelic-deep">GST Invoice</h2>
+                <div className="flex items-center gap-3">
+                  {companyDetails?.gstNo && (
+                    <button className="text-sm underline" onClick={() => setShowCompanyDialog(true)}>Edit</button>
+                  )}
+                  <Checkbox checked={gstInvoiceEnabled} onCheckedChange={(v) => setGstInvoiceEnabled(!!v)} disabled={!companyDetails?.gstNo} />
+                </div>
+              </div>
+              <div className="mt-3 text-sm">
+                {companyDetails?.gstNo ? (
+                  <>
+                    <p>{gstInvoiceEnabled ? "GST invoice enabled for this order." : "Enable GST invoice for this order."}</p>
+                    <p className="text-xs text-gray-600">GSTIN: {companyDetails.gstNo}</p>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <button className="underline" onClick={() => setShowCompanyDialog(true)}>Add GSTIN</button>
+                      <span className="ml-2 text-gray-600">Claim GST input up to 18%</span>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            </Card>
+
             <Card className="p-6">
               <h2 className="font-playfair text-xl text-angelic-deep mb-4">Order Summary</h2>
-              
+
               {/* Coupon Code - Only show if enabled by admin */}
+
+
               {showCouponSection && (
                 <>
                   <div className="space-y-2 mb-4">
@@ -503,19 +824,34 @@ const Checkout = () => {
                       <Label className="flex items-center gap-2 text-angelic-deep">
                         <Coins className="w-4 h-4" />
                         Angel Coins Redemption
+
                       </Label>
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          <strong>Minimum {minAngelCoinsRequired.toLocaleString()} Angel Coins required for redemption.</strong>
-                        </p>
-                        <p className="text-xs text-yellow-700 mt-1">
-                          You currently have {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} Angel Coins.
-                          Keep shopping to earn more Angel Coins!
-                        </p>
-                        <p className="text-xs text-yellow-700 mt-2">
-                          <strong>Note:</strong> Angel Coins can be redeemed up to 5% of base amount (before GST).
-                        </p>
-                      </div>
+                      {!isMembershipEligible ? (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-800 font-semibold">
+                            This facility is only available for Gold, Platinum and Diamond Members.
+                          </p>
+                          <p className="text-xs text-red-700 mt-1">
+                            Kindly upgrade membership to avail this benefit.
+                          </p>
+                          <p className="text-xs text-red-700 mt-2 underline cursor-pointer" onClick={() => window.open('/faq', '_self')}>
+                            For more info click here
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            <strong>Minimum {minAngelCoinsRequired.toLocaleString()} Angel Coins required for redemption.</strong>
+                          </p>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            You currently have {angelCoinsLoading ? '...' : angelCoins.toLocaleString()} Angel Coins.
+                            Keep shopping to earn more Angel Coins!
+                          </p>
+                          <p className="text-xs text-yellow-700 mt-2">
+                            <strong>Note:</strong> Angel Coins redemption limit depends on your membership tier.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -525,7 +861,7 @@ const Checkout = () => {
                     <Coins className="w-4 h-4" />
                     Redeem Angel Coins
                   </Label>
-                  
+
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>Available Angel Coins:</span>
@@ -533,7 +869,7 @@ const Checkout = () => {
                         {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -557,7 +893,7 @@ const Checkout = () => {
                       </div>
                       <div className="text-xs text-angelic-deep/60 space-y-1">
                         <p>1 Angel Coin = ₹{exchangeRateINR.toFixed(2)}</p>
-                        <p>Max 5% of base amount (₹{baseAmount.toFixed(2)}) = ₹{maxRedemptionValue.toFixed(2)}</p>
+                        <p>Max based on your Membership ({(getTierKey() === 'gold' ? '5%' : getTierKey() === 'platinum' ? '10%' : getTierKey() === 'diamond' ? '20%' : '0%')} of ₹{baseAmount.toFixed(2)}) = ₹{maxRedemptionValue.toFixed(2)}</p>
                         <p>Max redeemable: {theoreticalMaxCoins.toLocaleString()} coins</p>
                       </div>
                     </div>
@@ -575,6 +911,12 @@ const Checkout = () => {
                   <span>Base Amount</span>
                   <span>₹{baseAmount.toFixed(2)}</span>
                 </div>
+                {membershipDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Membership Discount</span>
+                    <span>-₹{membershipDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Coupon Discount</span>
@@ -583,7 +925,7 @@ const Checkout = () => {
                 )}
                 {angelCoinsDiscount > 0 && (
                   <div className="flex justify-between text-purple-600">
-                    <span>Angel Coins ({angelCoinsToRedeem[0]} redeemed)</span>
+                    <span>Angel Coins ({angelCoinsToRedeem[0]} redeemed, {(getTierKey() === 'gold' ? '5' : getTierKey() === 'platinum' ? '10' : getTierKey() === 'diamond' ? '20' : '0')}%)</span>
                     <span>-₹{angelCoinsDiscount.toFixed(2)}</span>
                   </div>
                 )}
@@ -606,15 +948,16 @@ const Checkout = () => {
 
               {/* Checkout Actions */}
               <div className="space-y-3 pt-6">
-                <Button 
-                  onClick={handleCheckout} 
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                <Button
+                  onClick={handleCheckout}
+                  disabled={!selectedAddress}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Place Order
                 </Button>
-                <Button 
-                  onClick={clearCart} 
-                  variant="outline" 
+                <Button
+                  onClick={clearCart}
+                  variant="outline"
                   className="w-full"
                 >
                   Clear Cart
@@ -633,12 +976,12 @@ const Checkout = () => {
             <div className="w-full">
               <div className="overflow-x-auto scroll-smooth">
                 <div className="flex gap-4 pb-4 px-2 sm:px-4" style={{ width: 'max-content' }}>
-                  {relatedProducts.map((relatedProduct) => {
+                  {relatedProducts.slice(0, 12).map((relatedProduct) => { // Show up to 12 products in horizontal scroll
                     const relatedProductId = relatedProduct.product_id;
                     const relatedProductSlug = createProductSlug(relatedProduct.name, relatedProduct.sku);
-                    // Fix image URL with multiple fallbacks  
+                    // Fix image URL with multiple fallbacks
                     let relatedImageUrl = '/placeholder.svg'; // Default fallback
-                    
+
                     if (relatedProduct.images && Array.isArray(relatedProduct.images) && relatedProduct.images.length > 0) {
                       try {
                         relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
@@ -649,7 +992,7 @@ const Checkout = () => {
                     }
 
                     return (
-                      <div key={relatedProductId} className="w-80 sm:w-72 md:w-80 flex-shrink-0">
+                      <div key={relatedProductId} className="w-64 sm:w-72 md:w-80 lg:w-72 xl:w-80 flex-shrink-0">
                         <Card className="related-product-card overflow-hidden hover:shadow-lg transition-all duration-300 h-full">
                           <Link to={`/product/${relatedProductSlug}`}>
                             <div className="relative group/image">
@@ -783,6 +1126,130 @@ const Checkout = () => {
           </div>
         )}
       </div>
+
+
+
+
+      {/* Ensure we keep user on checkout after login */}
+
+      {/* Order Summary Modal */}
+      <Dialog open={showSummary} onOpenChange={setShowSummary}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Order Summary</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <strong>Delivery Details:</strong>
+              <div>{selectedAddress ? `${selectedAddress.name}, ${selectedAddress.address1}${selectedAddress.address2 ? ', ' + selectedAddress.address2 : ''}, ${selectedAddress.city}, ${selectedAddress.state}, ${selectedAddress.country} - ${selectedAddress.zipCode}` : 'N/A'}</div>
+              <div>Mobile: {userMobile || 'Not provided'}</div>
+            </div>
+            {gstInvoiceEnabled && companyDetails?.gstNo && (
+              <div className="pt-2">
+                <strong>GST Details:</strong>
+                <div className="text-xs text-angelic-deep/80">
+                  {companyDetails?.companyName && <div>{companyDetails.companyName}</div>}
+                  {companyDetails?.address && <div>{companyDetails.address}</div>}
+                  <div>GSTIN: {companyDetails.gstNo}</div>
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <strong>Items:</strong>
+              {(() => {
+                const gridCols = { gridTemplateColumns: '64px 1fr 120px 120px' } as React.CSSProperties;
+                return (
+                  <>
+                    <div className="grid text-xs font-medium text-angelic-deep/70 px-1" style={gridCols}>
+                      <span>Qty</span>
+                      <span>Product</span>
+                      <span className="text-left">Price</span>
+                      <span className="text-left">Amount</span>
+                    </div>
+                    <div className="divide-y">
+                      {items.map((it) => {
+                        // Normalize price; apply membership discount if active, like the subtotal calculation
+                        const raw = typeof it.price === 'string' ? cleanPriceString(it.price) : String(it.price);
+                        const baseUnit = parseFloat(raw);
+                        const unit = (isAuthenticated() && hasDiscount())
+                          ? calculatePrice(it.price).discountedPrice
+                          : baseUnit;
+                        const amt = unit * it.quantity;
+                        return (
+                          <div key={it.id} className="grid py-2 text-sm items-center px-1" style={gridCols}>
+                            <span>{it.quantity}</span>
+                            <span className="pr-2 truncate">{it.name}</span>
+                            <span className="text-left">₹{unit.toFixed(2)}</span>
+                            <span className="text-left">₹{amt.toFixed(2)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            {(() => {
+              const gridCols = { gridTemplateColumns: '64px 1fr 120px 120px' } as React.CSSProperties;
+              const Label = ({ children }: { children: React.ReactNode }) => (
+                <span className="col-span-3">{children}</span>
+              );
+              const Value = ({ children, bold = false }: { children: React.ReactNode; bold?: boolean }) => (
+                <span className={bold ? "col-span-1 font-semibold text-right tabular-nums" : "col-span-1 text-right tabular-nums"}>{children}</span>
+              );
+              return (
+                <div className="space-y-1 mt-2">
+                  <div className="grid items-center" style={gridCols}>
+                    <Label>Base Amount</Label>
+                    <Value>₹{baseAmount.toFixed(2)}</Value>
+                  </div>
+                  <div className="grid items-center" style={gridCols}>
+                    <Label>Coupon Discount</Label>
+                    <Value>-₹{discount.toFixed(2)}</Value>
+                  </div>
+                  <div className="grid items-center" style={gridCols}>
+                    <Label>Angel Coins Redeemed ({angelCoinsToRedeem[0].toLocaleString()} coins)</Label>
+                    <Value>-₹{angelCoinsDiscount.toFixed(2)}</Value>
+                  </div>
+                  <div className="grid items-center" style={gridCols}>
+                    <Label>GST (18%)</Label>
+                    <Value>₹{finalGstAmount.toFixed(2)}</Value>
+                  </div>
+                  <div className="grid items-center" style={gridCols}>
+                    <Label><span className="font-semibold">Total</span></Label>
+                    <Value bold>₹{total.toFixed(2)}</Value>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <div className="flex gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowSummary(false)}>Back</Button>
+            <Button className="ml-auto" onClick={() => { setShowSummary(false); setShowPayment(true); }}>Make Payment</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mock Payment Modal */}
+      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-angelic-deep/80">This is a demo payment popup for testing.</div>
+          <div className="flex gap-2 pt-4">
+            <Button variant="destructive" onClick={() => { /* failed */ setShowPayment(false); setShowSummary(true); }}>Mark Failed</Button>
+            <Button className="ml-auto" onClick={() => {
+              const id = 'AOE' + Date.now();
+              setOrderId(id);
+              setShowPayment(false);
+              navigate(`/thankyou?order=${id}`);
+            }}>Mark Successful</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* No navigation; just close dialog and continue */}
 
       <LoginDialog
         open={showLoginDialog}

@@ -227,26 +227,28 @@ const SearchAndFilter = ({ onFilterChange, totalProducts, filteredCount }: Searc
         </Sheet>
       </div>
 
-      {/* Desktop: Search Bar */}
-      <div className="hidden md:block relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-angelic-deep/50 w-5 h-5" />
-        <Input
-          type="text"
-          placeholder="Search for crystals, oracle cards, candles..."
-          value={filters.searchQuery}
-          onChange={(e) => updateFilters({ searchQuery: e.target.value })}
-          className="pl-10 pr-4 py-3 text-lg border-2 border-angelic-cream focus:border-primary rounded-lg bg-white/80 backdrop-blur-sm"
-        />
-      </div>
+      {/* Desktop: Search Bar with Inline Filters */}
+      <div className="hidden md:block mb-6">
+        {/* Search Bar and Quick Filters Row */}
+        <div className="flex gap-4 items-center mb-4">
+          {/* Search Bar */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-angelic-deep/50 w-5 h-5" />
+            <Input
+              type="text"
+              placeholder="Search for crystals, oracle cards, candles..."
+              value={filters.searchQuery}
+              onChange={(e) => updateFilters({ searchQuery: e.target.value })}
+              className="pl-10 pr-4 py-3 text-lg border-2 border-angelic-cream focus:border-primary rounded-lg bg-white/80 backdrop-blur-sm"
+            />
+          </div>
 
-      {/* Desktop: Filter Controls */}
-      <div className="hidden md:flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-        {/* Left side - Quick filters */}
-        <div className="flex flex-wrap gap-3 items-center">
+          {/* Quick Filters */}
+          <div className="flex gap-3 items-center">
             {/* Category Filter */}
             <Select value={filters.category} onValueChange={(value) => updateFilters({ category: value })}>
-              <SelectTrigger className="w-[180px] bg-white/80 backdrop-blur-sm">
-                <SelectValue placeholder="Category" />
+              <SelectTrigger className="w-[160px] bg-white/80 backdrop-blur-sm">
+                <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
@@ -259,8 +261,8 @@ const SearchAndFilter = ({ onFilterChange, totalProducts, filteredCount }: Searc
 
             {/* Sort Filter */}
             <Select value={filters.sortBy} onValueChange={(value) => updateFilters({ sortBy: value })}>
-              <SelectTrigger className="w-[180px] bg-white/80 backdrop-blur-sm">
-                <SelectValue placeholder="Sort by" />
+              <SelectTrigger className="w-[140px] bg-white/80 backdrop-blur-sm">
+                <SelectValue placeholder="Featured" />
               </SelectTrigger>
               <SelectContent>
                 {sortOptions.map((option) => (
@@ -340,24 +342,24 @@ const SearchAndFilter = ({ onFilterChange, totalProducts, filteredCount }: Searc
               </SheetContent>
             </Sheet>
           </div>
+        </div>
 
-          {/* Right side - Results count and clear */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-angelic-deep/70">
-              Showing {filteredCount} of {totalProducts} products
-            </span>
-            {activeFiltersCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllFilters}
-                className="text-angelic-deep/70 hover:text-angelic-deep"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Clear ({activeFiltersCount})
-              </Button>
-            )}
-          </div>
+        {/* Results count and clear filters row */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-angelic-deep/70">
+            Showing {filteredCount} of {totalProducts} products
+          </span>
+          {activeFiltersCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="text-angelic-deep/70 hover:text-angelic-deep"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Clear ({activeFiltersCount})
+            </Button>
+          )}
         </div>
       </div>
 

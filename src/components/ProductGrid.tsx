@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import ProductCard from "./ProductCard";
 import SearchAndFilter, { FilterOptions } from "./SearchAndFilter";
+import ProductPagination from "./ProductPagination";
 import { PRODUCTS, Product } from "@/data/products";
 
 const ProductGrid = () => {
@@ -11,6 +12,10 @@ const ProductGrid = () => {
     sortBy: "featured",
     inStockOnly: false,
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 20;
 
   // Helper function to convert price string to number
   const getPriceAsNumber = (priceString: string): number => {
@@ -87,7 +92,20 @@ const ProductGrid = () => {
 
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
+    setCurrentPage(1); // Reset to first page when filters change
   };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of products section
+    document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / productsPerPage);
+  const startIndex = (currentPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const currentProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
 
   return (
     <section id="products" className="py-16 bg-gradient-hero">
@@ -111,21 +129,32 @@ const ProductGrid = () => {
         {/* Products Grid */}
         <div className="px-6">
           {filteredAndSortedProducts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredAndSortedProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  id={product.id}
-                  sku={product.sku}
-                  image={product.image}
-                  name={product.name}
-                  description={product.description}
-                  price={product.price}
-                  originalPrice={product.originalPrice}
-                  rating={product.rating}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {currentProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    sku={product.sku}
+                    image={product.image}
+                    name={product.name}
+                    description={product.description}
+                    price={product.price}
+                    originalPrice={product.originalPrice}
+                    rating={product.rating}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination Component */}
+              <ProductPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalProducts={filteredAndSortedProducts.length}
+                productsPerPage={productsPerPage}
+                onPageChange={handlePageChange}
+              />
+            </>
           ) : (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">🔍</div>
@@ -136,13 +165,16 @@ const ProductGrid = () => {
                 Try adjusting your search or filter criteria
               </p>
               <button
-                onClick={() => setFilters({
-                  searchQuery: "",
-                  category: "all",
-                  priceRange: "all",
-                  sortBy: "featured",
-                  inStockOnly: false,
-                })}
+                onClick={() => {
+                  setFilters({
+                    searchQuery: "",
+                    category: "all",
+                    priceRange: "all",
+                    sortBy: "featured",
+                    inStockOnly: false,
+                  });
+                  setCurrentPage(1);
+                }}
                 className="text-primary hover:text-primary/80 font-medium"
               >
                 Clear all filters

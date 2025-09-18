@@ -12,21 +12,77 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import AddressForm from "@/components/AddressForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useCurrency } from "@/hooks/useCurrency";
+
 import { useAngelCoins } from "@/hooks/useAngelCoins";
-import { useCountryState } from "@/hooks/useCountryState";
-import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe, Search } from "lucide-react";
+
+import { useMembershipPricing } from "@/hooks/useMembershipPricing";
+import MembershipBadge from "@/components/MembershipBadge";
+import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe, Search, Building2 as BuildingIcon } from "lucide-react";
+
+import CompanyDetailsForm, { type CompanyDetails } from '@/components/CompanyDetailsForm';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, externalUser, logout, isAuthenticated, loading, getUserRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { currency, loading: currencyLoading, formatPrice, formatAngelCoinValue, changeCurrency, supportedCurrencies } = useCurrency();
-  const { angelCoins, loading: angelCoinsLoading, updateBalance, clearAngelCoinsData } = useAngelCoins();
-  const [searchParams] = useSearchParams();
 
-  // Get user ID from URL params for unique URLs
-  const userId = searchParams.get('user') || user?.id || 'default';
+
+
+  const { angelCoins, loading: angelCoinsLoading, updateBalance, clearAngelCoinsData } = useAngelCoins();
+  const { membershipTier } = useMembershipPricing();
+  const [searchParams] = useSearchParams();
+  const userRole = getUserRole();
+
+  // Get user ID from URL params for unique URLs - prioritize external user
+  const userId = searchParams.get('user') || externalUser?.userId || user?.id || 'default';
+
+  // Company details component (scoped inside Profile to access userId)
+  const CompanyDetailsSection: React.FC = () => {
+    const compKey = `AOE_companyDetails_${userId}`;
+    const [data, setData] = useState<CompanyDetails | null>(() => {
+      try { const raw = localStorage.getItem(compKey); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    });
+    const [open, setOpen] = useState(false);
+    return (
+      <div className="space-y-4">
+        {data ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{data.companyName}</p>
+                <p className="text-sm text-gray-600">{data.address}</p>
+                {data.gstNo && <p className="text-sm text-gray-600">GST No.: {data.gstNo}</p>}
+              </div>
+              <Button variant="outline" onClick={() => setOpen(true)}>Edit</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-gray-700">No company details saved.</p>
+            <Button onClick={() => setOpen(true)}>Add Company Details</Button>
+          </div>
+        )}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{data ? 'Edit Company Details' : 'Add Company Details'}</DialogTitle>
+            </DialogHeader>
+            <CompanyDetailsForm
+              initial={data}
+              onConfirm={(d) => {
+                try { localStorage.setItem(compKey, JSON.stringify(d)); } catch {}
+                setData(d); setOpen(false);
+              }}
+              onCancel={() => setOpen(false)}
+              confirmText={data ? 'Save' : 'Confirm'}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
+
+  const addressesKey = `AOE_addresses_${userId}`;
 
   // Active section state
   const [activeSection, setActiveSection] = useState('profile');
@@ -40,75 +96,60 @@ const Profile = () => {
   const [isEditingAngelCoins, setIsEditingAngelCoins] = useState(false);
   const [angelCoinsEditValue, setAngelCoinsEditValue] = useState('');
 
-  // Redirect to home if not logged in
+  // Wait for auth to finish initializing; only redirect if explicitly unauthenticated and no external user
   useEffect(() => {
-    if (!user) {
+    if (loading) return;
+    if (!user && !externalUser) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, externalUser, loading, navigate]);
 
-  // Demo user data (in real app, this would come from user profile API)
-  const [userProfile, setUserProfile] = useState({
-    fullName: 'Sarah Angel',
-    email: user?.email || 'sarah.angel@example.com',
-    mobile: '+1 (555) 123-4567',
-    alternativeMobile: '', // Optional field
-    membershipType: 'Diamond', // Default membership type
-    orders: [
-      {
-        id: 'ORD-001',
-        date: '2024-01-15',
-        total: 89.99,
-        status: 'Delivered',
-        items: ['Amethyst Crystal', 'Angel Cards'],
-        trackingNumber: 'TRK123456789'
-      },
-      {
-        id: 'ORD-002',
-        date: '2024-01-10',
-        total: 45.50,
-        status: 'In Transit',
-        items: ['Rose Quartz'],
-        trackingNumber: 'TRK987654321'
-      },
-      {
-        id: 'ORD-003',
-        date: '2024-01-05',
-        total: 125.75,
-        status: 'Processing',
-        items: ['Chakra Kit', 'Meditation Candle', 'Crystal Journal'],
-        trackingNumber: null
-      },
-      {
-        id: 'ORD-004',
-        date: '2024-01-02',
-        total: 67.25,
-        status: 'Shipped',
-        items: ['Healing Stones Set'],
-        trackingNumber: 'TRK789123456'
+  // User data - prioritize external user data from localStorage
+  const getProfileDataFromStorage = () => {
+    try {
+      const name = localStorage.getItem('AOE_name') || '';
+      const profileFullStr = localStorage.getItem('AOE_profile_full');
+      const membershipTier = localStorage.getItem('AOE_membership_tier') || 'none';
+
+      let email = '';
+      let mobile = '';
+
+      if (profileFullStr) {
+        const profileFull = JSON.parse(profileFullStr);
+        email = profileFull.email || '';
+        mobile = (profileFull.countryCode || '') + (profileFull.phone || '');
       }
-    ],
-    addresses: [
-      {
-        id: 1,
-        type: 'Home',
-        fullAddress: '123 Angel Street',
-        city: 'Divine City',
-        state: 'DC',
-        zipCode: '12345',
-        isDefault: true
-      },
-      {
-        id: 2,
-        type: 'Work',
-        fullAddress: '456 Spiritual Ave',
-        city: 'Blessed Town',
-        state: 'BT',
-        zipCode: '67890',
-        isDefault: false
-      }
-    ]
-  });
+
+      return {
+        fullName: name || 'User',
+        email: email || user?.email || '',
+        mobile: mobile || '',
+        alternativeMobile: '', // Optional field
+        membershipType: membershipTier.charAt(0).toUpperCase() + membershipTier.slice(1),
+        addresses: [], // Empty - will show empty state
+        orders: [] // Empty - will show empty state
+      };
+    } catch (error) {
+      console.error('Error reading profile data from storage:', error);
+      return {
+        fullName: 'User',
+        email: user?.email || '',
+        mobile: '',
+        alternativeMobile: '',
+        membershipType: 'None',
+        addresses: [],
+        orders: []
+      };
+    }
+  };
+
+  const [userProfile, setUserProfile] = useState(getProfileDataFromStorage());
+
+  // Order history - now empty to show empty state
+  const [orderHistory] = useState([]);
+
+  // Saved addresses - now empty to show empty state
+  const [savedAddresses, setSavedAddresses] = useState([]);
 
   // Edit form states
   const [editForm, setEditForm] = useState({
@@ -118,6 +159,30 @@ const Profile = () => {
     alternativeMobile: userProfile.alternativeMobile,
     membershipType: userProfile.membershipType
   });
+  // Load persisted addresses on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(addressesKey);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          setUserProfile(prev => ({ ...prev, addresses: arr }));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved addresses', e);
+    }
+  }, [addressesKey]);
+
+  // Persist addresses whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(addressesKey, JSON.stringify(userProfile.addresses || []));
+    } catch (e) {
+      console.error('Failed to save addresses', e);
+    }
+  }, [addressesKey, userProfile.addresses]);
+
 
   const [newAddress, setNewAddress] = useState({
     type: '',
@@ -134,15 +199,27 @@ const Profile = () => {
     isDefault: false
   });
 
-  // Country/State management
-  const { selectedCountry, availableStates, loading: countryLoading, changeCountry, filterCountries, filterStates, allCountries } = useCountryState();
-  const [countrySearch, setCountrySearch] = useState('');
-  const [stateSearch, setStateSearch] = useState('');
-  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  // Country/State management temporarily disabled on Profile to avoid geo calls
 
   // Handler functions
   const handleSaveProfile = () => {
+    // Persist membership selection into localStorage for use across the app
+    try {
+      const raw = (editForm.membershipType || '').toString().toLowerCase();
+      let tierKey: 'diamond' | 'platinum' | 'gold' | 'none' = 'none';
+      if (raw.includes('diamond')) tierKey = 'diamond';
+      else if (raw.includes('platinum')) tierKey = 'platinum';
+      else if (raw.includes('gold')) tierKey = 'gold';
+      else tierKey = 'none'; // Treat Bronze/None/others as none
+      localStorage.setItem('AOE_membership_tier', tierKey);
+      // If admin is editing, lock the membership tier to prevent auto-overwrite by external auth refresh
+      if (userRole === 'admin') {
+        localStorage.setItem('AOE_membership_manual', 'true');
+      }
+    } catch (e) {
+      console.error('Failed to save membership to localStorage', e);
+    }
+
     setUserProfile(prev => ({
       ...prev,
       fullName: editForm.fullName,
@@ -204,13 +281,12 @@ const Profile = () => {
       city: '',
       state: '',
       customState: '',
-      country: selectedCountry?.name || '',
+      country: '',
       zipCode: '',
       isDefault: false
     });
     setIsAddingAddress(false);
-    setCountrySearch('');
-    setStateSearch('');
+
     toast({
       title: "Success",
       description: "Address added successfully"
@@ -261,13 +337,18 @@ const Profile = () => {
     }
   };
 
-  if (!user) {
+  // Render nothing only while loading, or when both auth sources are absent
+  if (loading) {
+    return null;
+  }
+  if (!user && !externalUser) {
     return null; // Will redirect via useEffect
   }
 
   // Sidebar menu items
   const sidebarItems = [
     { id: 'profile', label: 'Profile Information', icon: UserCircle },
+    { id: 'company', label: 'Company Details', icon: BuildingIcon as any },
     { id: 'coins', label: 'Angel Coins', icon: Coins },
     { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
     { id: 'orders', label: 'Order History', icon: Package },
@@ -295,14 +376,6 @@ const Profile = () => {
                 My Profile
               </h1>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleLogout}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
           </div>
         </div>
       </div>
@@ -339,14 +412,36 @@ const Profile = () => {
 
           {/* Main Content */}
           <div className="flex-1">
-            {activeSection === 'profile' && (
+            {activeSection === 'company' && (
               <Card className="bg-white/70 backdrop-blur-sm border-white/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-2xl flex items-center gap-2">
-                      <UserCircle className="w-6 h-6" />
-                      Profile Information
+                      <BuildingIcon className="w-6 h-6" />
+                      Company Details
                     </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CompanyDetailsSection />
+                </CardContent>
+              </Card>
+            )}
+
+            {activeSection === 'profile' && (
+              <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-2">
+                      <CardTitle className="text-2xl flex items-center gap-2">
+                        <UserCircle className="w-6 h-6" />
+                        Profile Information
+                      </CardTitle>
+                      {/* Show membership badge for external users */}
+                      {externalUser && (
+                        <MembershipBadge size="sm" showBenefits={false} />
+                      )}
+                    </div>
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -480,7 +575,7 @@ const Profile = () => {
                     </CardTitle>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Globe className="w-4 h-4" />
-                      <span>Currency: {currency.name}</span>
+                      <span>Currency: INR</span>
                     </div>
                   </div>
                 </CardHeader>
@@ -519,18 +614,21 @@ const Profile = () => {
                               <p className="text-4xl font-bold text-yellow-600">
                                 {angelCoinsLoading ? '...' : angelCoins.toLocaleString()}
                               </p>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setIsEditingAngelCoins(true);
-                                  setAngelCoinsEditValue(angelCoins.toString());
-                                }}
-                                className="ml-2 text-yellow-600 hover:text-yellow-700"
-                                title="Edit Angel Coins (Admin)"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                              {/* Edit only visible to admin */}
+                              {userRole === 'admin' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setIsEditingAngelCoins(true);
+                                    setAngelCoinsEditValue(angelCoins.toString());
+                                  }}
+                                  className="ml-2 text-yellow-600 hover:text-yellow-700"
+                                  title="Edit Angel Coins (Admin)"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                           )}
                           <p className="text-sm text-yellow-600">Angel Coins</p>
@@ -544,16 +642,18 @@ const Profile = () => {
                       <p className="text-gray-600 text-sm mb-3">
                         Earn Angel Coins with every purchase and redeem them for exclusive rewards!
                       </p>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={clearAngelCoinsData}
-                          className="text-xs"
-                        >
-                          Reset to Default (Testing)
-                        </Button>
-                      </div>
+                      {userRole === 'admin' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={clearAngelCoinsData}
+                            className="text-xs"
+                          >
+                            Reset to Default (Testing)
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -642,23 +742,10 @@ const Profile = () => {
                     </CardTitle>
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-gray-500" />
-                      <select
-                        value={currency.code}
-                        onChange={(e) => changeCurrency(e.target.value)}
-                        className="px-3 py-1 border rounded-md text-sm"
-                        disabled={currencyLoading}
-                      >
-                        {Object.values(supportedCurrencies).map((curr) => (
-                          <option key={curr.code} value={curr.code}>
-                            {curr.symbol} {curr.code}
-                          </option>
-                        ))}
-                      </select>
+                      {/* Currency selector removed for now to avoid geo calls */}
                     </div>
                   </div>
-                  {currencyLoading && (
-                    <p className="text-sm text-gray-500">Detecting your location for currency...</p>
-                  )}
+
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -684,11 +771,9 @@ const Profile = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-gray-800">
-                              {formatPrice(order.total)}
+                              ₹{order.total}
                             </p>
-                            <p className="text-xs text-gray-500 mb-2">
-                              {currency.name}
-                            </p>
+                            <p className="text-xs text-gray-500 mb-2">INR</p>
                             {order.status !== 'Delivered' && order.trackingNumber && (
                               <Button size="sm" variant="outline">
                                 Track Order
