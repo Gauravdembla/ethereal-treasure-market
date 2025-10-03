@@ -35,16 +35,231 @@ import ShopSettingsManagement from "@/components/shop/ShopSettingsManagement";
 import DatabaseMigration from "@/components/admin/DatabaseMigration";
 import ReviewsManagement from "@/components/admin/ReviewsManagement";
 
+import { PRODUCTS, type Product } from "@/data/products";
+import { productApi, type ApiProduct } from "@/services/productApi";
+import type { User } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
 import externalAuthService from "@/services/externalAuthService";
+type AdminProduct = {
+  id: string;
+  sku: string;
+  name: string;
+  description: string;
+  detailedDescription: string;
+  price: string;
+  priceValue: number;
+  originalPrice?: string;
+  originalPriceValue?: number;
+  image: string;
+  rating: number;
+  benefits: string[];
+  specifications: Record<string, string>;
+  category: string;
+  inStock: boolean;
+  featured: boolean;
+  availableQuantity: number;
+  tags: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
-// Import product images
-import amethystImage from "@/assets/product-amethyst.jpg";
-import angelCardsImage from "@/assets/product-angel-cards.jpg";
-import candleImage from "@/assets/product-candle.jpg";
-import journalImage from "@/assets/product-journal.jpg";
-import roseQuartzImage from "@/assets/product-rose-quartz.jpg";
-import chakraKitImage from "@/assets/product-chakra-kit.jpg";
+type ProductSeed = Product & { availableQuantity?: number };
+
+type NewProductForm = {
+  id?: string;
+  sku: string;
+  name: string;
+  description: string;
+  detailedDescription: string;
+  price: string;
+  originalPrice: string;
+  category: string;
+  tags: string;
+  availableQuantity: string;
+  specifications: Record<string, string>;
+  image: string;
+  rating: number;
+  benefits: string[];
+  featured: boolean;
+  inStock: boolean;
+};
+
+const numberFormatter = new Intl.NumberFormat("en-IN");
+
+const CATEGORY_LABELS: Record<string, string> = {
+  "crystals": "Crystals",
+  "oracle-cards": "Oracle Cards",
+  "candles": "Candles",
+  "journals": "Journals",
+  "crystal-sets": "Crystal Sets",
+};
+
+const formatCategoryLabel = (category: string) => {
+  if (!category) return "Uncategorized";
+  if (CATEGORY_LABELS[category]) {
+    return CATEGORY_LABELS[category];
+  }
+
+  return category
+    .split(/[-_]/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const categoryToSlug = (category: string) =>
+  category
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-');
+
+const parseNumberFromString = (value?: string) => {
+  if (!value) return undefined;
+  const parsed = Number(value.replace(/,/g, ""));
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
+const toTagString = (tags?: string[] | string) => {
+  if (!tags) return "";
+  if (Array.isArray(tags)) return tags.join(", ");
+  return tags;
+};
+
+const splitTags = (tags: string) =>
+  tags
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+const computeSeedQuantity = (productId: string) => {
+  if (!productId) return 0;
+  const hash = productId.split("").reduce((acc, char) => {
+    acc = (acc << 5) - acc + char.charCodeAt(0);
+    return acc & acc;
+  }, 0);
+  return Math.abs(hash % 16) + 5;
+};
+
+const seedProductToAdmin = (product: ProductSeed): AdminProduct => {
+  const priceValue = parseNumberFromString(product.price) ?? 0;
+  const originalPriceValue = parseNumberFromString(product.originalPrice);
+  return {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    description: product.description,
+    detailedDescription: product.detailedDescription || product.description,
+    price: numberFormatter.format(priceValue),
+    priceValue,
+    originalPrice: originalPriceValue ? numberFormatter.format(originalPriceValue) : undefined,
+    originalPriceValue: originalPriceValue ?? undefined,
+    image: product.image,
+    rating: product.rating ?? 5,
+    benefits: product.benefits ?? [],
+    specifications: product.specifications ?? {},
+    category: formatCategoryLabel(product.category),
+    inStock: product.inStock ?? ((product.availableQuantity ?? computeSeedQuantity(product.id)) > 0),
+    featured: product.featured,
+    availableQuantity: product.availableQuantity ?? computeSeedQuantity(product.id),
+    tags: "",
+  };
+};
+
+const apiProductToAdminProduct = (product: ApiProduct): AdminProduct => {
+  const stableId = product.id || product._id || "";
+  const originalPriceValue = product.originalPrice ?? undefined;
+  return {
+    id: stableId,
+    sku: product.sku,
+    name: product.name,
+    description: product.description,
+    detailedDescription: product.detailedDescription || product.description,
+    price: numberFormatter.format(product.price ?? 0),
+    priceValue: product.price ?? 0,
+    originalPrice: originalPriceValue ? numberFormatter.format(originalPriceValue) : undefined,
+    originalPriceValue,
+    image: product.image,
+    rating: product.rating ?? 5,
+    benefits: product.benefits ?? [],
+    specifications: product.specifications ?? {},
+    category: formatCategoryLabel(product.category),
+    inStock: product.inStock,
+    featured: product.featured,
+    availableQuantity: product.availableQuantity ?? 0,
+    tags: toTagString(product.tags),
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+  };
+};
+
+const SEED_ADMIN_PRODUCTS: AdminProduct[] = PRODUCTS.map(seedProductToAdmin);
+
+const createEmptyFormState = (): NewProductForm => ({
+  id: "",
+  sku: "",
+  name: "",
+  description: "",
+  detailedDescription: "",
+  price: "",
+  originalPrice: "",
+  category: "",
+  tags: "",
+  availableQuantity: "",
+  specifications: {},
+  image: "",
+  rating: 5,
+  benefits: [],
+  featured: false,
+  inStock: true,
+});
+
+const productToFormState = (product: AdminProduct): NewProductForm => ({
+  id: product.id,
+  sku: product.sku,
+  name: product.name,
+  description: product.description,
+  detailedDescription: product.detailedDescription,
+  price: product.priceValue.toString(),
+  originalPrice: product.originalPriceValue?.toString() ?? "",
+  category: product.category,
+  tags: product.tags,
+  availableQuantity: product.availableQuantity.toString(),
+  specifications: product.specifications || {},
+  image: product.image,
+  rating: product.rating ?? 5,
+  benefits: product.benefits ?? [],
+  featured: product.featured,
+  inStock: product.inStock,
+});
+
+const formToApiPayload = (form: NewProductForm) => {
+  const price = Number(form.price);
+  if (Number.isNaN(price)) {
+    throw new Error("Invalid price value");
+  }
+
+  const availableQuantity = parseInt(form.availableQuantity || "0", 10);
+  const safeAvailableQuantity = Number.isNaN(availableQuantity) ? 0 : availableQuantity;
+
+  const originalPrice = form.originalPrice ? Number(form.originalPrice) : undefined;
+
+  return {
+    sku: form.sku,
+    name: form.name,
+    description: form.description,
+    detailedDescription: form.detailedDescription || form.description,
+    price,
+    originalPrice,
+    image: form.image || "/assets/product-placeholder.jpg",
+    rating: form.rating ?? 5,
+    benefits: form.benefits,
+    specifications: form.specifications,
+    category: form.category ? categoryToSlug(form.category) : "",
+    inStock: form.inStock,
+    featured: form.featured,
+    availableQuantity: safeAvailableQuantity,
+    tags: splitTags(form.tags),
+  };
+};
 
 const Admin = () => {
   const { user, isAuthenticated, loading, login, logout, initialize } = useAuth();
@@ -65,6 +280,43 @@ const Admin = () => {
     initialize();
   }, [initialize]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadProducts = async () => {
+      setProductLoading(true);
+      try {
+        const apiProducts = await productApi.list();
+        if (!isActive) return;
+
+        if (apiProducts.length === 0) {
+          setProductList([]);
+        } else {
+          setProductList(apiProducts.map(apiProductToAdminProduct));
+        }
+        setProductError(null);
+      } catch (error: unknown) {
+        console.error("Failed to load products", error);
+        if (!isActive) return;
+
+        setProductError(error instanceof Error ? error.message : "Failed to load products");
+        if (SEED_ADMIN_PRODUCTS.length > 0) {
+          setProductList(SEED_ADMIN_PRODUCTS);
+        }
+      } finally {
+        if (isActive) {
+          setProductLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   // Function to handle section changes with URL updates
   const handleSectionChange = (sectionId: string) => {
     setSearchParams({ section: sectionId });
@@ -74,100 +326,13 @@ const Admin = () => {
   const [showAngelCoins, setShowAngelCoins] = useState(true);
   const [showCouponCode, setShowCouponCode] = useState(true);
 
-  // Initial products data
-  const initialProducts = [
-    {
-      id: "amethyst-cluster",
-      sku: "654567652",
-      image: amethystImage,
-      name: "Amethyst Cluster",
-      description: "Divine Protection & Peace - Enhance your spiritual connection",
-      price: "2,499",
-      originalPrice: "3,199",
-      rating: 5,
-      category: "Crystals",
-      availableQuantity: 12
-    },
-    {
-      id: "angel-oracle-cards",
-      sku: "789123456",
-      image: angelCardsImage,
-      name: "Angel Oracle Cards",
-      description: "Celestial Guidance - Connect with your guardian angels",
-      price: "1,899",
-      originalPrice: "2,499",
-      rating: 5,
-      category: "Oracle Cards",
-      availableQuantity: 8
-    },
-    {
-      id: "healing-candle",
-      sku: "321987654",
-      image: candleImage,
-      name: "Healing Candle",
-      description: "Lavender Serenity - Aromatherapy for mind & soul",
-      price: "899",
-      originalPrice: "1,199",
-      rating: 5,
-      category: "Candles",
-      availableQuantity: 15
-    },
-    {
-      id: "chakra-journal",
-      sku: "456789123",
-      image: journalImage,
-      name: "Chakra Journal",
-      description: "Sacred Writing - Manifest your dreams & intentions",
-      price: "1,299",
-      originalPrice: "1,699",
-      rating: 5,
-      category: "Journals",
-      availableQuantity: 6
-    },
-    {
-      id: "rose-quartz-heart",
-      sku: "987654321",
-      image: roseQuartzImage,
-      name: "Rose Quartz Heart",
-      description: "Unconditional Love - Open your heart chakra",
-      price: "1,599",
-      originalPrice: "1,999",
-      rating: 5,
-      category: "Crystals",
-      availableQuantity: 20
-    },
-    {
-      id: "chakra-stone-set",
-      sku: "147258369",
-      image: chakraKitImage,
-      name: "Chakra Stone Set",
-      description: "Complete Balance - Seven sacred stones for alignment",
-      price: "3,499",
-      originalPrice: "4,499",
-      rating: 5,
-      category: "Crystal Sets",
-      availableQuantity: 5
-    }
-  ];
-
   // Product management state
-  const [productList, setProductList] = useState(initialProducts);
+  const [productList, setProductList] = useState<AdminProduct[]>([]);
+  const [productLoading, setProductLoading] = useState(true);
+  const [productError, setProductError] = useState<string | null>(null);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [newProduct, setNewProduct] = useState({
-    id: "",
-    sku: "",
-    name: "",
-    description: "",
-    price: "",
-    originalPrice: "",
-    category: "",
-    tags: "",
-    availableQuantity: "",
-    specifications: {},
-    image: "",
-    rating: 5
-  });
+  const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
+  const [newProduct, setNewProduct] = useState<NewProductForm>(createEmptyFormState());
 
   // Mock data
   const mockUsers = [
@@ -200,7 +365,7 @@ const Admin = () => {
         aud: "authenticated",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      } as any;
+      } as unknown as User;
 
       // Manually set the auth state for demo with persistence
       useAuth.setState({
@@ -230,90 +395,91 @@ const Admin = () => {
   };
 
   // Product management functions
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.price || !newProduct.sku) {
       alert("Please fill in required fields: Name, SKU, and Price");
       return;
     }
 
-    const productId = newProduct.sku.toLowerCase().replace(/\s+/g, '-');
-    const product = {
-      ...newProduct,
-      id: productId,
-      price: newProduct.price,
-      originalPrice: newProduct.originalPrice || undefined,
-      availableQuantity: parseInt(newProduct.availableQuantity) || 0,
-      image: newProduct.image || '/assets/product-placeholder.jpg'
-    };
+    try {
+      const payload = formToApiPayload(newProduct);
+      const created = await productApi.create(payload);
+      const adminProduct = apiProductToAdminProduct(created);
 
-    setProductList([...productList, product]);
-    setNewProduct({
-      id: "",
-      sku: "",
-      name: "",
-      description: "",
-      price: "",
-      originalPrice: "",
-      category: "",
-      tags: "",
-      availableQuantity: "",
-      specifications: {},
-      image: "",
-      rating: 5
-    });
-    setIsAddProductOpen(false);
-    alert("Product added successfully!");
+      setProductList((prev) => [adminProduct, ...prev.filter((p) => p.id !== adminProduct.id)]);
+      setEditingProduct(null);
+      setNewProduct(createEmptyFormState());
+      setIsAddProductOpen(false);
+      alert("Product added successfully!");
+    } catch (error: unknown) {
+      console.error("Failed to add product", error);
+      const message = error instanceof Error ? error.message : "Failed to add product";
+      alert(message);
+    }
   };
 
-  const handleEditProduct = (product) => {
+  const handleEditProduct = (product: AdminProduct) => {
     setEditingProduct(product);
-    setNewProduct({
-      ...product,
-      price: product.price,
-      originalPrice: product.originalPrice || "",
-      availableQuantity: product.availableQuantity?.toString() || "0"
-    });
+    setNewProduct(productToFormState(product));
     setIsAddProductOpen(true);
   };
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
+    if (!editingProduct) {
+      return;
+    }
+
     if (!newProduct.name || !newProduct.price || !newProduct.sku) {
       alert("Please fill in required fields: Name, SKU, and Price");
       return;
     }
 
-    const updatedProduct = {
-      ...newProduct,
-      price: newProduct.price,
-      originalPrice: newProduct.originalPrice || undefined,
-      availableQuantity: parseInt(newProduct.availableQuantity) || 0,
-      image: newProduct.image || '/assets/product-placeholder.jpg'
-    };
+    try {
+      const payload = formToApiPayload({ ...newProduct, featured: editingProduct.featured });
+      const updated = await productApi.update(editingProduct.id, payload);
+      const adminProduct = apiProductToAdminProduct(updated);
 
-    setProductList(productList.map(p => p.id === editingProduct.id ? updatedProduct : p));
-    setEditingProduct(null);
-    setNewProduct({
-      id: "",
-      sku: "",
-      name: "",
-      description: "",
-      price: "",
-      originalPrice: "",
-      category: "",
-      tags: "",
-      availableQuantity: "",
-      specifications: {},
-      image: "",
-      rating: 5
-    });
-    setIsAddProductOpen(false);
-    alert("Product updated successfully!");
+      setProductList((prev) => prev.map((p) => (p.id === adminProduct.id ? adminProduct : p)));
+      setEditingProduct(null);
+      setNewProduct(createEmptyFormState());
+      setIsAddProductOpen(false);
+      alert("Product updated successfully!");
+    } catch (error: unknown) {
+      console.error("Failed to update product", error);
+      const message = error instanceof Error ? error.message : "Failed to update product";
+      alert(message);
+    }
   };
 
-  const handleDeleteProduct = (productId) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      setProductList(productList.filter(p => p.id !== productId));
+  const handleToggleInStock = async (product: AdminProduct, value: boolean) => {
+    try {
+      const updated = await productApi.update(product.id, { inStock: value });
+      const adminProduct = apiProductToAdminProduct(updated);
+      setProductList((prev) => prev.map((p) => (p.id === adminProduct.id ? adminProduct : p)));
+      if (editingProduct && editingProduct.id === product.id) {
+        setEditingProduct(adminProduct);
+        setNewProduct(productToFormState(adminProduct));
+      }
+    } catch (error: unknown) {
+      console.error("Failed to update stock status", error);
+      const message = error instanceof Error ? error.message : "Failed to update stock status";
+      alert(message);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm("Are you sure you want to delete this product?")) {
+      return;
+    }
+
+    try {
+      await productApi.remove(productId);
+      setProductList((prev) => prev.filter((p) => p.id !== productId));
       alert("Product deleted successfully!");
+    } catch (error: unknown) {
+      console.error("Failed to delete product", error);
+      const message = error instanceof Error ? error.message : "Failed to delete product";
+      alert(message);
     }
   };
 
@@ -956,20 +1122,7 @@ const Admin = () => {
                 <DialogTrigger asChild>
                   <Button onClick={() => {
                     setEditingProduct(null);
-                    setNewProduct({
-                      id: "",
-                      sku: "",
-                      name: "",
-                      description: "",
-                      price: "",
-                      originalPrice: "",
-                      category: "",
-                      tags: "",
-                      availableQuantity: "",
-                      specifications: {},
-                      image: "",
-                      rating: 5
-                    });
+                    setNewProduct(createEmptyFormState());
                   }}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Product
@@ -1038,6 +1191,14 @@ const Admin = () => {
                         placeholder="10"
                       />
                     </div>
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        id="new-product-instock"
+                        checked={newProduct.inStock}
+                        onCheckedChange={(checked) => setNewProduct({...newProduct, inStock: checked})}
+                      />
+                      <Label htmlFor="new-product-instock" className="font-medium">In Stock</Label>
+                    </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label>Description</Label>
                       <Textarea
@@ -1076,6 +1237,19 @@ const Admin = () => {
               </Dialog>
             </div>
 
+            {productLoading && (
+              <div className="mb-4 text-sm text-muted-foreground">
+                Loading products...
+              </div>
+            )}
+
+            {productError && (
+              <div className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                {productError}
+                {productList.length > 0 && " – showing local seed data."}
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1085,7 +1259,8 @@ const Admin = () => {
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Price</TableHead>
-                    <TableHead>Stock</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>In Stock</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1111,6 +1286,12 @@ const Admin = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        <Switch
+                          checked={product.inStock}
+                          onCheckedChange={(checked) => handleToggleInStock(product, checked)}
+                        />
+                      </TableCell>
+                      <TableCell>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
                             <Edit className="w-3 h-3" />
@@ -1130,9 +1311,9 @@ const Admin = () => {
               <h4 className="font-medium mb-2">Product Statistics</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>Total Products: <Badge>{productList.length}</Badge></div>
-                <div>In Stock: <Badge variant="default">{productList.filter(p => p.availableQuantity > 0).length}</Badge></div>
-                <div>Low Stock: <Badge variant="secondary">{productList.filter(p => p.availableQuantity > 0 && p.availableQuantity <= 10).length}</Badge></div>
-                <div>Out of Stock: <Badge variant="destructive">{productList.filter(p => p.availableQuantity === 0).length}</Badge></div>
+                <div>In Stock: <Badge variant="default">{productList.filter(p => p.inStock).length}</Badge></div>
+                <div>Low Stock: <Badge variant="secondary">{productList.filter(p => p.inStock && p.availableQuantity <= 10).length}</Badge></div>
+                <div>Out of Stock: <Badge variant="destructive">{productList.filter(p => !p.inStock).length}</Badge></div>
               </div>
             </div>
           </Card>

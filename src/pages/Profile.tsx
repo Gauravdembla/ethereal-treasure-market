@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
@@ -20,6 +20,17 @@ import MembershipBadge from "@/components/MembershipBadge";
 import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe, Search, Building2 as BuildingIcon } from "lucide-react";
 
 import CompanyDetailsForm, { type CompanyDetails } from '@/components/CompanyDetailsForm';
+import { addressService, type UserAddress } from "@/services/addressService";
+
+type ProfileData = {
+  fullName: string;
+  email: string;
+  mobile: string;
+  alternativeMobile: string;
+  membershipType: string;
+  addresses: UserAddress[];
+  orders: any[];
+};
 
 const Profile = () => {
   const { user, externalUser, logout, isAuthenticated, loading, getUserRole } = useAuth();
@@ -35,6 +46,7 @@ const Profile = () => {
 
   // Get user ID from URL params for unique URLs - prioritize external user
   const userId = searchParams.get('user') || externalUser?.userId || user?.id || 'default';
+  const apiUserId = userId && userId !== 'default' ? userId : null;
 
   // Company details component (scoped inside Profile to access userId)
   const CompanyDetailsSection: React.FC = () => {
@@ -82,8 +94,6 @@ const Profile = () => {
     );
   };
 
-  const addressesKey = `AOE_addresses_${userId}`;
-
   // Active section state
   const [activeSection, setActiveSection] = useState('profile');
 
@@ -105,7 +115,7 @@ const Profile = () => {
   }, [user, externalUser, loading, navigate]);
 
   // User data - prioritize external user data from localStorage
-  const getProfileDataFromStorage = () => {
+  const getProfileDataFromStorage = (): ProfileData => {
     try {
       const name = localStorage.getItem('AOE_name') || '';
       const profileFullStr = localStorage.getItem('AOE_profile_full');
@@ -143,13 +153,10 @@ const Profile = () => {
     }
   };
 
-  const [userProfile, setUserProfile] = useState(getProfileDataFromStorage());
+  const [userProfile, setUserProfile] = useState<ProfileData>(getProfileDataFromStorage());
 
-  // Order history - now empty to show empty state
-  const [orderHistory] = useState([]);
-
-  // Saved addresses - now empty to show empty state
-  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [addressesError, setAddressesError] = useState<string | null>(null);
 
   // Edit form states
   const [editForm, setEditForm] = useState({
@@ -159,31 +166,6 @@ const Profile = () => {
     alternativeMobile: userProfile.alternativeMobile,
     membershipType: userProfile.membershipType
   });
-  // Load persisted addresses on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(addressesKey);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) {
-          setUserProfile(prev => ({ ...prev, addresses: arr }));
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load saved addresses', e);
-    }
-  }, [addressesKey]);
-
-  // Persist addresses whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(addressesKey, JSON.stringify(userProfile.addresses || []));
-    } catch (e) {
-      console.error('Failed to save addresses', e);
-    }
-  }, [addressesKey, userProfile.addresses]);
-
-
   const [newAddress, setNewAddress] = useState({
     type: '',
     customType: '',
@@ -198,6 +180,40 @@ const Profile = () => {
     zipCode: '',
     isDefault: false
   });
+
+  const loadAddresses = useCallback(async () => {
+    if (!apiUserId) {
+      return;
+    }
+
+    setAddressesLoading(true);
+    setAddressesError(null);
+
+    try {
+      const data = await addressService.list(apiUserId);
+      setUserProfile((prev) => ({
+        ...prev,
+        addresses: data,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load addresses';
+      console.error('Failed to load addresses', error);
+      setAddressesError(message);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
+    } finally {
+      setAddressesLoading(false);
+    }
+  }, [apiUserId, setUserProfile, toast]);
+
+  useEffect(() => {
+    if (apiUserId) {
+      loadAddresses();
+    }
+  }, [apiUserId, loadAddresses]);
 
   // Country/State management temporarily disabled on Profile to avoid geo calls
 
@@ -235,7 +251,16 @@ const Profile = () => {
     });
   };
 
-  const handleAddAddress = () => {
+  const handleAddAddress = async () => {
+    if (!apiUserId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unable to determine user. Please sign in again.",
+      });
+      return;
+    }
+
     // Validation
     const addressType = newAddress.type === 'Others' ? newAddress.customType : newAddress.type;
     const stateName = newAddress.state === 'Others' ? newAddress.customState : newAddress.state;
@@ -249,11 +274,10 @@ const Profile = () => {
       return;
     }
 
-    const addressToAdd = {
-      id: Date.now(),
+    const payload = {
+      userId: apiUserId,
       type: addressType,
       name: newAddress.name,
-      fullAddress: `${newAddress.address1}${newAddress.address2 ? ', ' + newAddress.address2 : ''}${newAddress.nearby ? ', Near ' + newAddress.nearby : ''}`,
       address1: newAddress.address1,
       address2: newAddress.address2,
       nearby: newAddress.nearby,
@@ -261,47 +285,68 @@ const Profile = () => {
       state: stateName,
       country: newAddress.country,
       zipCode: newAddress.zipCode,
-      isDefault: userProfile.addresses.length === 0 ? true : newAddress.isDefault
+      isDefault: userProfile.addresses.length === 0 ? true : newAddress.isDefault,
     };
 
-    setUserProfile(prev => ({
-      ...prev,
-      addresses: newAddress.isDefault
-        ? [addressToAdd, ...prev.addresses.map(addr => ({ ...addr, isDefault: false }))]
-        : [...prev.addresses, addressToAdd]
-    }));
+    try {
+      await addressService.create(payload);
+      await loadAddresses();
 
-    setNewAddress({
-      type: '',
-      customType: '',
-      name: '',
-      address1: '',
-      address2: '',
-      nearby: '',
-      city: '',
-      state: '',
-      customState: '',
-      country: '',
-      zipCode: '',
-      isDefault: false
-    });
-    setIsAddingAddress(false);
+      setNewAddress({
+        type: '',
+        customType: '',
+        name: '',
+        address1: '',
+        address2: '',
+        nearby: '',
+        city: '',
+        state: '',
+        customState: '',
+        country: '',
+        zipCode: '',
+        isDefault: false
+      });
+      setIsAddingAddress(false);
 
-    toast({
-      title: "Success",
-      description: "Address added successfully"
-    });
+      toast({
+        title: "Success",
+        description: "Address added successfully"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add address';
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
+    }
   };
 
-  const handleDeleteAddress = (addressId: number) => {
-    setUserProfile(prev => ({
-      ...prev,
-      addresses: prev.addresses.filter(addr => addr.id !== addressId)
-    }));
-    toast({
-      title: "Success",
-      description: "Address deleted successfully"
-    });
+  const handleDeleteAddress = async (addressId: string) => {
+    if (!apiUserId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unable to determine user. Please sign in again.",
+      });
+      return;
+    }
+
+    try {
+      await addressService.remove(addressId, apiUserId);
+      await loadAddresses();
+      toast({
+        title: "Success",
+        description: "Address deleted successfully"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete address';
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
+    }
   };
 
   const handleLogout = () => {
@@ -691,42 +736,50 @@ const Profile = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {userProfile.addresses.map((address) => (
-                      <div key={address.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold text-lg">{address.type}</h3>
-                              {address.isDefault && (
-                                <Badge variant="outline" className="text-xs">
-                                  Default
-                                </Badge>
-                              )}
+                    {addressesLoading ? (
+                      <p className="text-gray-600">Loading addresses...</p>
+                    ) : addressesError ? (
+                      <p className="text-red-600">{addressesError}</p>
+                    ) : userProfile.addresses.length === 0 ? (
+                      <p className="text-gray-600">No addresses saved yet. Add one to get started.</p>
+                    ) : (
+                      userProfile.addresses.map((address) => (
+                        <div key={address.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold text-lg">{address.type}</h3>
+                                {address.isDefault && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Default
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-gray-700">
+                                {address.fullAddress}<br />
+                                {address.city}, {address.state} {address.zipCode}
+                              </p>
                             </div>
-                            <p className="text-gray-700">
-                              {address.fullAddress}<br />
-                              {address.city}, {address.state} {address.zipCode}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingAddress(address)}
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteAddress(address.id)}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingAddress(address)}
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteAddress(address.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>

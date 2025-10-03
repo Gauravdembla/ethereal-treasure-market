@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,17 @@ import { productService, ShopProduct } from "@/services/shopService";
 import { useToast } from "@/hooks/use-toast";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
+// Ensure featured products surface first, then alphabetical within each group.
+const sortProductsForDisplay = (items: ShopProduct[]): ShopProduct[] => {
+  return [...items].sort((a, b) => {
+    if (a.featured !== b.featured) {
+      return a.featured ? -1 : 1;
+    }
+
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
+};
+
 const ProductsManagement = () => {
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
@@ -23,6 +34,8 @@ const ProductsManagement = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
   // Form state for product editing/adding
@@ -52,7 +65,7 @@ const ProductsManagement = () => {
     try {
       setLoading(true);
       const data = await productService.getProducts();
-      setProducts(data);
+      setProducts(sortProductsForDisplay(data));
       toast({
         title: "Success",
         description: `Loaded ${data.length} products from database`
@@ -93,6 +106,7 @@ const ProductsManagement = () => {
   const handleEditProduct = (product: ShopProduct) => {
     setSelectedProduct(product);
     setFormData(product);
+    setImagePreview(product.images?.[0]?.url || null);
     setIsEditDialogOpen(true);
   };
 
@@ -113,7 +127,72 @@ const ProductsManagement = () => {
       status: 'published',
       seo_keywords: []
     });
+    setImagePreview(null);
     setIsAddDialogOpen(true);
+  };
+
+  const processSelectedImage = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file",
+        description: "Please choose an image file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const maxSizeBytes = 10 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      toast({
+        title: "File too large",
+        description: "Image must be smaller than 10MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setImagePreview(dataUrl);
+      setFormData(prev => ({
+        ...prev,
+        images: [
+          {
+            ...(prev.images?.[0] || {
+              id: 'temp-image',
+              product_id: prev.id || 'temp-product',
+              is_primary: true,
+              sort_order: 0
+            }),
+            url: dataUrl,
+            alt_text: prev.name || file.name
+          }
+        ]
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processSelectedImage(file);
+    }
+
+    event.target.value = '';
+  };
+
+  const handleDropImage = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      processSelectedImage(file);
+    }
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSaveProduct = async () => {
@@ -121,9 +200,9 @@ const ProductsManagement = () => {
       if (selectedProduct) {
         // Update existing product
         const updated = await productService.updateProduct(selectedProduct.id, formData);
-        setProducts(prev => prev.map(p =>
+        setProducts(prev => sortProductsForDisplay(prev.map(p =>
           p.id === selectedProduct.id ? updated : p
-        ));
+        )));
         toast({
           title: "Success",
           description: "Product updated successfully"
@@ -134,7 +213,7 @@ const ProductsManagement = () => {
           ...formData as Omit<ShopProduct, 'id' | 'created_at' | 'updated_at'>,
           sku: `SKU${Date.now()}`
         });
-        setProducts(prev => [...prev, newProduct]);
+        setProducts(prev => sortProductsForDisplay([...prev, newProduct]));
         toast({
           title: "Success",
           description: "Product created successfully"
@@ -144,6 +223,7 @@ const ProductsManagement = () => {
       setIsEditDialogOpen(false);
       setIsAddDialogOpen(false);
       setSelectedProduct(null);
+      setImagePreview(null);
     } catch (error) {
       console.error('Error saving product:', error);
       toast({
@@ -158,7 +238,7 @@ const ProductsManagement = () => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
         await productService.deleteProduct(productId);
-        setProducts(prev => prev.filter(p => p.id !== productId));
+        setProducts(prev => sortProductsForDisplay(prev.filter(p => p.id !== productId)));
         toast({
           title: "Success",
           description: "Product deleted successfully"
@@ -191,9 +271,9 @@ const ProductsManagement = () => {
 
       const updated = await productService.toggleProductStatus(productId, field, !product[field]);
 
-      setProducts(prev => prev.map(p =>
+      setProducts(prev => sortProductsForDisplay(prev.map(p =>
         p.id === productId ? updated : p
-      ));
+      )));
 
       toast({
         title: "Success",
@@ -228,6 +308,31 @@ const ProductsManagement = () => {
       ...prev,
       benefits: prev.benefits?.filter((_, i) => i !== index) || []
     }));
+  };
+
+  const updateSpecification = (key: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: {
+        ...(prev.specifications || {}),
+        [key]: value
+      }
+    }));
+  };
+
+  const removeSpecification = (key: string) => {
+    if (!formData.specifications) return;
+    const { [key]: _removed, ...rest } = formData.specifications;
+    setFormData(prev => ({
+      ...prev,
+      specifications: rest
+    }));
+  };
+
+  const addSpecification = () => {
+    const key = prompt('Enter specification label (e.g. Size, Origin)');
+    if (!key) return;
+    updateSpecification(key, '');
   };
 
   return (
@@ -396,6 +501,7 @@ const ProductsManagement = () => {
           setIsEditDialogOpen(false);
           setIsAddDialogOpen(false);
           setSelectedProduct(null);
+          setImagePreview(null);
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -568,12 +674,93 @@ const ProductsManagement = () => {
               </div>
 
               <div>
-                <Label>Product Image</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                  <p className="text-xs text-gray-500">PNG, JPG up to 10MB</p>
+                <div className="flex justify-between items-center mb-2">
+                  <Label>Product Specifications</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addSpecification}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Specification
+                  </Button>
                 </div>
+                <div className="space-y-2">
+                  {Object.entries(formData.specifications || {}).map(([specKey, specValue]) => (
+                    <div key={specKey} className="flex gap-2">
+                      <Input
+                        value={specKey}
+                        onChange={(e) => {
+                          const newKey = e.target.value;
+                          setFormData(prev => {
+                            const specs = { ...(prev.specifications || {}) };
+                            const currentValue = specs[specKey];
+                            delete specs[specKey];
+                            specs[newKey] = currentValue;
+                            return { ...prev, specifications: specs };
+                          });
+                        }}
+                        placeholder="Label (e.g. Size)"
+                        className="w-1/3"
+                      />
+                      <Input
+                        value={specValue}
+                        onChange={(e) => updateSpecification(specKey, e.target.value)}
+                        placeholder="Value"
+                        className="w-full"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeSpecification(specKey)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {(!formData.specifications || Object.keys(formData.specifications).length === 0) && (
+                    <p className="text-sm text-gray-500">Add specification details like size, weight, or origin.</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label>Product Image</Label>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={openFilePicker}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openFilePicker();
+                    }
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={handleDropImage}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {imagePreview ? (
+                    <div className="space-y-2">
+                      <img
+                        src={imagePreview}
+                        alt={formData.name || 'Selected product'}
+                        className="mx-auto h-40 w-40 object-cover rounded-md"
+                      />
+                      <p className="text-sm text-gray-600">Click or drop to replace the image</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
+                      <p className="text-xs text-gray-500">PNG, JPG up to 10MB</p>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageInputChange}
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -584,6 +771,7 @@ const ProductsManagement = () => {
                     setIsEditDialogOpen(false);
                     setIsAddDialogOpen(false);
                     setSelectedProduct(null);
+                    setImagePreview(null);
                   }}
                 >
                   Cancel

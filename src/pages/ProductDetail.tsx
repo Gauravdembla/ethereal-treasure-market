@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Star, Plus, Minus, ArrowLeft, ChevronLeft, ChevronRight, Quote } from "lucide-react";
+import { ShoppingCart, Star, ArrowLeft, ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
 import { supabase, type Product, productHelpers } from "@/integrations/supabase/client";
+import { productApi, type ApiProduct } from "@/services/productApi";
+import { PRODUCTS, type Product as SeedProduct } from "@/data/products";
 
 // Import banner images for slider
 import banner1 from "@/assets/banner-1.jpg";
@@ -15,6 +17,140 @@ import banner2 from "@/assets/banner-2.jpg";
 import banner3 from "@/assets/banner-3.jpg";
 import banner4 from "@/assets/banner-4.jpg";
 import banner5 from "@/assets/banner-5.jpg";
+
+const numberFormatter = new Intl.NumberFormat("en-IN");
+
+const computeAvailableQuantity = (productId: string) => {
+  const hash = productId.split("").reduce((acc, char) => {
+    acc = (acc << 5) - acc + char.charCodeAt(0);
+    return acc & acc;
+  }, 0);
+  return Math.abs(hash % 16) + 5;
+};
+
+const getProductIdFromUrl = (urlId: string) => {
+  if (!urlId) return null;
+
+  const parts = urlId.split('_');
+  if (parts.length < 2) return urlId;
+
+  const productParts = parts.slice(0, -1);
+  return productParts.join('-');
+};
+
+const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
+  const stableId = apiProduct.id || apiProduct._id || "";
+  const now = new Date().toISOString();
+
+  return {
+    id: stableId,
+    product_id: stableId,
+    sku: apiProduct.sku,
+    name: apiProduct.name,
+    description: apiProduct.description,
+    detailed_description: apiProduct.detailedDescription || apiProduct.description,
+    price: numberFormatter.format(apiProduct.price ?? 0),
+    original_price: apiProduct.originalPrice !== undefined
+      ? numberFormatter.format(apiProduct.originalPrice)
+      : undefined,
+    rating: apiProduct.rating ?? 5,
+    avg_rating: apiProduct.rating ?? 5,
+    review_count: 0,
+    benefits: apiProduct.benefits ?? [],
+    specifications: apiProduct.specifications ?? {},
+    category: apiProduct.category,
+    category_name: undefined,
+    in_stock: apiProduct.inStock ?? true,
+    featured: apiProduct.featured ?? false,
+    available_quantity: apiProduct.availableQuantity ?? computeAvailableQuantity(stableId),
+    status: "published",
+    meta_title: apiProduct.name,
+    meta_description: apiProduct.description,
+    seo_keywords: Array.isArray(apiProduct.tags) ? apiProduct.tags : [],
+    weight_grams: undefined,
+    dimensions: undefined,
+    shipping_info: undefined,
+    care_instructions: [],
+    usage_instructions: [],
+    ingredients: [],
+    certifications: [],
+    origin_story: undefined,
+    energy_properties: [],
+    chakra_alignment: [],
+    zodiac_signs: [],
+    published_at: apiProduct.createdAt || now,
+    created_at: apiProduct.createdAt || now,
+    updated_at: apiProduct.updatedAt || now,
+    images: [
+      {
+        id: `img-${stableId}`,
+        url: apiProduct.image,
+        alt_text: apiProduct.name,
+        is_primary: true,
+        sort_order: 0,
+        image_type: "product",
+      },
+    ],
+    content_sections: [],
+    reviews: [],
+  };
+};
+
+const mapSeedProductToProduct = (seedProduct: SeedProduct): Product => {
+  const now = new Date().toISOString();
+  const availableQuantity = computeAvailableQuantity(seedProduct.id);
+
+  return {
+    id: seedProduct.id,
+    product_id: seedProduct.id,
+    sku: seedProduct.sku,
+    name: seedProduct.name,
+    description: seedProduct.description,
+    detailed_description: seedProduct.detailedDescription || seedProduct.description,
+    price: seedProduct.price,
+    original_price: seedProduct.originalPrice,
+    rating: seedProduct.rating ?? 5,
+    avg_rating: seedProduct.rating ?? 5,
+    review_count: 0,
+    benefits: seedProduct.benefits ?? [],
+    specifications: seedProduct.specifications ?? {},
+    category: seedProduct.category,
+    category_name: undefined,
+    in_stock: seedProduct.inStock ?? true,
+    featured: seedProduct.featured ?? false,
+    available_quantity: availableQuantity,
+    status: "published",
+    meta_title: seedProduct.name,
+    meta_description: seedProduct.description,
+    seo_keywords: [],
+    weight_grams: undefined,
+    dimensions: undefined,
+    shipping_info: undefined,
+    care_instructions: [],
+    usage_instructions: [],
+    ingredients: [],
+    certifications: [],
+    origin_story: undefined,
+    energy_properties: [],
+    chakra_alignment: [],
+    zodiac_signs: [],
+    published_at: now,
+    created_at: now,
+    updated_at: now,
+    images: [
+      {
+        id: `seed-img-${seedProduct.id}`,
+        url: seedProduct.image,
+        alt_text: seedProduct.name,
+        is_primary: true,
+        sort_order: 0,
+        image_type: "product",
+      },
+    ],
+    content_sections: [],
+    reviews: [],
+  };
+};
 
 // Import product images
 import amethystImage from "@/assets/product-amethyst.jpg";
@@ -40,7 +176,7 @@ const getActualImageUrl = (imagePath: string): string => {
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { addItem, removeItem, items } = useCart();
+  const { addItem, items } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,92 +193,116 @@ const ProductDetail = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
+  const fetchProductData = useCallback(async (productId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const actualProductId = getProductIdFromUrl(productId);
+
+      if (!actualProductId) {
+        setProduct(null);
+        setRelatedProducts([]);
+        setError('Product not found');
+        return;
+      }
+
+      let resolvedProduct: Product | null = null;
+      let resolvedRelated: Product[] = [];
+
+      // Primary data source: Supabase (if configured)
+      try {
+        const { data: productData, error: productError } = await supabase
+          .rpc('get_product_details', { product_identifier: actualProductId });
+
+        if (productError) {
+          throw productError;
+        }
+
+        if (productData?.success && productData.data) {
+          resolvedProduct = productData.data as Product;
+
+          const { data: relatedData, error: relatedError } = await supabase
+            .from('product_details_view')
+            .select('*')
+            .eq('category', productData.data.category)
+            .neq('product_id', productData.data.product_id)
+            .eq('status', 'published')
+            .limit(12);
+
+          if (!relatedError && relatedData) {
+            resolvedRelated = relatedData as Product[];
+          }
+        }
+      } catch (supabaseError) {
+        console.warn('Supabase product lookup failed, will fall back to API/seed data', supabaseError);
+      }
+
+      // Fallback 1: internal product API (Mongo-backed)
+      if (!resolvedProduct) {
+        try {
+          const apiProduct = await productApi.get(actualProductId);
+          resolvedProduct = mapApiProductToProduct(apiProduct);
+
+          const apiProducts = await productApi.list();
+          resolvedRelated = apiProducts
+            .filter((item) => {
+              const id = item.id || item._id;
+              return item.category === apiProduct.category && id !== (apiProduct.id || apiProduct._id);
+            })
+            .slice(0, 12)
+            .map(mapApiProductToProduct);
+        } catch (apiError) {
+          console.warn('Product API fallback failed', apiError);
+        }
+      }
+
+      // Fallback 2: static seed data
+      if (!resolvedProduct) {
+        const seedProduct = PRODUCTS.find((item) => item.id === actualProductId);
+        if (seedProduct) {
+          resolvedProduct = mapSeedProductToProduct(seedProduct);
+          resolvedRelated = PRODUCTS
+            .filter((item) => item.category === seedProduct.category && item.id !== seedProduct.id)
+            .slice(0, 12)
+            .map(mapSeedProductToProduct);
+        }
+      }
+
+      // Ensure we have some related items even if primary source succeeded
+      if (resolvedProduct && resolvedRelated.length === 0) {
+        resolvedRelated = PRODUCTS
+          .filter((item) => item.category === resolvedProduct?.category && item.id !== resolvedProduct.product_id)
+          .slice(0, 12)
+          .map(mapSeedProductToProduct);
+      }
+
+      if (resolvedProduct) {
+        setProduct(resolvedProduct);
+        setRelatedProducts(resolvedRelated);
+      } else {
+        setProduct(null);
+        setRelatedProducts([]);
+        setError('Product not found');
+      }
+    } catch (err) {
+      console.error('Error loading product data', err);
+      setProduct(null);
+      setRelatedProducts([]);
+      setError('Failed to load product');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Fetch product data
   useEffect(() => {
     if (id) {
       fetchProductData(id);
     }
-  }, [id]);
-
-  const fetchProductData = async (productId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get the actual product ID from URL format
-      const actualProductId = getProductIdFromUrl(productId);
-
-      // Fetch main product
-      const { data: productData, error: productError } = await supabase
-        .rpc('get_product_details', { product_identifier: actualProductId });
-
-      if (productError) {
-        console.error('Error fetching product:', productError);
-        setError('Product not found');
-        return;
-      }
-
-      if (!productData.success) {
-        setError(productData.message || 'Product not found');
-        return;
-      }
-
-      setProduct(productData.data);
-
-      // Fetch related products from same category
-      const { data: relatedData, error: relatedError } = await supabase
-        .from('product_details_view')
-        .select('*')
-        .eq('category', productData.data.category)
-        .neq('product_id', productData.data.product_id)
-        .eq('status', 'published')
-        .limit(12); // Increased from 6 to 12 for more variety
-
-      if (!relatedError && relatedData) {
-        setRelatedProducts(relatedData);
-      } else {
-        // Fallback to local products data
-        const { PRODUCTS } = await import('@/data/products');
-        const fallbackProducts = PRODUCTS
-          .filter(product => product.id !== productData.data.product_id)
-          .slice(0, 12)
-          .map(product => ({
-            product_id: product.id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            original_price: product.originalPrice,
-            rating: product.rating,
-            sku: product.sku,
-            category: product.category,
-            images: [{ url: product.image, is_primary: true }]
-          }));
-        setRelatedProducts(fallbackProducts as any);
-      }
-
-    } catch (err) {
-      console.error('Error:', err);
-      setError('Failed to load product');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id, fetchProductData]);
 
   // Extract product ID from URL format: product_name_sku
-  const getProductIdFromUrl = (urlId: string) => {
-    if (!urlId) return null;
-
-    // Split by underscore and take all parts except the last one (which is SKU)
-    const parts = urlId.split('_');
-    if (parts.length < 2) return urlId; // fallback to original if no SKU
-
-    // Remove the last part (SKU) and rejoin with hyphens
-    const productParts = parts.slice(0, -1); // Remove last element (SKU)
-    const productId = productParts.join('-'); // rejoin with hyphens
-
-    return productId;
-  };
-
   // Sync quantity with existing cart item
   useEffect(() => {
     if (product) {
@@ -239,20 +399,10 @@ const ProductDetail = () => {
   const primaryImage = primaryImageFromImages !== '/placeholder.svg'
     ? primaryImageFromImages
     : getActualImageUrl((product as any)?.image || '/placeholder.svg');
-  const allImages = productImages.length > 0 ? productImages.map(img => img.url) : [primaryImage];
 
   // Get actual product ID from URL format
   const actualProductId = id ? getProductIdFromUrl(id) : null;
-  
-  // Static available quantity using product ID hash (same logic as ProductCard)
-  const getAvailableQuantity = (productId: string) => {
-    const hash = productId.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
-  };
-  const availableQuantity = actualProductId ? getAvailableQuantity(actualProductId) : 0;
+  const availableQuantity = actualProductId ? computeAvailableQuantity(actualProductId) : 0;
 
   if (!product) {
     return (
@@ -517,6 +667,9 @@ const ProductDetail = () => {
                     <span className="text-angelic-deep">{value}</span>
                   </div>
                 ))}
+                {Object.keys(product.specifications).length === 0 && (
+                  <p className="text-angelic-deep/60 text-sm">Specification details will appear here once added.</p>
+                )}
               </div>
             </Card>
           </div>
