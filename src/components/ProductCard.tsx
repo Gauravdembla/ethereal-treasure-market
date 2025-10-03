@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Star, ChevronLeft, ChevronRight, Plus, Minus } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
+import { useMembershipPricing } from "@/hooks/useMembershipPricing";
 
 // Import banner images for mockups
 import banner1 from "@/assets/banner-1.jpg";
@@ -24,6 +25,19 @@ interface ProductCardProps {
   rating?: number;
 }
 
+// Consistent review counts for each product (instead of random)
+const getReviewCount = (productId: string): number => {
+  const reviewCounts: Record<string, number> = {
+    'amethyst-cluster': 3,
+    'angel-oracle-cards': 2,
+    'healing-candle': 2,
+    'spiritual-journal': 3,
+    'rose-quartz-heart': 2,
+    'chakra-stone-set': 3
+  };
+  return reviewCounts[productId] || 2;
+};
+
 const ProductCard = ({
   id,
   sku,
@@ -35,6 +49,7 @@ const ProductCard = ({
   rating = 5
 }: ProductCardProps) => {
   const { addItem, removeItem, items } = useCart();
+  const { calculatePrice, formatPrice, hasDiscount, isAuthenticated } = useMembershipPricing();
 
   const cartItem = items.find(item => item.id === id);
   const currentQuantity = cartItem?.quantity || 0;
@@ -181,32 +196,65 @@ const ProductCard = ({
           {[...Array(rating)].map((_, i) => (
             <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
           ))}
+          <span className="text-sm text-gray-600 ml-1">
+            ({getReviewCount(id)} Reviews)
+          </span>
         </div>
         
         <h3 className="font-playfair font-semibold text-lg text-angelic-deep group-hover:text-primary transition-colors duration-300">
           {name}
         </h3>
         
-        <p className="text-sm text-angelic-deep/70 leading-relaxed">
-          {description}...{" "}
-          <Link to={`/product/${id}`} className="inline group/readmore">
-            <Button
-              variant="link"
-              size="sm"
-              className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-sm transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg cursor-pointer relative overflow-hidden"
-            >
-              <span className="relative z-10">Read More</span>
-              <span className="ml-1 transition-transform duration-300 group-hover/readmore:translate-x-1">→</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 transform scale-x-0 group-hover/readmore:scale-x-100 transition-transform duration-300 origin-left"></div>
-            </Button>
-          </Link>
-        </p>
+        <div className="text-sm text-angelic-deep/70 leading-relaxed">
+          <div className="h-10 mb-2">
+            <p className="line-clamp-2">
+              {description.length > 80 ? description.substring(0, 80) + '...' : description}
+            </p>
+          </div>
+          <div>
+            <Link to={`/product/${id}`} className="inline group/readmore">
+              <Button
+                variant="link"
+                size="sm"
+                className="p-0 h-auto text-primary hover:text-white hover:bg-primary hover:px-2 hover:py-0.5 hover:rounded-full text-sm transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg cursor-pointer relative overflow-hidden"
+              >
+                <span className="relative z-10">Read More</span>
+                <span className="ml-1 transition-transform duration-300 group-hover/readmore:translate-x-1">→</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 transform scale-x-0 group-hover/readmore:scale-x-100 transition-transform duration-300 origin-left"></div>
+              </Button>
+            </Link>
+          </div>
+        </div>
         
-        <div className="flex items-center gap-2 mb-4">
-          <span className="font-semibold text-primary text-lg">₹{price}</span>
-          {originalPrice && (
-            <span className="text-sm text-muted-foreground line-through">
-              ₹{originalPrice}
+        <div className="flex flex-col gap-1 mb-4">
+          {/* Membership Pricing */}
+          {isAuthenticated() && hasDiscount() ? (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-primary text-lg">
+                {formatPrice(calculatePrice(price).discountedPrice)}
+              </span>
+              <span className="text-sm text-muted-foreground line-through">
+                ₹{price}
+              </span>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                {calculatePrice(price).discountPercentage}% OFF
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-primary text-lg">₹{price}</span>
+              {originalPrice && (
+                <span className="text-sm text-muted-foreground line-through">
+                  ₹{originalPrice}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Membership Savings Info */}
+          {isAuthenticated() && hasDiscount() && (
+            <span className="text-xs text-green-600 font-medium">
+              You save {formatPrice(calculatePrice(price).savings)} with membership!
             </span>
           )}
         </div>
