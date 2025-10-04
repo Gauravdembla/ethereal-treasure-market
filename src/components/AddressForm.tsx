@@ -22,7 +22,7 @@ interface AddressFormProps {
     isDefault: boolean;
   };
   onAddressChange: (address: any) => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   onCancel: () => void;
 }
 

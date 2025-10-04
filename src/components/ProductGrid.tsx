@@ -1,10 +1,36 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import ProductCard from "./ProductCard";
 import SearchAndFilter, { FilterOptions } from "./SearchAndFilter";
 import ProductPagination from "./ProductPagination";
 import { PRODUCTS, Product } from "@/data/products";
+import { productApi, type ApiProduct } from "@/services/productApi";
+
+const numberFormatter = new Intl.NumberFormat("en-IN");
+
+const apiProductToGridProduct = (product: ApiProduct): Product => {
+  const stableId = product.id || product._id || "";
+  return {
+    id: stableId,
+    sku: product.sku,
+  name: product.name,
+  description: product.description,
+  detailedDescription: product.detailedDescription || product.description,
+  price: numberFormatter.format(product.price ?? 0),
+  originalPrice: product.originalPrice ? numberFormatter.format(product.originalPrice) : undefined,
+  image: product.image,
+  rating: product.rating ?? 5,
+  benefits: product.benefits ?? [],
+  specifications: product.specifications ?? {},
+  category: product.category || "",
+  inStock: product.inStock,
+  featured: product.featured,
+  };
+};
 
 const ProductGrid = () => {
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({
     searchQuery: "",
     category: "all",
@@ -17,6 +43,39 @@ const ProductGrid = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 20;
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadProducts = async () => {
+      setLoading(true);
+      try {
+        const apiProducts = await productApi.list();
+        if (!isActive) return;
+
+        if (apiProducts.length === 0) {
+          setProducts([]);
+        } else {
+          setProducts(apiProducts.map(apiProductToGridProduct));
+        }
+        setError(null);
+      } catch (error: unknown) {
+        if (!isActive) return;
+        console.error("Failed to load storefront products", error);
+        setError(error instanceof Error ? error.message : "Failed to load products");
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   // Helper function to convert price string to number
   const getPriceAsNumber = (priceString: string): number => {
     return parseInt(priceString.replace(/,/g, ""));
@@ -24,7 +83,7 @@ const ProductGrid = () => {
 
   // Filter and sort products based on current filters
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = [...PRODUCTS];
+    let filtered = [...products];
 
     // Apply search filter
     if (filters.searchQuery) {
@@ -88,7 +147,7 @@ const ProductGrid = () => {
     });
 
     return filtered;
-  }, [filters]);
+  }, [filters, products]);
 
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
@@ -122,14 +181,29 @@ const ProductGrid = () => {
         {/* Search and Filter Component */}
         <SearchAndFilter
           onFilterChange={handleFilterChange}
-          totalProducts={PRODUCTS.length}
+          totalProducts={products.length}
           filteredCount={filteredAndSortedProducts.length}
         />
 
         {/* Products Grid */}
         <div className="px-6">
-          {filteredAndSortedProducts.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">⏳</div>
+              <h3 className="text-2xl font-playfair font-bold text-angelic-deep mb-2">
+                Fetching divine treasures
+              </h3>
+              <p className="text-angelic-deep/70">
+                Please wait while we retrieve the latest collection for you.
+              </p>
+            </div>
+          ) : filteredAndSortedProducts.length > 0 ? (
             <>
+              {error && (
+                <div className="mb-4 text-sm text-amber-700 bg-amber-100 border border-amber-200 p-3 rounded">
+                  {error} – showing cached catalog.
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {currentProducts.map((product) => (
                   <ProductCard
@@ -142,6 +216,7 @@ const ProductGrid = () => {
                     price={product.price}
                     originalPrice={product.originalPrice}
                     rating={product.rating}
+                    inStock={product.inStock}
                   />
                 ))}
               </div>
@@ -162,7 +237,9 @@ const ProductGrid = () => {
                 No products found
               </h3>
               <p className="text-angelic-deep/70 mb-6">
-                Try adjusting your search or filter criteria
+                {error
+                  ? "We couldn't reach the catalog service. Please try again soon."
+                  : "Try adjusting your search or filter criteria"}
               </p>
               <button
                 onClick={() => {

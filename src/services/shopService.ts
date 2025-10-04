@@ -1,6 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
+import { productApi, type ApiProduct, type ProductPayload } from '@/services/productApi';
 
-// Types for shop management
 export interface ShopProduct {
   id: string;
   sku: string;
@@ -11,7 +10,7 @@ export interface ShopProduct {
   original_price?: number;
   rating: number;
   benefits: string[];
-  specifications: Record<string, any>;
+  specifications: Record<string, string>;
   category: string;
   in_stock: boolean;
   featured: boolean;
@@ -32,6 +31,7 @@ export interface ProductImage {
   alt_text?: string;
   is_primary: boolean;
   sort_order: number;
+  created_at?: string;
 }
 
 export interface HeroSettings {
@@ -102,481 +102,163 @@ export interface Testimonial {
   updated_at: string;
 }
 
-// Product Management Services
+const apiProductToShopProduct = (product: ApiProduct): ShopProduct => {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    description: product.description,
+    detailed_description: product.detailedDescription || product.description,
+    price: product.price,
+    original_price: product.originalPrice,
+    rating: product.rating,
+    benefits: product.benefits || [],
+    specifications: product.specifications || {},
+    category: product.category,
+    in_stock: product.inStock,
+    featured: product.featured,
+    available_quantity: product.availableQuantity,
+    status: 'published',
+    meta_title: product.name,
+    meta_description: product.description,
+    seo_keywords: [],
+    created_at: product.createdAt || timestamp,
+    updated_at: product.updatedAt || timestamp,
+    images: [
+      {
+        id: `img-${product.id}`,
+        product_id: product.id,
+        url: product.image,
+        alt_text: product.name,
+        is_primary: true,
+        sort_order: 0,
+        created_at: product.createdAt || timestamp,
+      },
+    ],
+  };
+};
+
+const shopProductToPayload = (product: Partial<ShopProduct>): Partial<ProductPayload> => {
+  const payload: Partial<ProductPayload> = {};
+
+  if (product.sku !== undefined) payload.sku = product.sku;
+  if (product.name !== undefined) payload.name = product.name;
+  if (product.description !== undefined) payload.description = product.description;
+  if (product.detailed_description !== undefined) payload.detailedDescription = product.detailed_description;
+  if (product.price !== undefined) payload.price = product.price;
+  if (product.original_price !== undefined) payload.originalPrice = product.original_price;
+  if (product.images?.[0]?.url) payload.image = product.images[0].url;
+  if (product.rating !== undefined) payload.rating = product.rating;
+  if (product.benefits !== undefined) payload.benefits = product.benefits;
+  if (product.specifications !== undefined) payload.specifications = product.specifications;
+  if (product.category !== undefined) payload.category = product.category;
+  if (product.in_stock !== undefined) payload.inStock = product.in_stock;
+  if (product.featured !== undefined) payload.featured = product.featured;
+  if (product.available_quantity !== undefined) payload.availableQuantity = product.available_quantity;
+
+  return payload;
+};
+
 export const productService = {
-  // Get all products
-  async getProducts() {
-    try {
-      // First try to get from localStorage (for admin updates)
-      const localProducts = JSON.parse(localStorage.getItem('ethereal_products') || '[]');
-
-      if (localProducts.length > 0) {
-        console.log('Loading products from localStorage...');
-        return localProducts as ShopProduct[];
-      }
-
-      // If no localStorage data, try Supabase first
-      console.log('Attempting to load products from Supabase...');
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          images:product_images(*)
-        `)
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-
-      if (!error && data && data.length > 0) {
-        console.log('Loaded products from Supabase:', data.length);
-        return data as ShopProduct[];
-      }
-
-      // Fallback to local products data
-      console.log('Loading products from local data...');
-      const { PRODUCTS } = await import('@/data/products');
-      const convertedProducts = PRODUCTS.map(product => ({
-          id: product.id,
-          sku: product.sku,
-          name: product.name,
-          description: product.description,
-          detailed_description: product.detailedDescription || product.description,
-          price: parseFloat(product.price.replace(/,/g, '')),
-          original_price: product.originalPrice ? parseFloat(product.originalPrice.replace(/,/g, '')) : undefined,
-          rating: product.rating,
-          benefits: product.benefits || [],
-          specifications: product.specifications || {},
-          category: product.category,
-          in_stock: product.inStock,
-          featured: product.featured,
-          available_quantity: 100,
-          status: 'published' as const,
-          meta_title: product.name,
-          meta_description: product.description,
-          seo_keywords: [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          images: [{
-            id: `img-${product.id}`,
-            product_id: product.id,
-            url: product.image,
-            alt_text: product.name,
-            is_primary: true,
-            sort_order: 0,
-            created_at: new Date().toISOString()
-          }]
-      })) as ShopProduct[];
-
-      // Store in localStorage for persistence
-      localStorage.setItem('ethereal_products', JSON.stringify(convertedProducts));
-      console.log(`Loaded ${convertedProducts.length} products from local data`);
-      return convertedProducts;
-    } catch (error) {
-      console.error('Error loading products:', error);
-      return [];
-    }
+  async getProducts(): Promise<ShopProduct[]> {
+    const products = await productApi.list();
+    return products.map(apiProductToShopProduct);
   },
 
-  // Get single product
-  async getProduct(id: string) {
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *,
-        images:product_images(*)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data as ShopProduct;
+  async getProduct(id: string): Promise<ShopProduct> {
+    const product = await productApi.get(id);
+    return apiProductToShopProduct(product);
   },
 
-  // Create product
-  async createProduct(product: Omit<ShopProduct, 'id' | 'created_at' | 'updated_at'>) {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .insert([product])
-        .select()
-        .single();
+  async createProduct(product: Omit<ShopProduct, 'id' | 'created_at' | 'updated_at'>): Promise<ShopProduct> {
+    const payload = shopProductToPayload(product);
 
-      if (error) throw error;
-      return data as ShopProduct;
-    } catch (error) {
-      // Fallback: create product with local ID
-      const newProduct: ShopProduct = {
-        ...product,
-        id: `product-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      // Store in localStorage
-      const existingProducts = JSON.parse(localStorage.getItem('ethereal_products') || '[]');
-      existingProducts.push(newProduct);
-      localStorage.setItem('ethereal_products', JSON.stringify(existingProducts));
-
-      return newProduct;
+    if (!payload.sku || !payload.name || !payload.description || payload.price === undefined) {
+      throw new Error('Missing required product fields');
     }
+
+    const created = await productApi.create(payload as ProductPayload);
+    return apiProductToShopProduct(created);
   },
 
-  // Update product
-  async updateProduct(id: string, updates: Partial<ShopProduct>) {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as ShopProduct;
-    } catch (error) {
-      // Fallback: update in localStorage
-      const existingProducts = JSON.parse(localStorage.getItem('ethereal_products') || '[]');
-      const updatedProducts = existingProducts.map((p: ShopProduct) =>
-        p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
-      );
-      localStorage.setItem('ethereal_products', JSON.stringify(updatedProducts));
-
-      const updatedProduct = updatedProducts.find((p: ShopProduct) => p.id === id);
-      return updatedProduct || updates as ShopProduct;
-    }
+  async updateProduct(id: string, updates: Partial<ShopProduct>): Promise<ShopProduct> {
+    const payload = shopProductToPayload(updates);
+    const updated = await productApi.update(id, payload);
+    return apiProductToShopProduct(updated);
   },
 
-  // Delete product
-  async deleteProduct(id: string) {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    } catch (error) {
-      // Fallback: remove from localStorage
-      const existingProducts = JSON.parse(localStorage.getItem('ethereal_products') || '[]');
-      const filteredProducts = existingProducts.filter((p: ShopProduct) => p.id !== id);
-      localStorage.setItem('ethereal_products', JSON.stringify(filteredProducts));
-    }
+  async deleteProduct(id: string): Promise<void> {
+    await productApi.remove(id);
   },
 
-  // Toggle product status
-  async toggleProductStatus(id: string, field: 'in_stock' | 'featured', value: boolean) {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .update({ [field]: value })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as ShopProduct;
-    } catch (error) {
-      console.log(`Updating ${field} in localStorage for product ${id}`);
-      // Fallback: update in localStorage
-      let existingProducts = JSON.parse(localStorage.getItem('ethereal_products') || '[]');
-
-      // If no products in localStorage, load from local data first
-      if (existingProducts.length === 0) {
-        const { PRODUCTS } = await import('@/data/products');
-        existingProducts = PRODUCTS.map(product => ({
-          id: product.id,
-          sku: product.sku,
-          name: product.name,
-          description: product.description,
-          detailed_description: product.detailedDescription || product.description,
-          price: parseFloat(product.price.replace(/,/g, '')),
-          original_price: product.originalPrice ? parseFloat(product.originalPrice.replace(/,/g, '')) : undefined,
-          rating: product.rating,
-          benefits: product.benefits || [],
-          specifications: product.specifications || {},
-          category: product.category,
-          in_stock: product.inStock,
-          featured: product.featured,
-          available_quantity: 100,
-          status: 'published' as const,
-          meta_title: product.name,
-          meta_description: product.description,
-          seo_keywords: [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          images: [{
-            id: `img-${product.id}`,
-            product_id: product.id,
-            url: product.image,
-            alt_text: product.name,
-            is_primary: true,
-            sort_order: 0,
-            created_at: new Date().toISOString()
-          }]
-        }));
-      }
-
-      const updatedProducts = existingProducts.map((p: ShopProduct) =>
-        p.id === id ? { ...p, [field]: value, updated_at: new Date().toISOString() } : p
-      );
-      localStorage.setItem('ethereal_products', JSON.stringify(updatedProducts));
-
-      const updatedProduct = updatedProducts.find((p: ShopProduct) => p.id === id);
-      if (!updatedProduct) {
-        throw new Error(`Product with id ${id} not found`);
-      }
-      return updatedProduct;
-    }
+  async toggleProductStatus(id: string, field: 'in_stock' | 'featured', value: boolean): Promise<ShopProduct> {
+    const payloadKey = field === 'in_stock' ? 'inStock' : 'featured';
+    const updated = await productApi.update(id, { [payloadKey]: value });
+    return apiProductToShopProduct(updated);
   }
 };
 
-// Hero Section Services
+const getFromStorage = <T>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch (error) {
+    console.warn(`Failed to read ${key} from localStorage`, error);
+    return fallback;
+  }
+};
+
+const setInStorage = <T>(key: string, value: T) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Failed to write ${key} to localStorage`, error);
+  }
+};
+
 export const heroService = {
-  // Get hero settings
-  async getHeroSettings() {
-    const { data, error } = await supabase
-      .from('hero_settings')
-      .select('*')
-      .eq('is_active', true)
-      .single();
-
-    if (error) throw error;
-    return data as HeroSettings;
+  async getHeroSettings(): Promise<HeroSettings | null> {
+    return getFromStorage('ethereal_hero_settings', null);
   },
-
-  // Update hero settings
-  async updateHeroSettings(settings: Partial<HeroSettings>) {
-    // First, set all existing records to inactive
-    await supabase
-      .from('hero_settings')
-      .update({ is_active: false })
-      .eq('is_active', true);
-
-    // Then insert or update the new settings
-    const { data, error } = await supabase
-      .from('hero_settings')
-      .upsert([{ ...settings, is_active: true }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as HeroSettings;
+  async updateHeroSettings(settings: HeroSettings): Promise<HeroSettings> {
+    setInStorage('ethereal_hero_settings', settings);
+    return settings;
   }
 };
 
-// Navigation Services
 export const navigationService = {
-  // Get navigation items
-  async getNavigationItems() {
-    const { data, error } = await supabase
-      .from('navigation_items')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (error) throw error;
-    return data as NavigationItem[];
+  async getNavigationSettings(): Promise<NavigationSettings | null> {
+    return getFromStorage('ethereal_navigation_settings', null);
   },
-
-  // Get navigation settings
-  async getNavigationSettings() {
-    const { data, error } = await supabase
-      .from('navigation_settings')
-      .select('*')
-      .eq('is_active', true)
-      .single();
-
-    if (error) throw error;
-    return data as NavigationSettings;
-  },
-
-  // Create navigation item
-  async createNavigationItem(item: Omit<NavigationItem, 'id'>) {
-    const { data, error } = await supabase
-      .from('navigation_items')
-      .insert([item])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as NavigationItem;
-  },
-
-  // Update navigation item
-  async updateNavigationItem(id: string, updates: Partial<NavigationItem>) {
-    const { data, error } = await supabase
-      .from('navigation_items')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as NavigationItem;
-  },
-
-  // Delete navigation item
-  async deleteNavigationItem(id: string) {
-    const { error } = await supabase
-      .from('navigation_items')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-  },
-
-  // Update navigation settings
-  async updateNavigationSettings(settings: Partial<NavigationSettings>) {
-    // First, set all existing records to inactive
-    await supabase
-      .from('navigation_settings')
-      .update({ is_active: false })
-      .eq('is_active', true);
-
-    // Then insert or update the new settings
-    const { data, error } = await supabase
-      .from('navigation_settings')
-      .upsert([{ ...settings, is_active: true }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as NavigationSettings;
+  async updateNavigationSettings(settings: NavigationSettings): Promise<NavigationSettings> {
+    setInStorage('ethereal_navigation_settings', settings);
+    return settings;
   }
 };
 
-// Testimonials Services
-export const testimonialsService = {
-  // Get all testimonials
-  async getTestimonials() {
-    try {
-      const { data, error } = await supabase
-        .from('testimonials')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        // Fallback to localStorage
-        const stored = localStorage.getItem('ethereal_testimonials');
-        return stored ? JSON.parse(stored) : [];
-      }
-      return data as Testimonial[];
-    } catch (error) {
-      // Final fallback
-      const stored = localStorage.getItem('ethereal_testimonials');
-      return stored ? JSON.parse(stored) : [];
-    }
+export const testimonialService = {
+  async getTestimonials(): Promise<Testimonial[]> {
+    return getFromStorage('ethereal_testimonials', [] as Testimonial[]);
   },
-
-  // Get approved testimonials for frontend
-  async getApprovedTestimonials(limit?: number) {
-    let query = supabase
-      .from('testimonials')
-      .select('*')
-      .eq('is_approved', true)
-      .eq('is_visible', true)
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    if (limit) {
-      query = query.limit(limit);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-    return data as Testimonial[];
-  },
-
-  // Create testimonial
-  async createTestimonial(testimonial: Omit<Testimonial, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
-      .from('testimonials')
-      .insert([testimonial])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as Testimonial;
-  },
-
-  // Update testimonial
-  async updateTestimonial(id: string, updates: Partial<Testimonial>) {
-    const { data, error } = await supabase
-      .from('testimonials')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as Testimonial;
-  },
-
-  // Delete testimonial
-  async deleteTestimonial(id: string) {
-    const { error } = await supabase
-      .from('testimonials')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-  },
-
-  // Toggle testimonial status
-  async toggleTestimonialStatus(id: string, field: keyof Pick<Testimonial, 'is_approved' | 'is_featured' | 'is_visible'>, value: boolean) {
-    const { data, error } = await supabase
-      .from('testimonials')
-      .update({ [field]: value })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as Testimonial;
+  async saveTestimonials(testimonials: Testimonial[]): Promise<Testimonial[]> {
+    setInStorage('ethereal_testimonials', testimonials);
+    return testimonials;
   }
 };
 
-// Shop Settings Services
 export const shopSettingsService = {
-  // Get shop setting by key
-  async getSetting(key: string) {
-    const { data, error } = await supabase
-      .from('shop_settings')
-      .select('*')
-      .eq('setting_key', key)
-      .eq('is_active', true)
-      .single();
-
-    if (error) throw error;
-    return data;
+  async getSetting<T = unknown>(key: string): Promise<T | undefined> {
+    const settings = getFromStorage<Record<string, T>>('ethereal_shop_settings', {} as Record<string, T>);
+    return settings[key];
   },
-
-  // Get all settings by type
-  async getSettingsByType(type: string) {
-    const { data, error } = await supabase
-      .from('shop_settings')
-      .select('*')
-      .eq('setting_type', type)
-      .eq('is_active', true);
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Update setting
-  async updateSetting(key: string, value: any, type: string, description?: string) {
-    const { data, error } = await supabase
-      .from('shop_settings')
-      .upsert([{
-        setting_key: key,
-        setting_value: value,
-        setting_type: type,
-        description,
-        is_active: true
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+  async updateSetting<T = unknown>(key: string, value: T): Promise<T> {
+    const settings = getFromStorage<Record<string, T>>('ethereal_shop_settings', {} as Record<string, T>);
+    settings[key] = value;
+    setInStorage('ethereal_shop_settings', settings);
+    return value;
   }
 };

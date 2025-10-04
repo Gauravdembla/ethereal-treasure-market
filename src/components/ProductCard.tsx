@@ -23,6 +23,7 @@ interface ProductCardProps {
   price: string;
   originalPrice?: string;
   rating?: number;
+  inStock?: boolean;
 }
 
 // Consistent review counts for each product (instead of random)
@@ -46,7 +47,8 @@ const ProductCard = ({
   description,
   price,
   originalPrice,
-  rating = 5
+  rating = 5,
+  inStock = true
 }: ProductCardProps) => {
   const { addItem, removeItem, items } = useCart();
   const { calculatePrice, formatPrice, hasDiscount, isAuthenticated } = useMembershipPricing();
@@ -65,7 +67,8 @@ const ProductCard = ({
     }, 0);
     return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
-  const availableQuantity = getAvailableQuantity(id);
+  const availableQuantity = inStock ? getAvailableQuantity(id) : 0;
+  const outOfStock = !inStock;
 
   // Sync selectedQuantity with cart quantity
   useEffect(() => {
@@ -84,6 +87,11 @@ const ProductCard = ({
   ];
 
   const handleAddToCart = () => {
+    if (!inStock) {
+      alert('This product is currently out of stock.');
+      return;
+    }
+
     if (selectedQuantity > availableQuantity) {
       alert(`Can't select quantity more than available. Available: ${availableQuantity}`);
       return;
@@ -102,6 +110,7 @@ const ProductCard = ({
   const handleQuantityIncrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!inStock) return;
     console.log('➕ Quantity increase clicked for:', id, 'current quantity:', currentQuantity);
     addItem({ id, name, price, image }, currentQuantity + 1);
     console.log('➕ After increase, target quantity:', currentQuantity + 1);
@@ -110,6 +119,7 @@ const ProductCard = ({
   const handleQuantityDecrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!inStock) return;
     console.log('➖ Quantity decrease clicked for:', id, 'current quantity:', currentQuantity);
     if (currentQuantity > 1) {
       addItem({ id, name, price, image }, currentQuantity - 1);
@@ -138,7 +148,7 @@ const ProductCard = ({
     setCurrentImageIndex(index);
   };
   return (
-    <Card className="product-card group">
+    <Card className={`product-card group ${outOfStock ? 'opacity-90' : ''}`}>
       <div className="relative mb-4 overflow-hidden rounded-xl">
         {/* Image Slider */}
         <div className="relative">
@@ -148,6 +158,12 @@ const ProductCard = ({
             className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
             key={currentImageIndex}
           />
+
+          {outOfStock && (
+            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+              <span className="text-white font-semibold uppercase tracking-wide">Out of Stock</span>
+            </div>
+          )}
 
           {/* Image Counter */}
           <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -261,44 +277,60 @@ const ProductCard = ({
         
         {/* New Quantity Controls Design */}
         <div className="space-y-3">
-          {/* Quantity Dropdown - Same Line - Centered */}
-          <div className="flex items-center justify-center gap-3">
-            <label className="text-sm font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
-            <Select value={(currentQuantity || selectedQuantity).toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
-              <SelectTrigger className="w-20">
-                <SelectValue placeholder="Select quantity" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                  <SelectItem
-                    key={num}
-                    value={num.toString()}
-                    disabled={num > availableQuantity}
-                    className={num > availableQuantity ? "text-gray-400" : ""}
-                  >
-                    {num} {num > availableQuantity ? "(Out of stock)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {outOfStock ? (
+            <>
+              <div className="text-center text-sm font-medium text-red-600">
+                Currently unavailable
+              </div>
+              <Button
+                onClick={handleAddToCart}
+                variant="angelic"
+                disabled
+                className="w-full opacity-60 cursor-not-allowed"
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Out of Stock
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-3">
+                <label className="text-sm font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
+                <Select value={(currentQuantity || selectedQuantity).toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue placeholder="Select quantity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                      <SelectItem
+                        key={num}
+                        value={num.toString()}
+                        disabled={num > availableQuantity}
+                        className={num > availableQuantity ? "text-gray-400" : ""}
+                      >
+                        {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Add to Cart Button - Always visible */}
-          <Button
-            onClick={handleAddToCart}
-            variant="angelic"
-            className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
-          >
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            Add to Cart {currentQuantity > 0 && `(${currentQuantity} in cart)`}
-          </Button>
+              <Button
+                onClick={handleAddToCart}
+                variant="angelic"
+                className="w-full group-hover:bg-gradient-to-r group-hover:from-primary/90 group-hover:to-accent/80 group-hover:text-primary-foreground transition-all duration-300"
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Add to Cart {currentQuantity > 0 && `(${currentQuantity} in cart)`}
+              </Button>
 
-          {/* Available Quantity Info */}
-          <div className="text-center">
-            <span className="text-xs text-angelic-deep/70">
-              Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
-            </span>
-          </div>
+              <div className="text-center">
+                <span className="text-xs text-angelic-deep/70">
+                  Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Card>
