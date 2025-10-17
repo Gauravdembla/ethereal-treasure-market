@@ -357,7 +357,7 @@ const SearchAndFilter = ({ onFilterChange, totalProducts, filteredCount }: Searc
               className="text-angelic-deep/70 hover:text-angelic-deep"
             >
               <X className="w-4 h-4 mr-1" />
-              Clear ({activeFiltersCount})
+              Clear ({`${activeFiltersCount}`})
             </Button>
           )}
         </div>
