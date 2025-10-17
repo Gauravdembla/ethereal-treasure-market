@@ -1,0 +1,27 @@
+{
+  "name": "ethereal-treasure-market-backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false server/index.ts",
+    "start": "node --loader tsx server/index.ts",
+    "init:mongo": "tsx server/scripts/initMongo.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "http-errors": "^2.0.0",
+    "mongoose": "^8.18.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/http-errors": "^2.0.5",
+    "@types/node": "^22.5.5",
+    "tsx": "^4.20.5",
+    "typescript": "^5.5.3"
+  }
+}
+
