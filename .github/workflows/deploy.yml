@@ -1,0 +1,36 @@
+name: Deploy to Hostinger (CloudPanel)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (optional)
+        uses: actions/checkout@v4
+
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+
+      - name: SSH & run deploy script
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            APP_PATH="${{ secrets.APP_PATH || '/home/angelsonearthhub-aoeshop/htdocs/app' }}"
+            cd "$APP_PATH"
+            ./bin/deploy.sh
