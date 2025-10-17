@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -275,6 +275,11 @@ const Admin = () => {
     shop: false
   });
 
+  // Sidebar resize state
+  const [sidebarWidth, setSidebarWidth] = useState(256); // 256px = w-64
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
   // Initialize auth on component mount
   useEffect(() => {
     initialize();
@@ -321,6 +326,36 @@ const Admin = () => {
   const handleSectionChange = (sectionId: string) => {
     setSearchParams({ section: sectionId });
   };
+
+  // Sidebar resize handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = e.clientX;
+      if (newWidth >= 200 && newWidth <= 500) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
   
   // Checkout settings state
   const [showAngelCoins, setShowAngelCoins] = useState(true);
@@ -1324,128 +1359,139 @@ const Admin = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-slate-100">
-        <Sidebar className="w-64">
-          <SidebarContent>
-            <div className="p-4 border-b">
-              <h1 className="font-playfair text-xl font-bold text-slate-800">Admin Dashboard</h1>
-              <p className="text-sm text-slate-600">Angels On Earth</p>
-            </div>
-            
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menuItems.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      {item.type === "single" ? (
-                        <SidebarMenuButton
-                          onClick={() => handleSectionChange(item.id)}
-                          className={`w-full justify-start ${
-                            activeSection === item.id ? "bg-primary text-primary-foreground" : ""
-                          }`}
-                        >
-                          <item.icon className="w-4 h-4 mr-3" />
-                          {item.label}
-                        </SidebarMenuButton>
-                      ) : (
-                        <div>
-                          <SidebarMenuButton
-                            onClick={() => toggleSection(item.id)}
-                            className="w-full justify-between"
-                          >
-                            <div className="flex items-center">
-                              <item.icon className="w-4 h-4 mr-3" />
-                              {item.label}
-                            </div>
-                            {expandedSections[item.id] ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </SidebarMenuButton>
-                          {expandedSections[item.id] && item.children && (
-                            <div className="ml-6 mt-1 space-y-1">
-                              {item.children.map((child) => (
-                                <div key={child.id}>
-                                  {child.type === "nested-dropdown" ? (
-                                    <div>
-                                      <SidebarMenuButton
-                                        onClick={() => toggleSection(child.id)}
-                                        className="w-full justify-between text-sm"
-                                      >
-                                        <div className="flex items-center">
-                                          <child.icon className="w-3 h-3 mr-2" />
-                                          {child.label}
-                                        </div>
-                                        {expandedSections[child.id] ? (
-                                          <ChevronDown className="w-3 h-3" />
-                                        ) : (
-                                          <ChevronRight className="w-3 h-3" />
-                                        )}
-                                      </SidebarMenuButton>
-                                      {expandedSections[child.id] && child.children && (
-                                        <div className="ml-4 mt-1 space-y-1">
-                                          {child.children.map((nestedChild) => (
-                                            <SidebarMenuButton
-                                              key={nestedChild.id}
-                                              onClick={() => handleSectionChange(nestedChild.id)}
-                                              className={`w-full justify-start text-xs ${
-                                                activeSection === nestedChild.id ? "bg-primary text-primary-foreground" : ""
-                                              }`}
-                                            >
-                                              <nestedChild.icon className="w-3 h-3 mr-2" />
-                                              {nestedChild.label}
-                                            </SidebarMenuButton>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <SidebarMenuButton
-                                      onClick={() => handleSectionChange(child.id)}
-                                      className={`w-full justify-start text-sm ${
-                                        activeSection === child.id ? "bg-primary text-primary-foreground" : ""
-                                      }`}
-                                    >
-                                      <child.icon className="w-3 h-3 mr-2" />
-                                      {child.label}
-                                    </SidebarMenuButton>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            
-            <div className="mt-auto p-4 border-t">
-              <Button variant="outline" onClick={logout} className="w-full">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </SidebarContent>
-        </Sidebar>
+    <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Resizable Sidebar */}
+      <div
+        ref={sidebarRef}
+        className="relative flex-shrink-0 border-r bg-white shadow-lg overflow-y-auto"
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        <div className="p-4 border-b">
+          <h1 className="font-playfair text-xl font-bold text-slate-800">Admin Dashboard</h1>
+          <p className="text-sm text-slate-600">Angels On Earth</p>
+        </div>
 
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="bg-white shadow-sm border-b p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger />
-                <div>
-                  <h1 className="font-playfair text-2xl font-bold text-slate-800">
-                    {menuItems.find(item => item.id === activeSection)?.label}
-                  </h1>
-                  <p className="text-slate-600">Angels On Earth Management</p>
-                </div>
+        <div className="p-2">
+          <nav className="space-y-1">
+            {menuItems.map((item) => (
+              <div key={item.id}>
+                {item.type === "single" ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSectionChange(item.id)}
+                    className={`w-full justify-start ${
+                      activeSection === item.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 mr-3" />
+                    {item.label}
+                  </Button>
+                ) : (
+                  <div>
+                    <Button
+                      variant="ghost"
+                      onClick={() => toggleSection(item.id)}
+                      className="w-full justify-between"
+                    >
+                      <div className="flex items-center">
+                        <item.icon className="w-4 h-4 mr-3" />
+                        {item.label}
+                      </div>
+                      {expandedSections[item.id] ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </Button>
+                    {expandedSections[item.id] && item.children && (
+                      <div className="ml-6 mt-1 space-y-1">
+                        {item.children.map((child) => (
+                          <div key={child.id}>
+                            {child.type === "nested-dropdown" ? (
+                              <div>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => toggleSection(child.id)}
+                                  className="w-full justify-between text-sm"
+                                >
+                                  <div className="flex items-center">
+                                    <child.icon className="w-3 h-3 mr-2" />
+                                    {child.label}
+                                  </div>
+                                  {expandedSections[child.id] ? (
+                                    <ChevronDown className="w-3 h-3" />
+                                  ) : (
+                                    <ChevronRight className="w-3 h-3" />
+                                  )}
+                                </Button>
+                                {expandedSections[child.id] && child.children && (
+                                  <div className="ml-4 mt-1 space-y-1">
+                                    {child.children.map((nestedChild) => (
+                                      <Button
+                                        key={nestedChild.id}
+                                        variant="ghost"
+                                        onClick={() => handleSectionChange(nestedChild.id)}
+                                        className={`w-full justify-start text-xs ${
+                                          activeSection === nestedChild.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                                        }`}
+                                      >
+                                        <nestedChild.icon className="w-3 h-3 mr-2" />
+                                        {nestedChild.label}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                onClick={() => handleSectionChange(child.id)}
+                                className={`w-full justify-start text-sm ${
+                                  activeSection === child.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                                }`}
+                              >
+                                <child.icon className="w-3 h-3 mr-2" />
+                                {child.label}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+            ))}
+          </nav>
+        </div>
+
+        <div className="mt-auto p-4 border-t">
+          <Button variant="outline" onClick={logout} className="w-full">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+
+        {/* Resize Handle */}
+        <div
+          className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-50 ${
+            isResizing ? 'bg-blue-500' : 'bg-gray-300 hover:bg-blue-400'
+          }`}
+          onMouseDown={handleMouseDown}
+          title="Drag to resize sidebar"
+        />
+      </div>
+
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-playfair text-2xl font-bold text-slate-800">
+                {menuItems.find(item => item.id === activeSection)?.label}
+              </h1>
+              <p className="text-slate-600">Angels On Earth Management</p>
+            </div>
 
               {/* Preview Frontend Button */}
               <Button
@@ -1465,7 +1511,6 @@ const Admin = () => {
           </div>
         </main>
       </div>
-    </SidebarProvider>
   );
 };
 

@@ -24,6 +24,7 @@ export interface Product {
   category: string;
   inStock: boolean;
   featured: boolean;
+  availableQuantity?: number; // Available quantity from backend
 }
 
 // Centralized product database - this will be replaced with API calls

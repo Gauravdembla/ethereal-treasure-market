@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { build } from "esbuild";
 import { ProductModel } from "../models/Product";
+import { ReviewModel } from "../models/Review";
 
 const parsePriceString = (value?: string) => {
   if (!value) return undefined;
@@ -138,5 +139,7 @@ export const seedProductsFromStaticData = async () => {
     console.log(`Seeded ${documents.length} products into MongoDB.`);
   } catch (error) {
     console.error("Failed to seed products from static data", error);
-  }
-};
+  };
+
+
+

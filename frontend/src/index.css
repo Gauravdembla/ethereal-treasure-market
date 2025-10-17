@@ -19,6 +19,51 @@
   }
 }
 
+/* Razorpay Modal Cursor Fix */
+/* Ensure proper cursor styling for Razorpay modal elements */
+.razorpay-container,
+.razorpay-modal,
+.razorpay-modal * {
+  cursor: auto !important;
+}
+
+/* Interactive elements in Razorpay modal should show pointer cursor */
+.razorpay-modal button,
+.razorpay-modal a,
+.razorpay-modal [role="button"],
+.razorpay-modal input[type="radio"],
+.razorpay-modal input[type="checkbox"],
+.razorpay-modal label {
+  cursor: pointer !important;
+}
+
+/* Ensure text input fields show text cursor */
+.razorpay-modal input[type="text"],
+.razorpay-modal input[type="email"],
+.razorpay-modal input[type="password"],
+.razorpay-modal input[type="number"],
+.razorpay-modal textarea,
+.razorpay-modal select {
+  cursor: text !important;
+}
+
+/* Dynamic Product Grid Layout */
+.product-grid-dynamic {
+  grid-template-columns: repeat(var(--grid-cols-mobile, 1), minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .product-grid-dynamic {
+    grid-template-columns: repeat(var(--grid-cols-tablet, 2), minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .product-grid-dynamic {
+    grid-template-columns: repeat(var(--grid-cols-desktop, 4), minmax(0, 1fr));
+  }
+}
+
 /* Angels On Earth - Divine Design System
 All colors MUST be HSL. Angelic, healing, and mystical theme.
 */

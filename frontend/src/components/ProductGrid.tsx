@@ -4,6 +4,8 @@ import SearchAndFilter, { FilterOptions } from "./SearchAndFilter";
 import ProductPagination from "./ProductPagination";
 import { PRODUCTS, Product } from "@/data/products";
 import { productApi, type ApiProduct } from "@/services/productApi";
+import { reviewApi } from "@/services/reviewApi";
+import { shopSettingsApi } from "@/services/shopSettingsApi";
 
 const numberFormatter = new Intl.NumberFormat("en-IN");
 
@@ -24,6 +26,7 @@ const apiProductToGridProduct = (product: ApiProduct): Product => {
   category: product.category || "",
   inStock: product.inStock,
   featured: product.featured,
+  availableQuantity: product.availableQuantity, // Add available quantity from backend
   };
 };
 
@@ -31,6 +34,8 @@ const ProductGrid = () => {
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewCounts, setReviewCounts] = useState<Record<string, number>>({});
+  const [mediaById, setMediaById] = useState<Record<string, string[]>>({});
   const [filters, setFilters] = useState<FilterOptions>({
     searchQuery: "",
     category: "all",
@@ -39,9 +44,32 @@ const ProductGrid = () => {
     inStockOnly: false,
   });
 
+  // Grid layout settings from backend
+  const [gridLayoutMobile, setGridLayoutMobile] = useState(1);
+  const [gridLayoutTablet, setGridLayoutTablet] = useState(2);
+  const [gridLayoutDesktop, setGridLayoutDesktop] = useState(4);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 20;
+  const [productsPerPage, setProductsPerPage] = useState(20);
+
+  // Load grid settings
+  useEffect(() => {
+    const loadGridSettings = async () => {
+      try {
+        const settings = await shopSettingsApi.getSettings();
+        setGridLayoutMobile(settings.gridLayoutMobile);
+        setGridLayoutTablet(settings.gridLayoutTablet);
+        setGridLayoutDesktop(settings.gridLayoutDesktop);
+        setProductsPerPage(settings.productsPerPage);
+      } catch (error) {
+        console.error('Failed to load grid settings:', error);
+        // Use defaults if loading fails
+      }
+    };
+
+    loadGridSettings();
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -50,12 +78,39 @@ const ProductGrid = () => {
       setLoading(true);
       try {
         const apiProducts = await productApi.list();
+        console.log('[ProductGrid] Loaded products from API:', apiProducts.length);
+        console.log('[ProductGrid] First product availableQuantity:', apiProducts[0]?.availableQuantity);
         if (!isActive) return;
 
         if (apiProducts.length === 0) {
           setProducts([]);
+          setMediaById({});
         } else {
-          setProducts(apiProducts.map(apiProductToGridProduct));
+          const gridProducts = apiProducts.map(apiProductToGridProduct);
+          console.log('[ProductGrid] Converted to grid products, first product availableQuantity:', gridProducts[0]?.availableQuantity);
+          setProducts(gridProducts);
+          // Build media map (ordered images + optional video preview)
+          const mediaMap: Record<string, string[]> = {};
+          for (const p of apiProducts) {
+            const id = (p.id || p._id) as string;
+            const imgs = Array.isArray(p.images) ? [...p.images].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(i => i.url) : [];
+            const vUrl = (p as any).videoUrl as string | undefined;
+            const vIsPrimary = (p as any).videoIsPrimary as boolean | undefined;
+            const vSort = (p as any).videoSortOrder as number | undefined;
+            if (vUrl) {
+              if (vIsPrimary) {
+                mediaMap[id] = [vUrl, ...imgs.length ? imgs : [p.image]].filter(Boolean);
+              } else {
+                const arr = [...(imgs.length ? imgs : [p.image])];
+                const pos = Math.max(0, Math.min(typeof vSort === 'number' ? vSort : arr.length, arr.length));
+                arr.splice(pos, 0, vUrl);
+                mediaMap[id] = arr;
+              }
+            } else {
+              mediaMap[id] = imgs.length ? imgs : [p.image];
+            }
+          }
+          setMediaById(mediaMap);
         }
         setError(null);
       } catch (error: unknown) {
@@ -166,6 +221,22 @@ const ProductGrid = () => {
   const endIndex = startIndex + productsPerPage;
   const currentProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
 
+  // Load review counts for current page's products
+  useEffect(() => {
+    const ids = currentProducts.map(p => p.id);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const counts = await reviewApi.countsByProduct(ids, 'published');
+        if (!cancelled) setReviewCounts(prev => ({ ...prev, ...counts }));
+      } catch (e) {
+        console.warn('Failed to load review counts', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentProducts.map(p => p.id).join(',')]);
+
   return (
     <section id="products" className="py-16 bg-gradient-hero">
       <div className="max-w-6xl mx-auto">
@@ -204,7 +275,14 @@ const ProductGrid = () => {
                   {error} – showing cached catalog.
                 </div>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div
+                className="grid gap-6 product-grid-dynamic"
+                style={{
+                  '--grid-cols-mobile': gridLayoutMobile,
+                  '--grid-cols-tablet': gridLayoutTablet,
+                  '--grid-cols-desktop': gridLayoutDesktop,
+                } as React.CSSProperties}
+              >
                 {currentProducts.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -217,6 +295,9 @@ const ProductGrid = () => {
                     originalPrice={product.originalPrice}
                     rating={product.rating}
                     inStock={product.inStock}
+                    reviewCount={reviewCounts[product.id] ?? 0}
+                    media={mediaById[product.id]}
+                    availableQuantity={product.availableQuantity}
                   />
                 ))}
               </div>

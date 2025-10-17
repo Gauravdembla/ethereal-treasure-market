@@ -9,6 +9,7 @@ import Navigation from "@/components/Navigation";
 import AngelicFooter from "@/components/AngelicFooter";
 import { supabase, type Product, productHelpers } from "@/integrations/supabase/client";
 import { productApi, type ApiProduct } from "@/services/productApi";
+import { reviewApi, type ApiReview } from "@/services/reviewApi";
 import { PRODUCTS, type Product as SeedProduct } from "@/data/products";
 
 // Import banner images for slider
@@ -81,16 +82,31 @@ const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
     published_at: apiProduct.createdAt || now,
     created_at: apiProduct.createdAt || now,
     updated_at: apiProduct.updatedAt || now,
-    images: [
-      {
-        id: `img-${stableId}`,
-        url: apiProduct.image,
-        alt_text: apiProduct.name,
-        is_primary: true,
-        sort_order: 0,
-        image_type: "product",
-      },
-    ],
+    images: (apiProduct.images && apiProduct.images.length > 0)
+      ? apiProduct.images
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+          .map((img, idx) => ({
+            id: `img-${stableId}-${idx}`,
+            url: img.url,
+            alt_text: img.altText,
+            is_primary: img.isPrimary ?? idx === 0,
+            sort_order: img.sortOrder ?? idx,
+            image_type: "product",
+          }))
+      : [
+          {
+            id: `img-${stableId}`,
+            url: apiProduct.image,
+            alt_text: apiProduct.name,
+            is_primary: true,
+            sort_order: 0,
+            image_type: "product",
+          },
+        ],
+    // Extra media fields from API (not in Supabase type but safe to carry)
+    ...(apiProduct.videoUrl || apiProduct.video ? { video_url: apiProduct.videoUrl || apiProduct.video } : {}),
+    ...(apiProduct.videoIsPrimary !== undefined ? { video_is_primary: apiProduct.videoIsPrimary } : {}),
+    ...(apiProduct.videoSortOrder !== undefined ? { video_sort_order: apiProduct.videoSortOrder } : {}),
     content_sections: [],
     reviews: [],
   };
@@ -187,6 +203,12 @@ const ProductDetail = () => {
   const [relatedProductsStartIndex, setRelatedProductsStartIndex] = useState(0);
   const [relatedProductImageIndices, setRelatedProductImageIndices] = useState<{[key: string]: number}>({});
   const [relatedProductQuantities, setRelatedProductQuantities] = useState<{[key: string]: number}>({});
+  const [reviews, setReviews] = useState<ApiReview[]>([]);
+  const [relatedReviewCounts, setRelatedReviewCounts] = useState<Record<string, number>>({});
+
+  const [visibleReviewCount, setVisibleReviewCount] = useState(6);
+
+
 
   // Scroll to top when component mounts or id changes
   useEffect(() => {
@@ -234,6 +256,23 @@ const ProductDetail = () => {
             resolvedRelated = relatedData as Product[];
           }
         }
+      // Prefer backend Mongo for related products when possible
+      if (resolvedProduct) {
+        try {
+          const apiProductsForRelated = await productApi.list();
+          const currentId = resolvedProduct.product_id;
+          const relatedFromApi = apiProductsForRelated
+            .filter((item) => (item.category === resolvedProduct.category) && ((item.id || item._id) !== currentId))
+            .slice(0, 12)
+            .map(mapApiProductToProduct);
+          if (relatedFromApi.length > 0) {
+            resolvedRelated = relatedFromApi;
+          }
+        } catch (e) {
+          console.warn('Falling back from backend to existing related products list', e);
+        }
+      }
+
       } catch (supabaseError) {
         console.warn('Supabase product lookup failed, will fall back to API/seed data', supabaseError);
       }
@@ -280,6 +319,13 @@ const ProductDetail = () => {
       if (resolvedProduct) {
         setProduct(resolvedProduct);
         setRelatedProducts(resolvedRelated);
+        try {
+          const fetched = await reviewApi.listByProduct(resolvedProduct.product_id, 'published');
+          setReviews(fetched);
+        } catch (e) {
+          console.warn('Failed to fetch reviews', e);
+          setReviews([]);
+        }
       } else {
         setProduct(null);
         setRelatedProducts([]);
@@ -314,6 +360,22 @@ const ProductDetail = () => {
       }
     }
   }, [product, items]);
+  // Load review counts for related products when list changes (moved above early returns to keep hook order stable)
+  useEffect(() => {
+    if (!relatedProducts || relatedProducts.length === 0) return;
+    const ids = relatedProducts.map(p => p.product_id);
+    let cancelled = false;
+    (async () => {
+      try {
+        const counts = await reviewApi.countsByProduct(ids, 'published');
+        if (!cancelled) setRelatedReviewCounts(counts || {});
+      } catch (e) {
+        console.warn('Failed to load related review counts', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [relatedProducts.map(p => p.product_id).join(',')]);
+
 
   // Loading state
   if (loading) {
@@ -361,36 +423,12 @@ const ProductDetail = () => {
 
 
 
-  // Helper function to get testimonials for products that don't have them
-  const getTestimonials = (productId: string) => {
-    const defaultTestimonials = [
-      {
-        id: 1,
-        name: "Jessica T.",
-        rating: 5,
-        review: "Absolutely love this product! The quality is amazing and the spiritual energy is exactly what I was looking for. Highly recommend!",
-        date: "1 week ago",
-        verified: true
-      },
-      {
-        id: 2,
-        name: "Mark S.",
-        rating: 4,
-        review: "Great quality and fast shipping. This has become an essential part of my daily spiritual practice. Very satisfied with my purchase.",
-        date: "2 weeks ago",
-        verified: true
-      },
-      {
-        id: 3,
-        name: "Sophia R.",
-        rating: 5,
-        review: "Beautiful craftsmanship and powerful energy. I can feel the positive vibrations immediately. Worth every penny!",
-        date: "3 weeks ago",
-        verified: true
-      }
-    ];
-    return defaultTestimonials;
-  };
+
+  // Derived review stats
+  const reviewCount = reviews.length;
+  const computedRating = reviewCount > 0
+    ? Math.round(reviews.reduce((sum, r) => sum + (r?.rating || 0), 0) / reviewCount)
+    : 0;
 
   // Helper function to get related products (all products except current one)
   // Get product images for display
@@ -402,7 +440,8 @@ const ProductDetail = () => {
 
   // Get actual product ID from URL format
   const actualProductId = id ? getProductIdFromUrl(id) : null;
-  const availableQuantity = actualProductId ? computeAvailableQuantity(actualProductId) : 0;
+  // Use actual available quantity from product data, fallback to computed value
+  const availableQuantity = product?.available_quantity ?? (actualProductId ? computeAvailableQuantity(actualProductId) : 0);
 
   if (!product) {
     return (
@@ -467,53 +506,87 @@ const ProductDetail = () => {
     setCurrentImageIndex(index);
   };
 
-  // Get images for the product (using Supabase data)
+  // Build media list from backend images + optional video (ordered)
   const getProductImages = () => {
-    return [
-      primaryImage,   // Primary product image from Supabase
-      banner1, // Mockup 2 - lifestyle/banner image
-      banner2, // Mockup 3 - lifestyle/banner image
-      banner3, // Mockup 4 - lifestyle/banner image
-      banner4  // Mockup 5 - lifestyle/banner image
-    ];
+    const imgs = [...(product.images || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const imgUrls = imgs.map(i => i.url || '/placeholder.svg');
+    const vUrl = (product as any).video_url as string | undefined;
+    const vIsPrimary = Boolean((product as any).video_is_primary);
+    const vSort = Number((product as any).video_sort_order ?? 0);
+
+    if (vUrl) {
+      if (vIsPrimary) {
+        return [vUrl, ...imgUrls];
+      }
+      const pos = Math.max(0, Math.min(vSort, imgUrls.length));
+      const arr = [...imgUrls];
+      arr.splice(pos, 0, vUrl);
+      return arr;
+    }
+    return imgUrls.length > 0 ? imgUrls : [primaryImage];
   };
 
-  // Related products slider functions - Updated for responsive display
+  const isVideoUrl = (url: string) => /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+
+
+  const getRelatedImages = (p: Product) => {
+    const imgs = [...(p.images || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const urls = imgs.map(i => i.url || '/placeholder.svg');
+    const vUrl = (p as any).video_url as string | undefined;
+    const vIsPrimary = Boolean((p as any).video_is_primary);
+    const vSort = Number((p as any).video_sort_order ?? 0);
+    if (vUrl) {
+      if (vIsPrimary) return [vUrl, ...urls];
+      const pos = Math.max(0, Math.min(vSort, urls.length));
+      const arr = [...urls]; arr.splice(pos, 0, vUrl); return arr;
+    }
+    return urls.length ? urls : [productHelpers.getPrimaryImageUrl(p.images)];
+  };
+
+
+  // Related products slider functions - show 3 at a time
   const nextRelatedProducts = () => {
-    // Show more products: 5 on desktop, 3 on tablet, 2 on mobile
-    const visibleProducts = window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 3 : 2;
-    const maxStartIndex = Math.max(0, relatedProducts.length - visibleProducts);
-    setRelatedProductsStartIndex((prev) => Math.min(prev + 1, maxStartIndex));
+    const maxStartIndex = Math.max(0, relatedProducts.length - 3);
+    setRelatedProductsStartIndex((prev) => Math.min(prev + 3, maxStartIndex));
   };
 
   const prevRelatedProducts = () => {
-    setRelatedProductsStartIndex((prev) => Math.max(prev - 1, 0));
+    setRelatedProductsStartIndex((prev) => Math.max(prev - 3, 0));
   };
 
-  // Related product image slider functions - removed since we're using Supabase data
+  // Related product image slider helpers
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <div className="max-w-6xl mx-auto px-6 py-8">
         <Link to="/" className="inline-flex items-center text-primary hover:text-primary/80 mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Products
         </Link>
-        
+
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Product Image Slider */}
           <div className="space-y-4">
             <div className="relative overflow-hidden rounded-xl group">
               {/* Image Slider */}
               <div className="relative">
-                <img
-                  src={getProductImages()[currentImageIndex]}
-                  alt={`${product.name} - Image ${currentImageIndex + 1}`}
-                  className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-105"
-                  key={currentImageIndex}
-                />
+                {isVideoUrl(getProductImages()[currentImageIndex]) ? (
+                  <video
+                    src={getProductImages()[currentImageIndex]}
+                    controls
+                    className="w-full aspect-video object-cover rounded-md"
+                    key={`video-${currentImageIndex}`}
+                  />
+                ) : (
+                  <img
+                    src={getProductImages()[currentImageIndex]}
+                    alt={`${product.name} - Image ${currentImageIndex + 1}`}
+                    className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-105"
+                    key={`img-${currentImageIndex}`}
+                  />
+                )}
 
                 {/* Image Counter */}
                 <div className="absolute top-4 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -555,23 +628,38 @@ const ProductDetail = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Product Details */}
           <div className="space-y-6">
-            <div className="flex items-center gap-1 mb-2">
-              {[...Array(product.rating)].map((_, i) => (
-                <Star key={i} className="w-5 h-5 fill-angelic-gold text-angelic-gold" />
-              ))}
+            <div className="flex items-center gap-2 mb-2">
+              {computedRating > 0 && (
+                <>
+                  {[...Array(computedRating)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 fill-angelic-gold text-angelic-gold" />
+                  ))}
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('customer-reviews');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="text-sm text-gray-600 hover:text-primary underline-offset-2 hover:underline"
+                aria-label="Go to customer reviews"
+              >
+                ({reviewCount} Reviews)
+              </button>
             </div>
-            
+
             <h1 className="font-playfair font-bold text-3xl text-angelic-deep">
               {product.name}
             </h1>
-            
+
             <p className="text-angelic-deep/70 text-lg">
               {product.description}
             </p>
-            
+
             <div className="flex items-center gap-3">
               <span className="font-bold text-primary text-2xl">₹{product.price}</span>
               {product.original_price && (
@@ -580,7 +668,7 @@ const ProductDetail = () => {
                 </span>
               )}
             </div>
-            
+
             {/* New Quantity Controls Design */}
             <div className="space-y-4">
               {/* Quantity Dropdown - Centered */}
@@ -629,7 +717,7 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Detailed Description */}
         <div className="mt-16 grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
@@ -640,7 +728,7 @@ const ProductDetail = () => {
               <p className="text-angelic-deep/80 leading-relaxed mb-6">
                 {product.detailed_description || product.description}
               </p>
-              
+
               <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-3">
                 Spiritual Benefits
               </h3>
@@ -654,7 +742,7 @@ const ProductDetail = () => {
               </ul>
             </Card>
           </div>
-          
+
           <div>
             <Card className="p-6">
               <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-4">
@@ -676,40 +764,55 @@ const ProductDetail = () => {
         </div>
 
         {/* Testimonials Section */}
-        <div className="mt-16">
+        <div id="customer-reviews" className="mt-16">
           <h2 className="font-playfair font-bold text-2xl text-angelic-deep mb-8 text-center">
             Customer Reviews
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {getTestimonials(product.product_id).map((testimonial) => (
-              <Card key={testimonial.id} className="p-6 hover:shadow-lg transition-shadow duration-300">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
-                    ))}
-                  </div>
-                  {testimonial.verified && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                      Verified Purchase
-                    </span>
-                  )}
-                </div>
+          {reviews.length === 0 ? (
+            <div className="text-center text-angelic-deep/60">No reviews yet.</div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reviews.slice(0, visibleReviewCount).map((r: any) => (
+                  <Card key={r.id || r._id} className="p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex">
+                        {[...Array(r.rating)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
+                        ))}
+                      </div>
+                      {r.verified && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                          Verified Purchase
+                        </span>
+                      )}
+                    </div>
 
-                <div className="relative mb-4">
-                  <Quote className="w-6 h-6 text-primary/20 absolute -top-2 -left-1" />
-                  <p className="text-angelic-deep/80 leading-relaxed pl-4">
-                    {testimonial.review}
-                  </p>
-                </div>
+                    <div className="relative mb-4">
+                      <Quote className="w-6 h-6 text-primary/20 absolute -top-2 -left-1" />
+                      <p className="text-angelic-deep/80 leading-relaxed pl-4">
+                        {r.review_text || r.review}
+                      </p>
+                    </div>
 
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-medium text-angelic-deep">{testimonial.name}</span>
-                  <span className="text-angelic-deep/60">{testimonial.date}</span>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-angelic-deep">{r.customer_name || r.name}</span>
+                      <span className="text-angelic-deep/60">
+                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : (r.date || '')}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+              {reviews.length > visibleReviewCount && (
+                <div className="mt-6 text-center">
+                  <Button variant="outline" onClick={() => setVisibleReviewCount((c) => c + 6)}>
+                    Read more
+                  </Button>
                 </div>
-              </Card>
-            ))}
-          </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Related Products Section */}
@@ -721,7 +824,7 @@ const ProductDetail = () => {
           {/* Slider Navigation - OUTSIDE the product container */}
           <button
             onClick={prevRelatedProducts}
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
             aria-label="Previous products"
             disabled={relatedProductsStartIndex === 0}
           >
@@ -730,44 +833,57 @@ const ProductDetail = () => {
 
           <button
             onClick={nextRelatedProducts}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 group-hover:opacity-100 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/95 hover:bg-white rounded-full p-3 shadow-lg z-30 opacity-80 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-xl"
             aria-label="Next products"
-            disabled={relatedProductsStartIndex >= Math.max(0, relatedProducts.length - (window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 3 : 2))}
+            disabled={relatedProductsStartIndex + 3 >= relatedProducts.length}
           >
             <ChevronRight className="w-5 h-5 text-gray-700" />
           </button>
 
-          <div className="px-16">
-            <div className="relative group">
-
-            <div className="overflow-hidden">
-              <div className={`flex gap-6 transition-transform duration-300 ${
-                relatedProducts.length <= 3
-                  ? 'justify-center'
-                  : ''
-              }`} style={{
-                transform: `translateX(-${relatedProductsStartIndex * (100 / (window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 3 : 2))}%)`
-              }}>
-                {/* Display related products from Supabase */}
-                {relatedProducts.map((relatedProduct) => {
+          <div className="px-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {relatedProducts.slice(relatedProductsStartIndex, relatedProductsStartIndex + 3).map((relatedProduct) => {
                 const relatedProductId = relatedProduct.product_id;
                 const relatedProductSlug = `${relatedProduct.name.toLowerCase().replace(/\s+/g, '-')}_${relatedProduct.sku}`;
-                const relatedImageUrl = productHelpers.getPrimaryImageUrl(relatedProduct.images);
+                const images = getRelatedImages(relatedProduct);
+                const imgIndex = relatedProductImageIndices[relatedProductId] || 0;
+                const imgUrl = images[imgIndex];
+
+                const nextImg = (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setRelatedProductImageIndices(prev => ({
+                    ...prev,
+                    [relatedProductId]: ((prev[relatedProductId] || 0) + 1) % images.length
+                  }));
+                };
+                const prevImg = (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setRelatedProductImageIndices(prev => ({
+                    ...prev,
+                    [relatedProductId]: ((prev[relatedProductId] || 0) - 1 + images.length) % images.length
+                  }));
+                };
 
                 return (
-                  <div
-                    key={relatedProductId}
-                    className="flex-shrink-0 w-48 sm:w-56 md:w-60 lg:w-52 xl:w-60 group"
-                  >
+                  <div key={relatedProductId} className="group">
                     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
                       <Link to={`/product/${relatedProductSlug}`}>
-                        <div className="relative group/image">
+                        <div className="relative">
                           <img
-                            src={relatedImageUrl}
+                            src={imgUrl}
                             alt={relatedProduct.name}
-                            className="w-full aspect-video object-cover transition-transform duration-300 group-hover/image:scale-105"
+                            className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          {/* Image nav */}
+                          <button onClick={prevImg} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow">
+                            <ChevronLeft className="w-4 h-4 text-gray-700" />
+                          </button>
+                          <button onClick={nextImg} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow">
+                            <ChevronRight className="w-4 h-4 text-gray-700" />
+                          </button>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </Link>
                       <div className="p-4">
@@ -775,12 +891,15 @@ const ProductDetail = () => {
                           {[...Array(relatedProduct.rating || 5)].map((_, i) => (
                             <Star key={i} className="w-3 h-3 fill-angelic-gold text-angelic-gold" />
                           ))}
+                          <span className="text-xs text-gray-600 ml-1">({relatedReviewCounts[relatedProductId] || 0})</span>
                         </div>
                         <h3 className="font-playfair font-semibold text-lg text-angelic-deep mb-2 group-hover:text-primary transition-colors">
                           {relatedProduct.name}
                         </h3>
-                        <p className="text-sm text-angelic-deep/70 mb-3">
-                          {relatedProduct.description.slice(0, 100)}...{" "}
+                        <div className="text-sm text-angelic-deep/70 mb-1">
+                          <p className="line-clamp-2">{relatedProduct.description}</p>
+                        </div>
+                        <div className="mb-3">
                           <Link to={`/product/${relatedProductSlug}`} className="inline">
                             <Button
                               variant="link"
@@ -790,19 +909,16 @@ const ProductDetail = () => {
                               Read More→
                             </Button>
                           </Link>
-                        </p>
+                        </div>
                         <div className="flex items-center gap-2 mb-3">
                           <span className="font-bold text-primary">₹{relatedProduct.price}</span>
                           {relatedProduct.original_price && (
-                            <span className="text-sm text-muted-foreground line-through">
-                              ₹{relatedProduct.original_price}
-                            </span>
+                            <span className="text-sm text-muted-foreground line-through">₹{relatedProduct.original_price}</span>
                           )}
                         </div>
 
                         {/* Action Buttons */}
                         <div className="space-y-2">
-                          {/* New Quantity Controls Design for Related Products */}
                           {(() => {
                             const cartItem = items.find(item => item.id === relatedProductId);
                             const currentQuantity = cartItem?.quantity || 0;
@@ -818,56 +934,35 @@ const ProductDetail = () => {
                                 return;
                               }
 
-                              addItem({
-                                id: relatedProductId,
-                                name: relatedProduct.name,
-                                price: relatedProduct.price,
-                                image: relatedImageUrl
-                              }, selectedQuantity);
+                              addItem({ id: relatedProductId, name: relatedProduct.name, price: relatedProduct.price, image: imgUrl }, selectedQuantity);
                             };
 
                             return (
                               <div className="space-y-2">
-                                {/* Quantity Dropdown - Same Line - Centered */}
                                 <div className="flex items-center justify-center gap-2">
                                   <label className="text-xs font-medium text-angelic-deep whitespace-nowrap">Qty:</label>
                                   <Select
                                     value={(currentQuantity || selectedQuantity).toString()}
-                                    onValueChange={(value) => setRelatedProductQuantities(prev => ({
-                                      ...prev,
-                                      [relatedProductId]: parseInt(value)
-                                    }))}
+                                    onValueChange={(value) => setRelatedProductQuantities(prev => ({ ...prev, [relatedProductId]: parseInt(value) }))}
                                   >
                                     <SelectTrigger className="w-16 h-8 text-xs">
                                       <SelectValue placeholder="1" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                                        <SelectItem
-                                          key={num}
-                                          value={num.toString()}
-                                          disabled={num > availableQuantity}
-                                          className={num > availableQuantity ? "text-gray-400" : ""}
-                                        >
-                                          {num} {num > availableQuantity ? "(Out of stock)" : ""}
+                                        <SelectItem key={num} value={num.toString()} disabled={num > availableQuantity} className={num > availableQuantity ? 'text-gray-400' : ''}>
+                                          {num} {num > availableQuantity ? '(Out of stock)' : ''}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
                                 </div>
 
-                                {/* Add to Cart Button */}
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="w-full text-xs"
-                                  onClick={handleAddToCart}
-                                >
+                                <Button variant="default" size="sm" className="w-full text-xs" onClick={handleAddToCart}>
                                   <ShoppingCart className="w-3 h-3 mr-1" />
                                   Add to Cart {currentQuantity > 0 && `(${currentQuantity})`}
                                 </Button>
 
-                                {/* Available Quantity Info */}
                                 <div className="text-center">
                                   <span className="text-xs text-angelic-deep/70">
                                     Available Quantity: <span className="font-semibold text-green-600">{availableQuantity}</span>
@@ -882,9 +977,7 @@ const ProductDetail = () => {
                   </div>
                 );
               })}
-              </div>
             </div>
-          </div>
           </div>
         </div>
       </div>

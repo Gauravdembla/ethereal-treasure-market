@@ -1,5 +1,12 @@
 import mongoose, { Schema } from "mongoose";
 
+export interface ProductImageDoc {
+  url: string;
+  altText?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+}
+
 export interface ProductDocument extends mongoose.Document {
   id: string;
   sku: string;
@@ -8,7 +15,11 @@ export interface ProductDocument extends mongoose.Document {
   detailedDescription?: string;
   price: number;
   originalPrice?: number;
-  image: string;
+  image: string; // legacy single image (kept for backward compatibility)
+  images?: ProductImageDoc[]; // new multi-image support
+  videoUrl?: string; // optional product video url/base64
+  videoIsPrimary?: boolean; // whether to show video first in gallery
+  videoSortOrder?: number; // where to place video among images
   rating: number;
   benefits: string[];
   specifications: Record<string, string>;
@@ -23,6 +34,16 @@ export interface ProductDocument extends mongoose.Document {
 
 const specificationSchema = new Schema({}, { strict: false, _id: false });
 
+const ProductImageSchema = new Schema<ProductImageDoc>(
+  {
+    url: { type: String, required: true },
+    altText: { type: String },
+    isPrimary: { type: Boolean, default: false },
+    sortOrder: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const ProductSchema = new Schema<ProductDocument>(
   {
     sku: { type: String, required: true, unique: true, trim: true },
@@ -32,6 +53,10 @@ const ProductSchema = new Schema<ProductDocument>(
     price: { type: Number, required: true, min: 0 },
     originalPrice: { type: Number, min: 0 },
     image: { type: String, default: "/assets/product-placeholder.jpg" },
+    images: { type: [ProductImageSchema], default: [] },
+    videoUrl: { type: String },
+    videoIsPrimary: { type: Boolean, default: false },
+    videoSortOrder: { type: Number, default: 0 },
     rating: { type: Number, default: 5, min: 0, max: 5 },
     benefits: { type: [String], default: [] },
     specifications: { type: specificationSchema, default: {} },

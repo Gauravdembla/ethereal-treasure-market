@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import AddressForm from "@/components/AddressForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,10 +18,13 @@ import { useAngelCoins } from "@/hooks/useAngelCoins";
 
 import { useMembershipPricing } from "@/hooks/useMembershipPricing";
 import MembershipBadge from "@/components/MembershipBadge";
-import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe, Search, Building2 as BuildingIcon } from "lucide-react";
+import { User, Package, MapPin, Coins, Truck, LogOut, ArrowLeft, Edit, Plus, Trash2, Phone, Mail, UserCircle, Globe, Search, Building2 as BuildingIcon, Eye } from "lucide-react";
 
 import CompanyDetailsForm, { type CompanyDetails } from '@/components/CompanyDetailsForm';
+import { orderService, type OrderDto } from "@/services/orderService";
+
 import { addressService, type UserAddress } from "@/services/addressService";
+import { userProfileService } from "@/services/userProfileService";
 
 type ProfileData = {
   fullName: string;
@@ -50,14 +54,31 @@ const Profile = () => {
 
   // Company details component (scoped inside Profile to access userId)
   const CompanyDetailsSection: React.FC = () => {
-    const compKey = `AOE_companyDetails_${userId}`;
-    const [data, setData] = useState<CompanyDetails | null>(() => {
-      try { const raw = localStorage.getItem(compKey); return raw ? JSON.parse(raw) : null; } catch { return null; }
-    });
+    const [data, setData] = useState<CompanyDetails | null>(null);
     const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+      const load = async () => {
+        if (!apiUserId) return;
+        setLoading(true);
+        try {
+          const res = await userProfileService.getCompanyDetails(apiUserId);
+          setData(res);
+        } catch (error) {
+          console.error('Failed to fetch company details', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      load();
+    }, [apiUserId]);
+
     return (
       <div className="space-y-4">
-        {data ? (
+        {loading ? (
+          <p className="text-gray-600">Loading company details...</p>
+        ) : data ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
@@ -81,9 +102,16 @@ const Profile = () => {
             </DialogHeader>
             <CompanyDetailsForm
               initial={data}
-              onConfirm={(d) => {
-                try { localStorage.setItem(compKey, JSON.stringify(d)); } catch {}
-                setData(d); setOpen(false);
+              onConfirm={async (d) => {
+                if (!apiUserId) return;
+                try {
+                  const saved = await userProfileService.upsertCompanyDetails(apiUserId, d);
+                  setData(saved);
+                  setOpen(false);
+                  toast({ title: 'Success', description: 'Company details saved' });
+                } catch (error: any) {
+                  toast({ variant: 'destructive', title: 'Error', description: error?.message || 'Failed to save company details' });
+                }
               }}
               onCancel={() => setOpen(false)}
               confirmText={data ? 'Save' : 'Confirm'}
@@ -113,6 +141,33 @@ const Profile = () => {
       navigate('/');
     }
   }, [user, externalUser, loading, navigate]);
+
+  // Orders state
+  const [orders, setOrders] = useState<OrderDto[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderDto | null>(null);
+  const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
+
+  useEffect(() => {
+    if (!apiUserId) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setOrdersLoading(true);
+        setOrdersError(null);
+        const list = await orderService.listByUser(apiUserId);
+        if (!mounted) return;
+        setOrders(list);
+      } catch (e: any) {
+        if (!mounted) return;
+        setOrdersError(e?.message || 'Failed to load orders');
+      } finally {
+        if (mounted) setOrdersLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [apiUserId]);
 
   // User data - prioritize external user data from localStorage
   const getProfileDataFromStorage = (): ProfileData => {
@@ -314,6 +369,63 @@ const Profile = () => {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to add address';
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
+    }
+  };
+
+
+
+  const handleUpdateAddress = async () => {
+    if (!apiUserId || !editingAddress) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unable to determine user or address. Please try again.",
+      });
+      return;
+    }
+
+    // Validation
+    const addressType = editingAddress.type === 'Others' ? editingAddress.customType : editingAddress.type;
+    const stateName = editingAddress.state === 'Others' ? editingAddress.customState : editingAddress.state;
+
+    if (!addressType || !editingAddress.name || !editingAddress.address1 || !editingAddress.city || !stateName || !editingAddress.country || !editingAddress.zipCode) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all required fields"
+      });
+      return;
+    }
+
+    const payload = {
+      userId: apiUserId,
+      type: addressType,
+      name: editingAddress.name,
+      address1: editingAddress.address1,
+      address2: editingAddress.address2 || '',
+      nearby: editingAddress.nearby || '',
+      city: editingAddress.city,
+      state: stateName,
+      country: editingAddress.country,
+      zipCode: editingAddress.zipCode,
+      isDefault: editingAddress.isDefault || false,
+    };
+
+    try {
+      await addressService.update(editingAddress.id, payload);
+      await loadAddresses();
+      setEditingAddress(null);
+      toast({
+        title: "Success",
+        description: "Address updated successfully"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update address';
       toast({
         variant: "destructive",
         title: "Error",
@@ -732,6 +844,23 @@ const Profile = () => {
                         />
                       </DialogContent>
                     </Dialog>
+                    {/* Edit Address Dialog */}
+                    <Dialog open={!!editingAddress} onOpenChange={(open) => { if (!open) setEditingAddress(null); }}>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Edit Address</DialogTitle>
+                        </DialogHeader>
+                        {editingAddress && (
+                          <AddressForm
+                            address={editingAddress}
+                            onAddressChange={setEditingAddress}
+                            onSave={handleUpdateAddress}
+                            onCancel={() => setEditingAddress(null)}
+                          />
+                        )}
+                      </DialogContent>
+                    </Dialog>
+
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -764,7 +893,7 @@ const Profile = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setEditingAddress(address)}
+                                onClick={() => setEditingAddress({ ...address, customType: '', customState: '' })}
                               >
                                 <Edit className="w-3 h-3" />
                               </Button>
@@ -793,55 +922,263 @@ const Profile = () => {
                       <Package className="w-6 h-6" />
                       Order History
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-gray-500" />
-                      {/* Currency selector removed for now to avoid geo calls */}
-                    </div>
                   </div>
-
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {userProfile.orders.map((order) => (
-                      <div key={order.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-4 mb-2">
-                              <h3 className="font-semibold text-lg">{order.id}</h3>
-                              <Badge
-                                variant={order.status === 'Delivered' ? 'default' : 'secondary'}
-                                className="flex items-center gap-1"
-                              >
-                                <Truck className="w-3 h-3" />
-                                {order.status}
-                              </Badge>
-                            </div>
-                            <div className="space-y-1 text-sm text-gray-600">
-                              <p><strong>Date:</strong> {order.date}</p>
-                              <p><strong>Items:</strong> {order.items.join(', ')}</p>
-                              <p><strong>Tracking:</strong> {order.trackingNumber || 'Not Available'}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-gray-800">
-                              ₹{order.total}
-                            </p>
-                            <p className="text-xs text-gray-500 mb-2">INR</p>
-                            {order.status !== 'Delivered' && order.trackingNumber && (
-                              <Button size="sm" variant="outline">
-                                Track Order
-                              </Button>
-                            )}
-                          </div>
-                        </div>
+                  <div className="space-y-3">
+                    {ordersLoading ? (
+                      <p className="text-gray-600">Loading orders...</p>
+                    ) : ordersError ? (
+                      <p className="text-red-600">{ordersError}</p>
+                    ) : orders.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                        <p className="text-gray-600 text-lg">No orders yet.</p>
+                        <p className="text-gray-500 text-sm mt-2">Start shopping to see your orders here!</p>
                       </div>
-                    ))}
+                    ) : (
+                      orders
+                        .filter(o => o.status !== 'incart')
+                        .map((order) => {
+                          const getDeliveryStatusBadge = (deliveryStatus?: string) => {
+                            if (!deliveryStatus) return null;
+                            const statusConfig: Record<string, { className: string; label: string }> = {
+                              order_received: { className: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Order Received' },
+                              in_packing: { className: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'In Packing' },
+                              ready_to_dispatch: { className: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Ready to Dispatch' },
+                              shipped: { className: 'bg-purple-100 text-purple-800 border-purple-200', label: 'Shipped' },
+                              in_transit: { className: 'bg-indigo-100 text-indigo-800 border-indigo-200', label: 'In Transit' },
+                              delivered: { className: 'bg-green-100 text-green-800 border-green-200', label: 'Delivered' },
+                              returned: { className: 'bg-red-100 text-red-800 border-red-200', label: 'Returned' },
+                            };
+                            const config = statusConfig[deliveryStatus] || { className: 'bg-gray-100 text-gray-800 border-gray-200', label: deliveryStatus };
+                            return (
+                              <Badge variant="outline" className={`flex items-center gap-1 ${config.className}`}>
+                                <Truck className="w-3 h-3" />
+                                {config.label}
+                              </Badge>
+                            );
+                          };
+
+                          return (
+                            <div key={order.id} className="border rounded-lg p-4 hover:shadow-lg transition-all bg-white">
+                              <div className="flex flex-col gap-3">
+                                {/* Header Row */}
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h3 className="font-bold text-lg text-gray-900">{order.orderId || order.id}</h3>
+                                      <Badge
+                                        variant={order.status === 'paid' ? 'default' : (order.status === 'failed' || order.status === 'abandoned') ? 'destructive' : 'secondary'}
+                                      >
+                                        {order.status === 'abandoned' ? 'Cancelled' : order.status === 'paid' ? 'Paid' : order.status}
+                                      </Badge>
+                                      {order.deliveryStatus && getDeliveryStatusBadge(order.deliveryStatus)}
+                                    </div>
+                                    <p className="text-sm text-gray-500">
+                                      <strong>Date:</strong> {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-2xl font-bold text-gray-900">
+                                      ₹{typeof order.total === 'number' ? order.total.toFixed(2) : (typeof order.subtotal === 'number' ? order.subtotal.toFixed(2) : '0.00')}
+                                    </p>
+                                    <p className="text-xs text-gray-500">Total Amount</p>
+                                  </div>
+                                </div>
+
+                                {/* Items Summary */}
+                                <div className="text-sm text-gray-700">
+                                  <strong>Items:</strong> {(order.items || []).length} item{(order.items || []).length !== 1 ? 's' : ''}
+                                  {order.items && order.items.length > 0 && (
+                                    <span className="text-gray-500 ml-2">
+                                      ({order.items.slice(0, 2).map(i => i.name).join(', ')}{order.items.length > 2 ? ` +${order.items.length - 2} more` : ''})
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Action Button */}
+                                <div className="flex justify-end pt-2 border-t">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedOrder(order);
+                                      setIsOrderDetailOpen(true);
+                                    }}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    View Details
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
                   </div>
                 </CardContent>
               </Card>
             )}
           </div>
         </div>
+
+        {/* Order Details Dialog */}
+        <Dialog open={isOrderDetailOpen} onOpenChange={setIsOrderDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details - {selectedOrder?.orderId}</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Customer Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-semibold">Customer Name</Label>
+                  <p className="text-sm">{selectedOrder.customerName || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">Customer Email</Label>
+                  <p className="text-sm">{selectedOrder.customerEmail || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">Order Date</Label>
+                  <p className="text-sm">{selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">Order Status</Label>
+                  <div className="mt-1">
+                    <Badge variant={selectedOrder.status === 'paid' ? 'default' : 'secondary'}>
+                      {selectedOrder.status}
+                    </Badge>
+                  </div>
+                </div>
+                {selectedOrder.deliveryStatus && (
+                  <div>
+                    <Label className="text-sm font-semibold">Delivery Status</Label>
+                    <div className="mt-1">
+                      {(() => {
+                        const statusConfig: Record<string, { className: string; label: string }> = {
+                          order_received: { className: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Order Received' },
+                          in_packing: { className: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'In Packing' },
+                          ready_to_dispatch: { className: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Ready to Dispatch' },
+                          shipped: { className: 'bg-purple-100 text-purple-800 border-purple-200', label: 'Shipped' },
+                          in_transit: { className: 'bg-indigo-100 text-indigo-800 border-indigo-200', label: 'In Transit' },
+                          delivered: { className: 'bg-green-100 text-green-800 border-green-200', label: 'Delivered' },
+                          returned: { className: 'bg-red-100 text-red-800 border-red-200', label: 'Returned' },
+                        };
+                        const config = statusConfig[selectedOrder.deliveryStatus!] || { className: 'bg-gray-100 text-gray-800 border-gray-200', label: selectedOrder.deliveryStatus!.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) };
+                        return (
+                          <Badge variant="outline" className={config.className}>
+                            {config.label}
+                          </Badge>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Order Items */}
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">Order Items</Label>
+                <div className="space-y-2">
+                  {(selectedOrder.items || []).map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {item.image && (
+                          <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded" />
+                        )}
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="text-sm text-gray-500">₹{item.price.toFixed(2)} each</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Pricing Details */}
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">Pricing Details</Label>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>₹{(selectedOrder.subtotal || 0).toFixed(2)}</span>
+                  </div>
+                  {selectedOrder.angelCoinsUsed && selectedOrder.angelCoinsUsed > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Angel Coins Used ({selectedOrder.angelCoinsUsed} coins)</span>
+                        <span>-₹{(selectedOrder.angelCoinsDiscount || 0).toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span>GST (18%)</span>
+                    <span>₹{(selectedOrder.gst || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Shipping</span>
+                    <span>₹{(selectedOrder.shipping || 0).toFixed(2)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>₹{(selectedOrder.total || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping Address */}
+              {selectedOrder.shippingAddress && (
+                <>
+                  <Separator />
+                  <div>
+                    <Label className="text-sm font-semibold mb-2 block">Shipping Address</Label>
+                    <div className="text-sm bg-gray-50 p-3 rounded-lg">
+                      {selectedOrder.shippingAddress.type && (
+                        <Badge variant="outline" className="mb-2">{selectedOrder.shippingAddress.type}</Badge>
+                      )}
+                      <p className="font-medium">{selectedOrder.shippingAddress.name}</p>
+                      {selectedOrder.shippingAddress.address1 && <p>{selectedOrder.shippingAddress.address1}</p>}
+                      {selectedOrder.shippingAddress.address2 && <p>{selectedOrder.shippingAddress.address2}</p>}
+                      {selectedOrder.shippingAddress.nearby && <p className="text-gray-600">Near: {selectedOrder.shippingAddress.nearby}</p>}
+                      {/* Fallback for old address format */}
+                      {!selectedOrder.shippingAddress.address1 && selectedOrder.shippingAddress.address && (
+                        <p>{selectedOrder.shippingAddress.address}</p>
+                      )}
+                      <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.zipCode}</p>
+                      <p>{selectedOrder.shippingAddress.country}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Admin Remarks */}
+              {selectedOrder.adminRemarks && (
+                <>
+                  <Separator />
+                  <div>
+                    <Label className="text-sm font-semibold mb-2 block">Admin Remarks</Label>
+                    <p className="text-sm bg-yellow-50 p-3 rounded-lg border border-yellow-200">{selectedOrder.adminRemarks}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       </div>
 
       <AngelicFooter />

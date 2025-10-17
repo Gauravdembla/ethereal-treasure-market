@@ -7,12 +7,6 @@ import { ShoppingCart, Star, ChevronLeft, ChevronRight, Plus, Minus } from "luci
 import { useCart } from "@/hooks/useCart";
 import { useMembershipPricing } from "@/hooks/useMembershipPricing";
 
-// Import banner images for mockups
-import banner1 from "@/assets/banner-1.jpg";
-import banner2 from "@/assets/banner-2.jpg";
-import banner3 from "@/assets/banner-3.jpg";
-import banner4 from "@/assets/banner-4.jpg";
-import banner5 from "@/assets/banner-5.jpg";
 
 interface ProductCardProps {
   id: string;
@@ -24,20 +18,10 @@ interface ProductCardProps {
   originalPrice?: string;
   rating?: number;
   inStock?: boolean;
+  reviewCount?: number;
+  media?: string[]; // ordered list of image URLs and optional video URL
+  availableQuantity?: number; // actual available quantity from backend
 }
-
-// Consistent review counts for each product (instead of random)
-const getReviewCount = (productId: string): number => {
-  const reviewCounts: Record<string, number> = {
-    'amethyst-cluster': 3,
-    'angel-oracle-cards': 2,
-    'healing-candle': 2,
-    'spiritual-journal': 3,
-    'rose-quartz-heart': 2,
-    'chakra-stone-set': 3
-  };
-  return reviewCounts[productId] || 2;
-};
 
 const ProductCard = ({
   id,
@@ -48,7 +32,10 @@ const ProductCard = ({
   price,
   originalPrice,
   rating = 5,
-  inStock = true
+  inStock = true,
+  reviewCount = 0,
+  media,
+  availableQuantity: propAvailableQuantity,
 }: ProductCardProps) => {
   const { addItem, removeItem, items } = useCart();
   const { calculatePrice, formatPrice, hasDiscount, isAuthenticated } = useMembershipPricing();
@@ -58,8 +45,7 @@ const ProductCard = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
 
-  // Static available quantity (in real app, this would come from props or API)
-  // Using a hash of the product ID to get consistent quantity per product
+  // Use actual available quantity from backend, fallback to computed value for backward compatibility
   const getAvailableQuantity = (productId: string) => {
     const hash = productId.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
@@ -67,8 +53,13 @@ const ProductCard = ({
     }, 0);
     return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
-  const availableQuantity = inStock ? getAvailableQuantity(id) : 0;
-  const outOfStock = !inStock;
+  const availableQuantity = propAvailableQuantity !== undefined
+    ? propAvailableQuantity
+    : (inStock ? getAvailableQuantity(id) : 0);
+  const outOfStock = !inStock || availableQuantity === 0;
+
+  // Debug logging
+  console.log(`[ProductCard ${name}] propAvailableQuantity:`, propAvailableQuantity, 'final availableQuantity:', availableQuantity);
 
   // Sync selectedQuantity with cart quantity
   useEffect(() => {
@@ -77,14 +68,10 @@ const ProductCard = ({
     }
   }, [currentQuantity]);
 
-  // Create 5 mockup images - using the main image and banner images as variations
-  const images = [
-    image,   // Original product image
-    banner1, // Mockup 2 - lifestyle/banner image
-    banner2, // Mockup 3 - lifestyle/banner image
-    banner3, // Mockup 4 - lifestyle/banner image
-    banner4  // Mockup 5 - lifestyle/banner image
-  ];
+  // Use provided media list (images + optional video preview), fallback to single image
+  const mediaList = (media && media.length > 0) ? media : [image];
+
+  const isVideoUrl = (url: string) => /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
 
   const handleAddToCart = () => {
     if (!inStock) {
@@ -133,13 +120,13 @@ const ProductCard = ({
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % mediaList.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + mediaList.length) % mediaList.length);
   };
 
   const selectImage = (index: number, e: React.MouseEvent) => {
@@ -152,12 +139,24 @@ const ProductCard = ({
       <div className="relative mb-4 overflow-hidden rounded-xl">
         {/* Image Slider */}
         <div className="relative">
-          <img
-            src={images[currentImageIndex]}
-            alt={`${name} - Image ${currentImageIndex + 1}`}
-            className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
-            key={currentImageIndex}
-          />
+          {isVideoUrl(mediaList[currentImageIndex]) ? (
+            <video
+              src={mediaList[currentImageIndex]}
+              className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
+              muted
+              playsInline
+              loop
+              preload="metadata"
+              key={`vid-${currentImageIndex}`}
+            />
+          ) : (
+            <img
+              src={mediaList[currentImageIndex]}
+              alt={`${name} - Image ${currentImageIndex + 1}`}
+              className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
+              key={`img-${currentImageIndex}`}
+            />
+          )}
 
           {outOfStock && (
             <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
@@ -167,7 +166,7 @@ const ProductCard = ({
 
           {/* Image Counter */}
           <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {currentImageIndex + 1}/{images.length}
+            {currentImageIndex + 1}/{mediaList.length}
           </div>
 
           {/* Slider Navigation */}
@@ -187,9 +186,9 @@ const ProductCard = ({
             <ChevronRight className="w-4 h-4 text-gray-700" />
           </button>
 
-          {/* Image Indicators */}
+          {/* Media Indicators */}
           <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {images.map((_, index) => (
+            {mediaList.map((_, index) => (
               <button
                 key={index}
                 onClick={(e) => selectImage(index, e)}
@@ -198,7 +197,7 @@ const ProductCard = ({
                     ? 'bg-white shadow-md scale-110'
                     : 'bg-white/60 hover:bg-white/80 hover:scale-105'
                 }`}
-                aria-label={`Go to image ${index + 1}`}
+                aria-label={`Go to media ${index + 1}`}
               />
             ))}
           </div>
@@ -213,7 +212,7 @@ const ProductCard = ({
             <Star key={i} className="w-4 h-4 fill-angelic-gold text-angelic-gold" />
           ))}
           <span className="text-sm text-gray-600 ml-1">
-            ({getReviewCount(id)} Reviews)
+            ({(typeof reviewCount === 'number' ? reviewCount : 0)} Reviews)
           </span>
         </div>
         

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCartSync } from "@/hooks/useCartSync";
 import externalAuthService from "@/services/externalAuthService";
 import Index from "./pages/Index";
 import Checkout from "./pages/Checkout";
@@ -13,6 +14,7 @@ import Admin from "./pages/Admin";
 import AngelThon from "./pages/AngelThon";
 import Profile from "./pages/Profile";
 import ProductDetail from "./pages/ProductDetail";
+import OrderDetails from "./pages/OrderDetails";
 import NotFound from "./pages/NotFound";
 import FAQ from "./pages/FAQ";
 import ThankYou from "./pages/ThankYou";
@@ -28,6 +30,9 @@ const queryClient = new QueryClient({
 
 const App = () => {
   const { initialize } = useAuth();
+
+  // Initialize cart sync globally
+  useCartSync();
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -73,6 +78,7 @@ const App = () => {
             <Route path="/angelthon" element={<AngelThon />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/order/:clientOrderId" element={<OrderDetails />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/thankyou" element={<ThankYou />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

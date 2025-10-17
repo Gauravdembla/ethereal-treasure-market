@@ -1,6 +1,23 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
+// Derive the API origin (http://localhost:4000) from API_BASE_URL for serving media assets
+const API_ORIGIN = API_BASE_URL.replace(/\/?api\/?$/, "");
+
+// Ensure media URLs like "/uploads/..." point to the backend origin instead of the frontend (8080)
+const toAssetUrl = (url?: string): string | undefined => {
+  if (!url) return url;
+  if (url.startsWith("/uploads")) return `${API_ORIGIN}${url}`;
+  return url;
+};
+
 const numberFormatter = new Intl.NumberFormat("en-IN");
+
+export interface ApiProductImage {
+  url: string;
+  altText?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+}
 
 export interface ApiProduct {
   id: string;
@@ -11,7 +28,8 @@ export interface ApiProduct {
   detailedDescription?: string;
   price: number;
   originalPrice?: number;
-  image: string;
+  image: string; // legacy single image (first image)
+  images?: ApiProductImage[]; // new multi-image support
   rating: number;
   benefits: string[];
   specifications: Record<string, string>;
@@ -22,6 +40,10 @@ export interface ApiProduct {
   tags: string[];
   createdAt?: string;
   updatedAt?: string;
+  videoUrl?: string;
+  video?: string;
+  videoIsPrimary?: boolean;
+  videoSortOrder?: number;
 }
 
 export interface ProductPayload {
@@ -31,7 +53,11 @@ export interface ProductPayload {
   detailedDescription?: string;
   price: number;
   originalPrice?: number;
-  image?: string;
+  image?: string; // keep legacy image up-to-date with first images[0]
+  images?: ApiProductImage[];
+  videoUrl?: string;
+  videoIsPrimary?: boolean;
+  videoSortOrder?: number;
   rating?: number;
   benefits?: string[];
   specifications?: Record<string, string>;
@@ -61,10 +87,19 @@ const toApiUrl = (path: string) => {
 
 const normalizeApiProduct = (product: ApiProduct): ApiProduct => {
   if (!product) return product;
-  if (!product.id && product._id) {
-    return { ...product, id: product._id };
-  }
-  return product;
+  const withId = product.id ? product : (product._id ? { ...product, id: product._id } as ApiProduct : product);
+  const fixedImage = toAssetUrl(withId.image) || withId.image;
+  const fixedImages = Array.isArray(withId.images)
+    ? withId.images.map(img => ({ ...img, url: toAssetUrl(img.url) || img.url }))
+    : withId.images;
+  const fixedVideo = toAssetUrl(withId.videoUrl || withId.video);
+  return {
+    ...withId,
+    image: fixedImage as string,
+    images: fixedImages,
+    videoUrl: fixedVideo,
+    ...(fixedVideo ? { video: fixedVideo } : {}),
+  } as ApiProduct;
 };
 
 export const productApi = {

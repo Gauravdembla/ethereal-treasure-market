@@ -1,6 +1,8 @@
 // External Authentication Service
 // Integrates with the external authentication system via Worker API
 
+import { customerService } from './customerService';
+
 export interface ExternalUserData {
   name: string;
   pic: string;
@@ -139,6 +141,28 @@ class ExternalAuthService {
 
       // Store data in localStorage
       this.storeUserData(extractedData, targetUserId, membershipTier);
+
+      // Sync data to MongoDB backend
+      try {
+        await customerService.syncCustomer(targetUserId, {
+          name: extractedData.name,
+          email: extractedData.email,
+          phone: extractedData.phone,
+          countryCode: userProfile.countryCode || '+91',
+          profilePicUrl: extractedData.profilePic,
+          angelCoins: extractedData.angelCoins,
+          leaderboardRank: userProfile.leaderboardRank,
+          membershipTier: membershipTier,
+          badges: extractedData.badges,
+          subscriptions: extractedData.subs,
+          onboarding: userProfile.onboarding,
+          isBlockedFromCommunityEngagement: userProfile.isBlockedFromCommunityEngagement || false,
+        });
+        console.log(`[ExternalAuth] Customer data synced to MongoDB for userId: ${targetUserId}`);
+      } catch (syncError) {
+        console.error('[ExternalAuth] Failed to sync customer to MongoDB:', syncError);
+        // Don't fail the auth flow if MongoDB sync fails
+      }
 
       return {
         name: extractedData.name,

@@ -1,4 +1,6 @@
-import { productApi, type ApiProduct, type ProductPayload } from '@/services/productApi';
+import { productApi, type ApiProduct, type ProductPayload, type ApiProductImage } from '@/services/productApi';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
 export interface ShopProduct {
   id: string;
@@ -22,6 +24,9 @@ export interface ShopProduct {
   created_at: string;
   updated_at: string;
   images?: ProductImage[];
+  video_url?: string;
+  video_is_primary?: boolean;
+  video_sort_order?: number;
 }
 
 export interface ProductImage {
@@ -105,6 +110,31 @@ export interface Testimonial {
 const apiProductToShopProduct = (product: ApiProduct): ShopProduct => {
   const timestamp = new Date().toISOString();
 
+  // Prefer multi-image array when available; fall back to legacy single image
+  const images: ProductImage[] = (product.images && product.images.length > 0)
+    ? product.images
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((img, idx) => ({
+          id: `img-${product.id}-${idx}`,
+          product_id: product.id,
+          url: img.url,
+          alt_text: img.altText,
+          is_primary: img.isPrimary ?? idx === 0,
+          sort_order: img.sortOrder ?? idx,
+          created_at: product.createdAt || timestamp,
+        }))
+    : [
+        {
+          id: `img-${product.id}`,
+          product_id: product.id,
+          url: product.image,
+          alt_text: product.name,
+          is_primary: true,
+          sort_order: 0,
+          created_at: product.createdAt || timestamp,
+        },
+      ];
+
   return {
     id: product.id,
     sku: product.sku,
@@ -126,17 +156,10 @@ const apiProductToShopProduct = (product: ApiProduct): ShopProduct => {
     seo_keywords: [],
     created_at: product.createdAt || timestamp,
     updated_at: product.updatedAt || timestamp,
-    images: [
-      {
-        id: `img-${product.id}`,
-        product_id: product.id,
-        url: product.image,
-        alt_text: product.name,
-        is_primary: true,
-        sort_order: 0,
-        created_at: product.createdAt || timestamp,
-      },
-    ],
+    video_url: product.videoUrl || product.video,
+    video_is_primary: product.videoIsPrimary,
+    video_sort_order: product.videoSortOrder,
+    images,
   };
 };
 
@@ -149,7 +172,23 @@ const shopProductToPayload = (product: Partial<ShopProduct>): Partial<ProductPay
   if (product.detailed_description !== undefined) payload.detailedDescription = product.detailed_description;
   if (product.price !== undefined) payload.price = product.price;
   if (product.original_price !== undefined) payload.originalPrice = product.original_price;
-  if (product.images?.[0]?.url) payload.image = product.images[0].url;
+
+  // Multi-image support: send full images[] and keep legacy image in sync
+  if (product.images && product.images.length > 0) {
+    payload.images = product.images.map((img, idx) => ({
+      url: img.url,
+      altText: img.alt_text,
+      isPrimary: img.is_primary ?? idx === 0,
+      sortOrder: img.sort_order ?? idx,
+    })) as unknown as ApiProductImage[];
+    payload.image = product.images[0].url;
+  }
+
+  // Video support
+  if (product.video_url !== undefined) payload.videoUrl = product.video_url;
+  if (product.video_is_primary !== undefined) payload.videoIsPrimary = product.video_is_primary;
+  if (product.video_sort_order !== undefined) payload.videoSortOrder = product.video_sort_order;
+
   if (product.rating !== undefined) payload.rating = product.rating;
   if (product.benefits !== undefined) payload.benefits = product.benefits;
   if (product.specifications !== undefined) payload.specifications = product.specifications;
@@ -184,9 +223,23 @@ export const productService = {
   },
 
   async updateProduct(id: string, updates: Partial<ShopProduct>): Promise<ShopProduct> {
+    console.log('[productService] updateProduct called with updates:', updates);
     const payload = shopProductToPayload(updates);
+    console.log('[productService] Converted payload:', payload);
+    console.log('[productService] Payload images:', payload.images);
+    console.log('[productService] Payload videoUrl:', payload.videoUrl);
+    console.log('[productService] Payload availableQuantity:', payload.availableQuantity);
+
     const updated = await productApi.update(id, payload);
-    return apiProductToShopProduct(updated);
+    console.log('[productService] Backend returned:', updated);
+
+    const shopProduct = apiProductToShopProduct(updated);
+    console.log('[productService] Converted to ShopProduct:', shopProduct);
+    console.log('[productService] ShopProduct images:', shopProduct.images);
+    console.log('[productService] ShopProduct video_url:', shopProduct.video_url);
+    console.log('[productService] ShopProduct available_quantity:', shopProduct.available_quantity);
+
+    return shopProduct;
   },
 
   async deleteProduct(id: string): Promise<void> {
@@ -197,6 +250,31 @@ export const productService = {
     const payloadKey = field === 'in_stock' ? 'inStock' : 'featured';
     const updated = await productApi.update(id, { [payloadKey]: value });
     return apiProductToShopProduct(updated);
+  },
+
+  async bulkDeleteProducts(ids: string[]): Promise<{ deletedCount: number }> {
+    const response = await fetch(`${API_BASE_URL}/products/bulk/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to bulk delete products');
+    }
+    return response.json();
+  },
+
+  async bulkUpdateProducts(ids: string[], updates: Partial<ShopProduct>): Promise<{ modifiedCount: number }> {
+    const payload = shopProductToPayload(updates);
+    const response = await fetch(`${API_BASE_URL}/products/bulk/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, updates: payload })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to bulk update products');
+    }
+    return response.json();
   }
 };
 
