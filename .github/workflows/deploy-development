@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - development
+      - main
 
 concurrency:
   group: deploy-aoeshoptest-development
