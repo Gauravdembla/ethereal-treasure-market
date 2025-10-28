@@ -306,16 +306,24 @@ const Checkout = () => {
           const fallbackProducts = PRODUCTS
             .filter(product => !cartProductIds.includes(product.id))
             .slice(0, 20)
-            .map(product => ({
-              product_id: product.id,
-              name: product.name,
-              description: product.description,
-              price: product.price,
-              original_price: product.originalPrice,
-              rating: product.rating,
-              sku: product.sku,
-              images: [{ url: product.image, is_primary: true }]
-            }));
+            .map(product => {
+              const imageUrls = Array.isArray(product.images) && product.images.length > 0
+                ? product.images
+                : [product.image];
+              return {
+                product_id: product.id,
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                original_price: product.originalPrice,
+                rating: product.rating,
+                sku: product.sku,
+                images: imageUrls.map((url, index) => ({
+                  url,
+                  is_primary: index === 0,
+                })),
+              };
+            });
           setRelatedProducts(fallbackProducts as any);
         }
       } catch (err) {
@@ -326,16 +334,24 @@ const Checkout = () => {
         const fallbackProducts = PRODUCTS
           .filter(product => !cartProductIds.includes(product.id))
           .slice(0, 20)
-          .map(product => ({
-            product_id: product.id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            original_price: product.originalPrice,
-            rating: product.rating,
-            sku: product.sku,
-            images: [{ url: product.image, is_primary: true }]
-          }));
+          .map(product => {
+            const imageUrls = Array.isArray(product.images) && product.images.length > 0
+              ? product.images
+              : [product.image];
+            return {
+              product_id: product.id,
+              name: product.name,
+              description: product.description,
+              price: product.price,
+              original_price: product.originalPrice,
+              rating: product.rating,
+              sku: product.sku,
+              images: imageUrls.map((url, index) => ({
+                url,
+                is_primary: index === 0,
+              })),
+            };
+          });
         setRelatedProducts(fallbackProducts as any);
       }
     };

@@ -18,12 +18,14 @@ export interface Product {
   price: string;
   originalPrice?: string;
   image: string;
+  images: string[];
   rating: number;
   benefits: string[];
   specifications: Record<string, string>;
   category: string;
   inStock: boolean;
   featured: boolean;
+  availableQuantity?: number;
 }
 
 // Centralized product database - this will be replaced with API calls
@@ -37,6 +39,7 @@ export const PRODUCTS: Product[] = [
     price: "2,499",
     originalPrice: "3,199",
     image: amethystImage,
+    images: [amethystImage],
     rating: 5,
     benefits: [
       "Enhances spiritual awareness and intuition",
@@ -67,6 +70,7 @@ export const PRODUCTS: Product[] = [
     price: "1,899",
     originalPrice: "2,499",
     image: angelCardsImage,
+    images: [angelCardsImage],
     rating: 5,
     benefits: [
       "Direct communication with guardian angels",
@@ -97,6 +101,7 @@ export const PRODUCTS: Product[] = [
     price: "899",
     originalPrice: "1,199",
     image: candleImage,
+    images: [candleImage],
     rating: 5,
     benefits: [
       "Promotes deep relaxation and stress relief",
@@ -127,6 +132,7 @@ export const PRODUCTS: Product[] = [
     price: "1,299",
     originalPrice: "1,699",
     image: journalImage,
+    images: [journalImage],
     rating: 5,
     benefits: [
       "Supports chakra alignment and balancing",
@@ -157,6 +163,7 @@ export const PRODUCTS: Product[] = [
     price: "1,599",
     originalPrice: "1,999",
     image: roseQuartzImage,
+    images: [roseQuartzImage],
     rating: 5,
     benefits: [
       "Opens and heals the heart chakra",
@@ -187,6 +194,7 @@ export const PRODUCTS: Product[] = [
     price: "3,499",
     originalPrice: "4,499",
     image: chakraKitImage,
+    images: [chakraKitImage],
     rating: 5,
     benefits: [
       "Complete chakra system balancing",

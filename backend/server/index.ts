@@ -6,6 +6,7 @@ import productsRouter from "./routes/products";
 import addressesRouter from "./routes/addresses";
 import { ensureMongoConnection } from "./utils/mongo";
 import { seedProductsFromStaticData } from "./utils/seed";
+import { backfillProductImages } from "./utils/backfillProductImages";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api/addresses", addressesRouter);
   try {
     await ensureMongoConnection();
     await seedProductsFromStaticData();
+    await backfillProductImages();
 
     app.listen(PORT, () => {
       console.log(`API server listening on http://localhost:${PORT}`);

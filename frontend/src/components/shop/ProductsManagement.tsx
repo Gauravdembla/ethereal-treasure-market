@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Upload, Eye, Star, Package } from "lucide-react";
-import { productService, ShopProduct } from "@/services/shopService";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Edit, Trash2, Upload, Star, Package } from "lucide-react";
+import { productService, ShopProduct, ProductImage } from "@/services/shopService";
 import { useToast } from "@/hooks/use-toast";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -25,6 +25,18 @@ const sortProductsForDisplay = (items: ShopProduct[]): ShopProduct[] => {
   });
 };
 
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+
+const createTempImageId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const readFileAsDataURL = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+
 const ProductsManagement = () => {
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
@@ -34,7 +46,7 @@ const ProductsManagement = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [newImageUrl, setNewImageUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
@@ -53,8 +65,52 @@ const ProductsManagement = () => {
     rating: 5,
     available_quantity: 0,
     status: 'published',
-    seo_keywords: []
+    seo_keywords: [],
+    images: []
   });
+
+  const normalizeImages = useCallback((images?: ProductImage[]): ProductImage[] => {
+    const seen = new Set<string>();
+    const sanitized: ProductImage[] = [];
+
+    (images || []).forEach((image, index) => {
+      const url = (image?.url || '').trim();
+      if (!url || seen.has(url)) {
+        return;
+      }
+      seen.add(url);
+      sanitized.push({
+        ...image,
+        id: image?.id || `${createTempImageId()}-${index}`,
+        url,
+      });
+    });
+
+    return sanitized.map((image, index) => ({
+      ...image,
+      sort_order: index,
+      is_primary: index === 0,
+    }));
+  }, []);
+
+  const updateImages = useCallback(
+    (transform: (context: { images: ProductImage[]; productId?: string; productName?: string }) => ProductImage[]) => {
+      setFormData((prev) => {
+        const currentImages = prev.images ? [...prev.images] : [];
+        const nextImages = transform({
+          images: currentImages,
+          productId: prev.id,
+          productName: prev.name,
+        });
+
+        return {
+          ...prev,
+          images: normalizeImages(nextImages),
+        };
+      });
+    },
+    [normalizeImages]
+  );
 
   // Load products on component mount
   useEffect(() => {
@@ -105,8 +161,11 @@ const ProductsManagement = () => {
 
   const handleEditProduct = (product: ShopProduct) => {
     setSelectedProduct(product);
-    setFormData(product);
-    setImagePreview(product.images?.[0]?.url || null);
+    setFormData({
+      ...product,
+      images: normalizeImages(product.images),
+    });
+    setNewImageUrl('');
     setIsEditDialogOpen(true);
   };
 
@@ -125,75 +184,154 @@ const ProductsManagement = () => {
       rating: 5,
       available_quantity: 0,
       status: 'published',
-      seo_keywords: []
+      seo_keywords: [],
+      images: []
     });
-    setImagePreview(null);
+    setNewImageUrl('');
     setIsAddDialogOpen(true);
   };
 
-  const processSelectedImage = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid file",
-        description: "Please choose an image file.",
-        variant: "destructive"
+  const handleFilesSelected = useCallback(
+    async (fileList: FileList | null) => {
+      if (!fileList || fileList.length === 0) return;
+
+      const accepted: { url: string; name: string }[] = [];
+      const errors: string[] = [];
+
+      for (const file of Array.from(fileList)) {
+        if (!file.type.startsWith('image/')) {
+          errors.push(`${file.name}: unsupported format`);
+          continue;
+        }
+
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+          errors.push(`${file.name}: exceeds 10MB limit`);
+          continue;
+        }
+
+        try {
+          const dataUrl = await readFileAsDataURL(file);
+          accepted.push({ url: dataUrl, name: file.name });
+        } catch (_error) {
+          errors.push(`${file.name}: failed to process`);
+        }
+      }
+
+      if (errors.length > 0) {
+        toast({
+          title: "Some files were skipped",
+          description: errors.join("\n"),
+          variant: "destructive"
+        });
+      }
+
+      if (accepted.length === 0) return;
+
+      updateImages(({ images, productId, productName }) => {
+        const next = [...images];
+        accepted.forEach(({ url, name }) => {
+          const sortOrder = next.length;
+          next.push({
+            id: createTempImageId(),
+            product_id: productId || 'temp-product',
+            url,
+            alt_text: productName || name,
+            is_primary: false,
+            sort_order: sortOrder,
+          });
+        });
+        return next;
       });
-      return;
-    }
+    },
+    [toast, updateImages]
+  );
 
-    const maxSizeBytes = 10 * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      toast({
-        title: "File too large",
-        description: "Image must be smaller than 10MB.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleImageInputChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      await handleFilesSelected(event.target.files);
+      event.target.value = '';
+    },
+    [handleFilesSelected]
+  );
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setImagePreview(dataUrl);
-      setFormData(prev => ({
-        ...prev,
-        images: [
-          {
-            ...(prev.images?.[0] || {
-              id: 'temp-image',
-              product_id: prev.id || 'temp-product',
-              is_primary: true,
-              sort_order: 0
-            }),
-            url: dataUrl,
-            alt_text: prev.name || file.name
-          }
-        ]
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleImageInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      processSelectedImage(file);
-    }
-
-    event.target.value = '';
-  };
-
-  const handleDropImage = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      processSelectedImage(file);
-    }
-  };
+  const handleDropImages = useCallback(
+    async (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const files = event.dataTransfer.files;
+      if (files && files.length > 0) {
+        await handleFilesSelected(files);
+        event.dataTransfer.clearData();
+      }
+    },
+    [handleFilesSelected]
+  );
 
   const openFilePicker = () => {
     fileInputRef.current?.click();
   };
+
+  const handleSetPrimaryImage = useCallback(
+    (id: string) => {
+      updateImages(({ images }) => {
+        const index = images.findIndex((image) => image.id === id);
+        if (index <= 0) return images;
+        const [selected] = images.splice(index, 1);
+        return [selected, ...images];
+      });
+    },
+    [updateImages]
+  );
+
+  const handleRemoveImage = useCallback(
+    (id: string) => {
+      updateImages(({ images }) => images.filter((image) => image.id !== id));
+    },
+    [updateImages]
+  );
+
+  const handleAddImageUrl = useCallback(() => {
+    const trimmed = newImageUrl.trim();
+    if (!trimmed) {
+      toast({
+        title: "No URL provided",
+        description: "Paste an image URL before adding.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const urls = trimmed
+      .split(/[\s,]+/)
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0);
+
+    if (urls.length === 0) {
+      toast({
+        title: "Invalid URL",
+        description: "Please provide a valid image URL.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    updateImages(({ images, productId, productName }) => {
+      const next = [...images];
+      urls.forEach((url) => {
+        const sortOrder = next.length;
+        next.push({
+          id: createTempImageId(),
+          product_id: productId || 'temp-product',
+          url,
+          alt_text: productName || 'Product image',
+          is_primary: false,
+          sort_order: sortOrder,
+        });
+      });
+      return next;
+    });
+
+    setNewImageUrl('');
+  }, [newImageUrl, toast, updateImages]);
 
   const handleSaveProduct = async () => {
     try {
@@ -223,7 +361,7 @@ const ProductsManagement = () => {
       setIsEditDialogOpen(false);
       setIsAddDialogOpen(false);
       setSelectedProduct(null);
-      setImagePreview(null);
+      setNewImageUrl('');
     } catch (error) {
       console.error('Error saving product:', error);
       toast({
@@ -501,7 +639,7 @@ const ProductsManagement = () => {
           setIsEditDialogOpen(false);
           setIsAddDialogOpen(false);
           setSelectedProduct(null);
-          setImagePreview(null);
+          setNewImageUrl('');
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -722,45 +860,111 @@ const ProductsManagement = () => {
               </div>
 
               <div>
-                <Label>Product Image</Label>
+                <Label className="block mb-2">Product Images</Label>
                 <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={openFilePicker}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openFilePicker();
-                    }
-                  }}
                   onDragOver={(event) => event.preventDefault()}
-                  onDrop={handleDropImage}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                  onDrop={handleDropImages}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 focus-within:ring-2 focus-within:ring-primary transition"
                 >
-                  {imagePreview ? (
-                    <div className="space-y-2">
-                      <img
-                        src={imagePreview}
-                        alt={formData.name || 'Selected product'}
-                        className="mx-auto h-40 w-40 object-cover rounded-md"
-                      />
-                      <p className="text-sm text-gray-600">Click or drop to replace the image</p>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Upload multiple images to create an engaging gallery.</p>
+                      <p className="text-xs text-gray-500">JPG or PNG up to 10MB each. First image will be used as the primary thumbnail.</p>
+                    </div>
+                    <Button type="button" variant="outline" onClick={openFilePicker} className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      Upload Images
+                    </Button>
+                  </div>
+
+                  {formData.images && formData.images.length > 0 ? (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {(formData.images || []).map((image) => (
+                        <div
+                          key={image.id}
+                          className="relative group rounded-lg overflow-hidden border shadow-sm"
+                        >
+                          <img
+                            src={image.url}
+                            alt={image.alt_text || formData.name || 'Product image'}
+                            className="h-40 w-full object-cover"
+                          />
+                          {image.is_primary && (
+                            <span className="absolute top-2 left-2 rounded-full bg-primary/90 px-3 py-1 text-xs font-medium text-white shadow">
+                              Primary
+                            </span>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {!image.is_primary && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="bg-white/90 hover:bg-white text-gray-800"
+                                onClick={() => handleSetPrimaryImage(image.id)}
+                              >
+                                <Star className="w-4 h-4 mr-1" />
+                                Make Primary
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              className="bg-white/90 hover:bg-white text-red-600"
+                              onClick={() => handleRemoveImage(image.id)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <>
-                      <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                      <p className="text-xs text-gray-500">PNG, JPG up to 10MB</p>
-                    </>
+                    <div
+                      className="flex flex-col items-center justify-center py-10 text-center text-gray-500 cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={openFilePicker}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          openFilePicker();
+                        }
+                      }}
+                    >
+                      <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                      <p className="text-sm font-medium">Drop images here or click to browse</p>
+                      <p className="text-xs">You can also paste direct image URLs below.</p>
+                    </div>
                   )}
                 </div>
+
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
+                  multiple
                   onChange={handleImageInputChange}
                 />
+
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    placeholder="Paste image URL and click Add"
+                    value={newImageUrl}
+                    onChange={(event) => setNewImageUrl(event.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddImageUrl}
+                    disabled={!newImageUrl.trim()}
+                  >
+                    Add URL
+                  </Button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -771,7 +975,7 @@ const ProductsManagement = () => {
                     setIsEditDialogOpen(false);
                     setIsAddDialogOpen(false);
                     setSelectedProduct(null);
-                    setImagePreview(null);
+                    setNewImageUrl('');
                   }}
                 >
                   Cancel

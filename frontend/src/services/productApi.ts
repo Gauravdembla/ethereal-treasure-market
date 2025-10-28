@@ -11,7 +11,8 @@ export interface ApiProduct {
   detailedDescription?: string;
   price: number;
   originalPrice?: number;
-  image: string;
+  image?: string;
+  images?: string[];
   rating: number;
   benefits: string[];
   specifications: Record<string, string>;
@@ -32,6 +33,8 @@ export interface ProductPayload {
   price: number;
   originalPrice?: number;
   image?: string;
+  images?: string[];
+  imageUrls?: string[];
   rating?: number;
   benefits?: string[];
   specifications?: Record<string, string>;
@@ -61,10 +64,22 @@ const toApiUrl = (path: string) => {
 
 const normalizeApiProduct = (product: ApiProduct): ApiProduct => {
   if (!product) return product;
-  if (!product.id && product._id) {
-    return { ...product, id: product._id };
+  const normalized: ApiProduct = { ...product };
+
+  if (!normalized.id && normalized._id) {
+    normalized.id = normalized._id;
   }
-  return product;
+
+  const imageArray = Array.isArray(normalized.images) ? normalized.images.filter((url) => typeof url === "string" && url.trim().length > 0) : [];
+  const fallbackImages = imageArray.length > 0 ? imageArray : normalized.image ? [normalized.image] : [];
+
+  normalized.images = fallbackImages;
+
+  if (!normalized.image && normalized.images.length > 0) {
+    normalized.image = normalized.images[0];
+  }
+
+  return normalized;
 };
 
 export const productApi = {
@@ -115,45 +130,3 @@ export const toDisplayProduct = (apiProduct: ApiProduct) => ({
   price: numberFormatter.format(apiProduct.price ?? 0),
   originalPrice: apiProduct.originalPrice ? numberFormatter.format(apiProduct.originalPrice) : undefined,
 });
-
-export const fromFormToPayload = (form: {
-  sku: string;
-  name: string;
-  description: string;
-  detailedDescription?: string;
-  price: string;
-  originalPrice?: string;
-  image?: string;
-  rating?: number;
-  benefits?: string[];
-  specifications?: Record<string, string>;
-  category?: string;
-  inStock?: boolean;
-  featured?: boolean;
-  availableQuantity?: string;
-  tags?: string[];
-}): ProductPayload => {
-  const toNumber = (value?: string) => {
-    if (!value) return undefined;
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? undefined : parsed;
-  };
-
-  return {
-    sku: form.sku,
-    name: form.name,
-    description: form.description,
-    detailedDescription: form.detailedDescription,
-    price: Number(form.price),
-    originalPrice: toNumber(form.originalPrice),
-    image: form.image,
-    rating: form.rating,
-    benefits: form.benefits,
-    specifications: form.specifications,
-    category: form.category,
-    inStock: form.inStock,
-    featured: form.featured,
-    availableQuantity: toNumber(form.availableQuantity),
-    tags: form.tags,
-  };
-};

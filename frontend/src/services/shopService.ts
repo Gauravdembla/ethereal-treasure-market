@@ -104,6 +104,11 @@ export interface Testimonial {
 
 const apiProductToShopProduct = (product: ApiProduct): ShopProduct => {
   const timestamp = new Date().toISOString();
+  const imageUrls = Array.isArray(product.images) && product.images.length > 0
+    ? product.images
+    : product.image
+      ? [product.image]
+      : [];
 
   return {
     id: product.id,
@@ -126,17 +131,15 @@ const apiProductToShopProduct = (product: ApiProduct): ShopProduct => {
     seo_keywords: [],
     created_at: product.createdAt || timestamp,
     updated_at: product.updatedAt || timestamp,
-    images: [
-      {
-        id: `img-${product.id}`,
-        product_id: product.id,
-        url: product.image,
-        alt_text: product.name,
-        is_primary: true,
-        sort_order: 0,
-        created_at: product.createdAt || timestamp,
-      },
-    ],
+    images: imageUrls.map((url, index) => ({
+      id: `img-${product.id}-${index}`,
+      product_id: product.id,
+      url,
+      alt_text: product.name,
+      is_primary: index === 0,
+      sort_order: index,
+      created_at: product.createdAt || timestamp,
+    })),
   };
 };
 
@@ -149,7 +152,20 @@ const shopProductToPayload = (product: Partial<ShopProduct>): Partial<ProductPay
   if (product.detailed_description !== undefined) payload.detailedDescription = product.detailed_description;
   if (product.price !== undefined) payload.price = product.price;
   if (product.original_price !== undefined) payload.originalPrice = product.original_price;
-  if (product.images?.[0]?.url) payload.image = product.images[0].url;
+  if (product.images) {
+    const urls = product.images
+      .map((image) => image?.url?.trim())
+      .filter((url): url is string => Boolean(url));
+
+    if (urls.length > 0) {
+      payload.images = urls;
+      payload.imageUrls = urls;
+      payload.image = urls[0];
+    } else {
+      payload.images = [];
+      payload.imageUrls = [];
+    }
+  }
   if (product.rating !== undefined) payload.rating = product.rating;
   if (product.benefits !== undefined) payload.benefits = product.benefits;
   if (product.specifications !== undefined) payload.specifications = product.specifications;

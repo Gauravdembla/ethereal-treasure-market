@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import createHttpError from "http-errors";
-import { ProductModel } from "../models/Product";
+import { ProductModel, PRODUCT_DEFAULT_IMAGE } from "../models/Product";
 
 const router = Router();
 
@@ -14,6 +14,9 @@ interface ProductRequestBody {
   originalPrice?: number | string;
   original_price?: number | string;
   image?: string;
+  images?: string[] | string;
+  imageUrls?: string[] | string;
+  image_urls?: string[] | string;
   rating?: number | string;
   benefits?: string[] | string;
   benefitsList?: string[] | string;
@@ -47,6 +50,17 @@ const normalizePayload = (body: ProductRequestBody) => {
     if (!value) return [];
     if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
     if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.map((v) => String(v).trim()).filter(Boolean);
+          }
+        } catch (_error) {
+          /* fall through to comma split */
+        }
+      }
       return value
         .split(",")
         .map((v) => v.trim())
@@ -64,6 +78,14 @@ const normalizePayload = (body: ProductRequestBody) => {
       : {};
 
   const benefits = body.benefits ?? body.benefitsList;
+  const rawImages = body.images ?? body.imageUrls ?? body.image_urls;
+  const singleImage =
+    typeof body.image === "string" && body.image.trim().length > 0 ? body.image.trim() : undefined;
+  let images = toStringArray(rawImages);
+  if (singleImage) {
+    images = [singleImage, ...images];
+  }
+  images = images.filter((value, index, array) => array.indexOf(value) === index);
 
   const payload: Record<string, unknown> = {
     sku: body.sku,
@@ -72,7 +94,6 @@ const normalizePayload = (body: ProductRequestBody) => {
     detailedDescription: body.detailedDescription ?? body.detailed_description,
     price: toNumber(body.price),
     originalPrice: toNumber(body.originalPrice ?? body.original_price),
-    image: body.image,
     rating: toNumber(body.rating) ?? 5,
     benefits: toStringArray(benefits),
     specifications,
@@ -82,6 +103,10 @@ const normalizePayload = (body: ProductRequestBody) => {
     availableQuantity: toNumber(body.availableQuantity ?? body.available_quantity) ?? 0,
     tags: toStringArray(body.tags),
   };
+
+  if (rawImages !== undefined || singleImage) {
+    payload.images = images;
+  }
 
   Object.keys(payload).forEach((key) => {
     if (payload[key] === undefined) {
@@ -98,9 +123,26 @@ const mapProductDocument = (product: any) => {
     ? product._id.toString()
     : product._id);
 
+  const rawImages = Array.isArray(product.images) ? product.images : [];
+  const normalizedImages = rawImages
+    .map((img) => (typeof img === "string" ? img.trim() : ""))
+    .filter((img) => img.length > 0);
+
+  const legacyImage =
+    typeof product.image === "string" && product.image.trim().length > 0
+      ? product.image.trim()
+      : undefined;
+
+  const combined = legacyImage ? [legacyImage, ...normalizedImages] : normalizedImages;
+  const imagesSet = Array.from(new Set(combined));
+  const images = imagesSet.length > 0 ? imagesSet : [PRODUCT_DEFAULT_IMAGE];
+  const image = images[0] ?? PRODUCT_DEFAULT_IMAGE;
+
   return {
     ...product,
     id,
+    image,
+    images,
   };
 };
 

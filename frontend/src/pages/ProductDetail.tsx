@@ -38,9 +38,27 @@ const getProductIdFromUrl = (urlId: string) => {
   return productParts.join('-');
 };
 
+const normalizeImageUrls = (images?: string[] | null, fallback?: string): string[] => {
+  const list = Array.isArray(images) ? images : [];
+  const sanitized = list
+    .map((url) => (typeof url === "string" ? url.trim() : ""))
+    .filter((url) => url.length > 0);
+
+  if (sanitized.length > 0) {
+    return sanitized;
+  }
+
+  if (fallback && fallback.trim().length > 0) {
+    return [fallback.trim()];
+  }
+
+  return ["/placeholder.svg"];
+};
+
 const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
   const stableId = apiProduct.id || apiProduct._id || "";
   const now = new Date().toISOString();
+  const imageUrls = normalizeImageUrls(apiProduct.images, apiProduct.image);
 
   return {
     id: stableId,
@@ -81,16 +99,14 @@ const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
     published_at: apiProduct.createdAt || now,
     created_at: apiProduct.createdAt || now,
     updated_at: apiProduct.updatedAt || now,
-    images: [
-      {
-        id: `img-${stableId}`,
-        url: apiProduct.image,
-        alt_text: apiProduct.name,
-        is_primary: true,
-        sort_order: 0,
-        image_type: "product",
-      },
-    ],
+    images: imageUrls.map((url, index) => ({
+      id: `img-${stableId}-${index}`,
+      url,
+      alt_text: apiProduct.name,
+      is_primary: index === 0,
+      sort_order: index,
+      image_type: "product",
+    })),
     content_sections: [],
     reviews: [],
   };
@@ -99,6 +115,7 @@ const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
 const mapSeedProductToProduct = (seedProduct: SeedProduct): Product => {
   const now = new Date().toISOString();
   const availableQuantity = computeAvailableQuantity(seedProduct.id);
+  const imageUrls = normalizeImageUrls(seedProduct.images, seedProduct.image);
 
   return {
     id: seedProduct.id,
@@ -137,16 +154,14 @@ const mapSeedProductToProduct = (seedProduct: SeedProduct): Product => {
     published_at: now,
     created_at: now,
     updated_at: now,
-    images: [
-      {
-        id: `seed-img-${seedProduct.id}`,
-        url: seedProduct.image,
-        alt_text: seedProduct.name,
-        is_primary: true,
-        sort_order: 0,
-        image_type: "product",
-      },
-    ],
+    images: imageUrls.map((url, index) => ({
+      id: `seed-img-${seedProduct.id}-${index}`,
+      url,
+      alt_text: seedProduct.name,
+      is_primary: index === 0,
+      sort_order: index,
+      image_type: "product",
+    })),
     content_sections: [],
     reviews: [],
   };
@@ -469,13 +484,23 @@ const ProductDetail = () => {
 
   // Get images for the product (using Supabase data)
   const getProductImages = () => {
-    return [
-      primaryImage,   // Primary product image from Supabase
-      banner1, // Mockup 2 - lifestyle/banner image
-      banner2, // Mockup 3 - lifestyle/banner image
-      banner3, // Mockup 4 - lifestyle/banner image
-      banner4  // Mockup 5 - lifestyle/banner image
-    ];
+    const resolvedFromProduct = productImages
+      .map((img) => getActualImageUrl(img.url))
+      .filter((url) => typeof url === "string" && url.trim().length > 0);
+
+    const combined = [...resolvedFromProduct];
+    if (primaryImage && !combined.includes(primaryImage)) {
+      combined.unshift(primaryImage);
+    }
+
+    const unique = Array.from(new Set(combined)).filter((url) => url && url.length > 0);
+    if (unique.length > 0) {
+      return unique;
+    }
+
+    return Array.from(
+      new Set([primaryImage, banner1, banner2, banner3, banner4, banner5].filter(Boolean))
+    ) as string[];
   };
 
   // Related products slider functions - Updated for responsive display

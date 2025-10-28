@@ -3,27 +3,22 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Star, ChevronLeft, ChevronRight, Plus, Minus } from "lucide-react";
+import { ShoppingCart, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useMembershipPricing } from "@/hooks/useMembershipPricing";
-
-// Import banner images for mockups
-import banner1 from "@/assets/banner-1.jpg";
-import banner2 from "@/assets/banner-2.jpg";
-import banner3 from "@/assets/banner-3.jpg";
-import banner4 from "@/assets/banner-4.jpg";
-import banner5 from "@/assets/banner-5.jpg";
 
 interface ProductCardProps {
   id: string;
   sku: string;
   image: string;
+  images?: string[];
   name: string;
   description: string;
   price: string;
   originalPrice?: string;
   rating?: number;
   inStock?: boolean;
+  availableQuantity?: number;
 }
 
 // Consistent review counts for each product (instead of random)
@@ -43,12 +38,14 @@ const ProductCard = ({
   id,
   sku,
   image,
+  images,
   name,
   description,
   price,
   originalPrice,
   rating = 5,
-  inStock = true
+  inStock = true,
+  availableQuantity: availableQuantityProp,
 }: ProductCardProps) => {
   const { addItem, removeItem, items } = useCart();
   const { calculatePrice, formatPrice, hasDiscount, isAuthenticated } = useMembershipPricing();
@@ -58,36 +55,47 @@ const ProductCard = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
 
-  // Static available quantity (in real app, this would come from props or API)
-  // Using a hash of the product ID to get consistent quantity per product
-  const getAvailableQuantity = (productId: string) => {
+  const galleryImages = (() => {
+    const provided = Array.isArray(images)
+      ? images.map((url) => (typeof url === "string" ? url.trim() : "")).filter(Boolean)
+      : [];
+    if (provided.length > 0) {
+      return provided;
+    }
+    return image ? [image] : ["/placeholder.svg"];
+  })();
+  const primaryImage = galleryImages[0] ?? "/placeholder.svg";
+
+  // Fallback available quantity used when API doesn't provide one
+  const getFallbackAvailableQuantity = (productId: string) => {
     const hash = productId.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
     return Math.abs(hash % 16) + 5; // Consistent quantity between 5-20
   };
-  const availableQuantity = inStock ? getAvailableQuantity(id) : 0;
-  const outOfStock = !inStock;
+  const availableQuantity = (() => {
+    if (!inStock) return 0;
+    if (typeof availableQuantityProp === "number" && Number.isFinite(availableQuantityProp)) {
+      return Math.max(0, availableQuantityProp);
+    }
+    return getFallbackAvailableQuantity(id);
+  })();
+  const outOfStock = !inStock || availableQuantity <= 0;
 
   // Sync selectedQuantity with cart quantity
   useEffect(() => {
     if (currentQuantity > 0) {
-      setSelectedQuantity(currentQuantity);
+      setSelectedQuantity(Math.min(currentQuantity, Math.max(availableQuantity, 1)));
     }
-  }, [currentQuantity]);
+  }, [currentQuantity, availableQuantity]);
 
-  // Create 5 mockup images - using the main image and banner images as variations
-  const images = [
-    image,   // Original product image
-    banner1, // Mockup 2 - lifestyle/banner image
-    banner2, // Mockup 3 - lifestyle/banner image
-    banner3, // Mockup 4 - lifestyle/banner image
-    banner4  // Mockup 5 - lifestyle/banner image
-  ];
-
+  useEffect(() => {
+    setSelectedQuantity((prev) => Math.min(prev, Math.max(availableQuantity, 1)));
+  }, [availableQuantity]);
+ 
   const handleAddToCart = () => {
-    if (!inStock) {
+    if (outOfStock) {
       alert('This product is currently out of stock.');
       return;
     }
@@ -97,10 +105,9 @@ const ProductCard = ({
       return;
     }
 
-    console.log('🛒 Add to Cart clicked for:', { id, name, price, selectedQuantity });
-    console.log('🖼️ Image parameter:', image);
-    console.log('📦 Full product object being added:', { id, name, price, image });
-    addItem({ id, name, price, image }, selectedQuantity);
+    console.log(' Add to Cart clicked for:', { id, name, price, selectedQuantity });
+    console.log('📦 Full product object being added:', { id, name, price, image: primaryImage });
+    addItem({ id, name, price, image: primaryImage }, selectedQuantity);
     // Note: items state won't update immediately due to React async state updates
     setTimeout(() => {
       console.log('🛒 Cart state after 100ms:', items);
@@ -110,19 +117,23 @@ const ProductCard = ({
   const handleQuantityIncrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!inStock) return;
+    if (outOfStock) return;
+    if (currentQuantity + 1 > availableQuantity) {
+      alert(`Maximum quantity allowed: ${availableQuantity}`);
+      return;
+    }
     console.log('➕ Quantity increase clicked for:', id, 'current quantity:', currentQuantity);
-    addItem({ id, name, price, image }, currentQuantity + 1);
+    addItem({ id, name, price, image: primaryImage }, currentQuantity + 1);
     console.log('➕ After increase, target quantity:', currentQuantity + 1);
   };
 
   const handleQuantityDecrease = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!inStock) return;
+    if (outOfStock) return;
     console.log('➖ Quantity decrease clicked for:', id, 'current quantity:', currentQuantity);
     if (currentQuantity > 1) {
-      addItem({ id, name, price, image }, currentQuantity - 1);
+      addItem({ id, name, price, image: primaryImage }, currentQuantity - 1);
       console.log('➖ After decrease, target quantity:', currentQuantity - 1);
     } else if (currentQuantity === 1) {
       removeItem(id);
@@ -133,13 +144,13 @@ const ProductCard = ({
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
   };
 
   const selectImage = (index: number, e: React.MouseEvent) => {
@@ -153,7 +164,7 @@ const ProductCard = ({
         {/* Image Slider */}
         <div className="relative">
           <img
-            src={images[currentImageIndex]}
+            src={galleryImages[currentImageIndex] ?? primaryImage}
             alt={`${name} - Image ${currentImageIndex + 1}`}
             className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
             key={currentImageIndex}
@@ -167,7 +178,7 @@ const ProductCard = ({
 
           {/* Image Counter */}
           <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {currentImageIndex + 1}/{images.length}
+            {currentImageIndex + 1}/{galleryImages.length}
           </div>
 
           {/* Slider Navigation */}
@@ -189,7 +200,7 @@ const ProductCard = ({
 
           {/* Image Indicators */}
           <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {images.map((_, index) => (
+            {galleryImages.map((_, index) => (
               <button
                 key={index}
                 onClick={(e) => selectImage(index, e)}
@@ -296,12 +307,25 @@ const ProductCard = ({
             <>
               <div className="flex items-center justify-center gap-3">
                 <label className="text-sm font-medium text-angelic-deep whitespace-nowrap">Quantity:</label>
-                <Select value={(currentQuantity || selectedQuantity).toString()} onValueChange={(value) => setSelectedQuantity(parseInt(value))}>
+                <Select
+                  value={(currentQuantity || selectedQuantity).toString()}
+                  onValueChange={(value) => {
+                    const parsed = parseInt(value, 10);
+                    if (!Number.isNaN(parsed)) {
+                      setSelectedQuantity(Math.min(parsed, availableQuantity));
+                    }
+                  }}
+                >
                   <SelectTrigger className="w-20">
                     <SelectValue placeholder="Select quantity" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                    {Array.from(
+                      {
+                        length: Math.min(Math.max(availableQuantity, 1), 15),
+                      },
+                      (_, i) => i + 1
+                    ).map((num) => (
                       <SelectItem
                         key={num}
                         value={num.toString()}

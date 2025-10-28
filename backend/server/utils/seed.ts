@@ -2,7 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { build } from "esbuild";
-import { ProductModel } from "../models/Product";
+import { ProductModel, PRODUCT_DEFAULT_IMAGE } from "../models/Product";
 
 const parsePriceString = (value?: string) => {
   if (!value) return undefined;
@@ -91,7 +91,8 @@ type ProductSeed = {
   detailedDescription?: string;
   price: string;
   originalPrice?: string;
-  image: string;
+  image?: string;
+  images?: string[];
   rating?: number;
   benefits?: string[];
   specifications?: Record<string, string>;
@@ -115,6 +116,20 @@ export const seedProductsFromStaticData = async () => {
       const originalPrice = parsePriceString(product.originalPrice);
       const availableQuantity = computeSeedQuantity(product.id);
 
+      const rawImages = Array.isArray(product.images) ? product.images : [];
+      const normalizedImages = rawImages
+        .map((img) => (typeof img === "string" ? img.trim() : ""))
+        .filter((img) => img.length > 0);
+      const legacyImage =
+        typeof product.image === "string" && product.image.trim().length > 0
+          ? product.image.trim()
+          : undefined;
+      const combinedImages = legacyImage
+        ? [legacyImage, ...normalizedImages]
+        : normalizedImages;
+      const uniqueImages = Array.from(new Set(combinedImages));
+      const finalImages = uniqueImages.length > 0 ? uniqueImages : [PRODUCT_DEFAULT_IMAGE];
+
       return {
         sku: product.sku,
         name: product.name,
@@ -122,7 +137,7 @@ export const seedProductsFromStaticData = async () => {
         detailedDescription: product.detailedDescription ?? product.description,
         price,
         originalPrice,
-        image: product.image,
+        images: finalImages,
         rating: product.rating ?? 5,
         benefits: product.benefits ?? [],
         specifications: product.specifications ?? {},

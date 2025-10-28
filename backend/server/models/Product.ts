@@ -8,7 +8,8 @@ export interface ProductDocument extends mongoose.Document {
   detailedDescription?: string;
   price: number;
   originalPrice?: number;
-  image: string;
+  image?: string;
+  images: string[];
   rating: number;
   benefits: string[];
   specifications: Record<string, string>;
@@ -22,6 +23,7 @@ export interface ProductDocument extends mongoose.Document {
 }
 
 const specificationSchema = new Schema({}, { strict: false, _id: false });
+export const PRODUCT_DEFAULT_IMAGE = "/assets/product-placeholder.jpg";
 
 const ProductSchema = new Schema<ProductDocument>(
   {
@@ -31,7 +33,18 @@ const ProductSchema = new Schema<ProductDocument>(
     detailedDescription: { type: String },
     price: { type: Number, required: true, min: 0 },
     originalPrice: { type: Number, min: 0 },
-    image: { type: String, default: "/assets/product-placeholder.jpg" },
+    images: {
+      type: [String],
+      default: [PRODUCT_DEFAULT_IMAGE],
+      set: (values: unknown) => {
+        const items = Array.isArray(values) ? values : [values];
+        const sanitized = items
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter((item): item is string => item.length > 0);
+        const unique = Array.from(new Set(sanitized));
+        return unique.length > 0 ? unique : [PRODUCT_DEFAULT_IMAGE];
+      },
+    },
     rating: { type: Number, default: 5, min: 0, max: 5 },
     benefits: { type: [String], default: [] },
     specifications: { type: specificationSchema, default: {} },
@@ -45,10 +58,18 @@ const ProductSchema = new Schema<ProductDocument>(
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform: (_doc: any, ret:any) => {
+      transform: (_doc: any, ret: any) => {
         ret.id = ret._id;
         delete ret._id;
         delete ret.__v;
+        const images = Array.isArray(ret.images)
+          ? ret.images
+              .map((value: unknown) => (typeof value === "string" ? value.trim() : ""))
+              .filter((value: string) => value.length > 0)
+          : [];
+        const uniqueImages = Array.from(new Set(images));
+        ret.images = uniqueImages.length > 0 ? uniqueImages : [PRODUCT_DEFAULT_IMAGE];
+        ret.image = ret.images[0];
         return ret;
       },
     },

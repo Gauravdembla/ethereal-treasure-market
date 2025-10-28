@@ -7,23 +7,43 @@ import { productApi, type ApiProduct } from "@/services/productApi";
 
 const numberFormatter = new Intl.NumberFormat("en-IN");
 
+const normalizeImageArray = (images?: string[] | null, fallback?: string): string[] => {
+  const list = Array.isArray(images) ? images : [];
+  const sanitized = list
+    .map((url) => (typeof url === "string" ? url.trim() : ""))
+    .filter((url) => url.length > 0);
+
+  if (sanitized.length > 0) {
+    return sanitized;
+  }
+
+  if (fallback && fallback.trim().length > 0) {
+    return [fallback.trim()];
+  }
+
+  return ["/placeholder.svg"];
+};
+
 const apiProductToGridProduct = (product: ApiProduct): Product => {
   const stableId = product.id || product._id || "";
+  const images = normalizeImageArray(product.images, product.image);
   return {
     id: stableId,
     sku: product.sku,
-  name: product.name,
-  description: product.description,
-  detailedDescription: product.detailedDescription || product.description,
-  price: numberFormatter.format(product.price ?? 0),
-  originalPrice: product.originalPrice ? numberFormatter.format(product.originalPrice) : undefined,
-  image: product.image,
-  rating: product.rating ?? 5,
-  benefits: product.benefits ?? [],
-  specifications: product.specifications ?? {},
-  category: product.category || "",
-  inStock: product.inStock,
-  featured: product.featured,
+    name: product.name,
+    description: product.description,
+    detailedDescription: product.detailedDescription || product.description,
+    price: numberFormatter.format(product.price ?? 0),
+    originalPrice: product.originalPrice ? numberFormatter.format(product.originalPrice) : undefined,
+    image: images[0],
+    images,
+    rating: product.rating ?? 5,
+    benefits: product.benefits ?? [],
+    specifications: product.specifications ?? {},
+    category: product.category || "",
+    inStock: product.inStock,
+    featured: product.featured,
+    availableQuantity: product.availableQuantity,
   };
 };
 
@@ -211,12 +231,14 @@ const ProductGrid = () => {
                     id={product.id}
                     sku={product.sku}
                     image={product.image}
+                    images={product.images}
                     name={product.name}
                     description={product.description}
                     price={product.price}
                     originalPrice={product.originalPrice}
                     rating={product.rating}
                     inStock={product.inStock}
+                    availableQuantity={product.availableQuantity}
                   />
                 ))}
               </div>
