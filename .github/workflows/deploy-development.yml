@@ -1,9 +1,11 @@
 name: Deploy aoeshoptest (development)
 
 on:
-  push:
-    branches: [ development ]
   workflow_dispatch: {}
+  push:
+    branches:
+      - development
+      - main
 
 concurrency:
   group: deploy-aoeshoptest-development
