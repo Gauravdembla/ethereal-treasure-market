@@ -197,7 +197,11 @@ router.post("/bulk/update", async (req, res, next) => {
     if (Object.keys(update).length === 0) throw new createHttpError.BadRequest("Provide fields in update");
 
     const result = await ReviewModel.updateMany({ _id: { $in: ids } }, { $set: update });
-    res.json({ matched: result.matchedCount ?? result.n, modified: result.modifiedCount ?? result.nModified });
+    const { matchedCount = 0, modifiedCount = 0 } = result as unknown as {
+      matchedCount?: number;
+      modifiedCount?: number;
+    };
+    res.json({ matched: matchedCount, modified: modifiedCount });
   } catch (error) {
     next(error);
   }
@@ -222,7 +226,11 @@ router.post("/bulk/update-scope", async (req, res, next) => {
     }
 
     const result = await ReviewModel.updateMany(filter, { $set: update });
-    res.json({ matched: result.matchedCount ?? result.n, modified: result.modifiedCount ?? result.nModified });
+    const { matchedCount = 0, modifiedCount = 0 } = result as unknown as {
+      matchedCount?: number;
+      modifiedCount?: number;
+    };
+    res.json({ matched: matchedCount, modified: modifiedCount });
   } catch (error) {
     next(error);
   }
@@ -249,4 +257,3 @@ router.use((error: unknown, _req: Request, res: Response, _next: NextFunction) =
 });
 
 export default router;
-

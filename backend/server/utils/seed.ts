@@ -139,7 +139,5 @@ export const seedProductsFromStaticData = async () => {
     console.log(`Seeded ${documents.length} products into MongoDB.`);
   } catch (error) {
     console.error("Failed to seed products from static data", error);
-  };
-
-
-
+  }
+};

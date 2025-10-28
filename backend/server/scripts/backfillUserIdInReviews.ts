@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import { ensureMongoConnection } from "../utils/mongo";
-import ReviewModel from "../models/Review";
+import { ReviewModel } from "../models/Review";
 
 /*
   Backfill script: add user_id field to existing reviews that don't have it.
@@ -29,4 +29,3 @@ main()
     console.error("Backfill failed:", err);
     process.exit(1);
   });
-
