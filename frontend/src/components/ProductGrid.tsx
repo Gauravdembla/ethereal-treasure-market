@@ -93,7 +93,7 @@ const ProductGrid = () => {
           const mediaMap: Record<string, string[]> = {};
           for (const p of apiProducts) {
             const id = (p.id || p._id) as string;
-            const imgs = Array.isArray(p.images) ? [...p.images].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(i => i.url) : [];
+            const imgs = Array.isArray(p.images) ? [...p.images].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(i => i.url).filter(Boolean) : [];
             const vUrl = (p as any).videoUrl as string | undefined;
             const vIsPrimary = (p as any).videoIsPrimary as boolean | undefined;
             const vSort = (p as any).videoSortOrder as number | undefined;
@@ -101,13 +101,13 @@ const ProductGrid = () => {
               if (vIsPrimary) {
                 mediaMap[id] = [vUrl, ...imgs.length ? imgs : [p.image]].filter(Boolean);
               } else {
-                const arr = [...(imgs.length ? imgs : [p.image])];
+                const arr = [...(imgs.length ? imgs : [p.image])].filter(Boolean);
                 const pos = Math.max(0, Math.min(typeof vSort === 'number' ? vSort : arr.length, arr.length));
                 arr.splice(pos, 0, vUrl);
-                mediaMap[id] = arr;
+                mediaMap[id] = arr.filter(Boolean);
               }
             } else {
-              mediaMap[id] = imgs.length ? imgs : [p.image];
+              mediaMap[id] = (imgs.length ? imgs : [p.image]).filter(Boolean);
             }
           }
           setMediaById(mediaMap);

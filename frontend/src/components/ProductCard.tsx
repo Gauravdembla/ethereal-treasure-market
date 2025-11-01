@@ -69,9 +69,15 @@ const ProductCard = ({
   }, [currentQuantity]);
 
   // Use provided media list (images + optional video preview), fallback to single image
-  const mediaList = (media && media.length > 0) ? media : [image];
+  // Filter out any undefined/null values from the media array
+  const mediaList = (media && media.length > 0)
+    ? media.filter(url => url != null && url !== '')
+    : (image ? [image] : ['/placeholder.svg']);
 
-  const isVideoUrl = (url: string) => /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+  const isVideoUrl = (url: string | undefined | null) => {
+    if (!url || typeof url !== 'string') return false;
+    return /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+  };
 
   const handleAddToCart = () => {
     if (!inStock) {
@@ -141,7 +147,7 @@ const ProductCard = ({
         <div className="relative">
           {isVideoUrl(mediaList[currentImageIndex]) ? (
             <video
-              src={mediaList[currentImageIndex]}
+              src={mediaList[currentImageIndex] || '/placeholder.svg'}
               className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
               muted
               playsInline
@@ -151,7 +157,7 @@ const ProductCard = ({
             />
           ) : (
             <img
-              src={mediaList[currentImageIndex]}
+              src={mediaList[currentImageIndex] || '/placeholder.svg'}
               alt={`${name} - Image ${currentImageIndex + 1}`}
               className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
               key={`img-${currentImageIndex}`}
