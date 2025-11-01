@@ -1,0 +1,22 @@
+🚀 DEPLOY TO angelmarket-test FOLDER - COPY THIS COMMAND
+================================================================
+
+cd /Users/nishchaynagpal/Desktop/ethereal-treasure-market && scp DEPLOY_TO_ANGELMARKET_TEST.sh root@91.108.105.252:/root/ && ssh root@91.108.105.252 "bash /root/DEPLOY_TO_ANGELMARKET_TEST.sh 91.108.105.252 91.108.105.252 'mongodb+srv://connect_db_user:bl2JT2Wc3Bacj5Lb@cluster0.6pjokiu.mongodb.net/ethereal-treasure'"
+
+================================================================
+
+INSTRUCTIONS:
+1. Open Terminal app
+2. Copy the command above
+3. Paste into Terminal
+4. Press Enter
+5. Enter your VPS password when asked (you'll be asked twice)
+6. Wait 5-10 minutes for deployment to complete
+7. Open browser: http://91.108.105.252
+
+✅ This will deploy to your existing /root/angelmarket-test folder
+✅ Your development branch code will be deployed
+✅ Backend will run on PM2 as "angelmarket-backend"
+
+Your site will be live! 🎉
+
