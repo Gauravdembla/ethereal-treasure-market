@@ -30,9 +30,14 @@ const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 // ───────────────────────────────────────────────────────────────
 // Middleware
+// Parse ALLOWED_ORIGINS from env or use defaults
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [CLIENT_URL, "http://localhost:8080", "http://localhost:5173"];
+
 app.use(
   cors({
-    origin: [CLIENT_URL, "http://localhost:8080"],
+    origin: allowedOrigins,
     credentials: true,
   })
 );
