@@ -22,6 +22,7 @@ echo ""
 echo "→ Step 1: Pulling latest code from Git..."
 git fetch origin
 git reset --hard origin/main
+git clean -fd
 echo "✓ Code updated"
 
 # Step 2: Clean npm cache and node_modules to avoid permission issues
@@ -105,4 +106,3 @@ echo ""
 echo "To view logs:"
 echo "  pm2 logs ethereal-backend"
 echo ""
-
