@@ -131,6 +131,8 @@ const ProductsManagement = () => {
     try {
       setLoading(true);
       const data = await productService.getProducts();
+      console.log('[ProductsManagement] Loaded products:', data);
+      console.log('[ProductsManagement] First product images:', data[0]?.images);
       setProducts(sortProductsForDisplay(data));
       toast({
         title: "Success",
@@ -863,6 +865,11 @@ const ProductsManagement = () => {
                       src={product.images?.[0]?.url || '/placeholder.svg'}
                       alt={product.name}
                       className="w-12 h-12 object-cover rounded-lg"
+                      onError={(e) => {
+                        console.error(`Failed to load image for ${product.name}:`, product.images?.[0]?.url);
+                        console.log('Product images array:', product.images);
+                        e.currentTarget.src = '/placeholder.svg';
+                      }}
                     />
                     <div>
                       <p className="font-medium">{product.name}</p>

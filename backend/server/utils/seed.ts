@@ -124,6 +124,14 @@ export const seedProductsFromStaticData = async () => {
         price,
         originalPrice,
         image: product.image,
+        images: [
+          {
+            url: product.image,
+            altText: product.name,
+            isPrimary: true,
+            sortOrder: 0,
+          },
+        ],
         rating: product.rating ?? 5,
         benefits: product.benefits ?? [],
         specifications: product.specifications ?? {},

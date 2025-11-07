@@ -88,10 +88,39 @@ const toApiUrl = (path: string) => {
 const normalizeApiProduct = (product: ApiProduct): ApiProduct => {
   if (!product) return product;
   const withId = product.id ? product : (product._id ? { ...product, id: product._id } as ApiProduct : product);
-  const fixedImage = toAssetUrl(withId.image) || withId.image;
+
+  const normalizeImage = (img: ApiProductImage | string | null | undefined, idx: number): ApiProductImage | null => {
+    if (!img) return null;
+    if (typeof img === "string") {
+      const urlFromString = toAssetUrl(img) || img;
+      return urlFromString
+        ? {
+            url: urlFromString,
+            isPrimary: idx === 0,
+            sortOrder: idx,
+          }
+        : null;
+    }
+
+    const normalizedUrl = toAssetUrl(img.url) || img.url;
+    if (!normalizedUrl) return null;
+
+    return {
+      ...img,
+      url: normalizedUrl,
+      altText: img.altText ?? (img as any)?.alt_text,
+      isPrimary: img.isPrimary ?? (img as any)?.is_primary ?? idx === 0,
+      sortOrder: img.sortOrder ?? (img as any)?.sort_order ?? idx,
+    };
+  };
+
   const fixedImages = Array.isArray(withId.images)
-    ? withId.images.map(img => ({ ...img, url: toAssetUrl(img.url) || img.url }))
-    : withId.images;
+    ? withId.images
+        .map((img, idx) => normalizeImage(img as any, idx))
+        .filter((img): img is ApiProductImage => Boolean(img))
+    : [];
+
+  const fixedImage = toAssetUrl(withId.image) || withId.image || fixedImages[0]?.url;
   const fixedVideo = toAssetUrl(withId.videoUrl || withId.video);
   return {
     ...withId,

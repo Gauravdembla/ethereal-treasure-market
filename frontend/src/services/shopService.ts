@@ -135,6 +135,11 @@ const apiProductToShopProduct = (product: ApiProduct): ShopProduct => {
         },
       ];
 
+  console.log(`[apiProductToShopProduct] Product: ${product.name}`);
+  console.log(`[apiProductToShopProduct] product.images:`, product.images);
+  console.log(`[apiProductToShopProduct] product.image:`, product.image);
+  console.log(`[apiProductToShopProduct] Final images array:`, images);
+
   return {
     id: product.id,
     sku: product.sku,
