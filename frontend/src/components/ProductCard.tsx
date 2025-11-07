@@ -69,9 +69,18 @@ const ProductCard = ({
   }, [currentQuantity]);
 
   // Use provided media list (images + optional video preview), fallback to single image
-  const mediaList = (media && media.length > 0) ? media : [image];
+  // Filter out any undefined/null values and ensure we have valid URLs
+  const mediaList = (media && media.length > 0)
+    ? media.filter(url => url != null && url !== '' && typeof url === 'string')
+    : (image ? [image] : ['/placeholder.svg']);
 
-  const isVideoUrl = (url: string) => /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+  // Ensure we always have at least one valid image
+  const validMediaList = mediaList.length > 0 ? mediaList : ['/placeholder.svg'];
+
+  const isVideoUrl = (url: string | undefined | null) => {
+    if (!url || typeof url !== 'string') return false;
+    return /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+  };
 
   const handleAddToCart = () => {
     if (!inStock) {
@@ -120,13 +129,13 @@ const ProductCard = ({
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % mediaList.length);
+    setCurrentImageIndex((prev) => (prev + 1) % validMediaList.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + mediaList.length) % mediaList.length);
+    setCurrentImageIndex((prev) => (prev - 1 + validMediaList.length) % validMediaList.length);
   };
 
   const selectImage = (index: number, e: React.MouseEvent) => {
@@ -139,9 +148,9 @@ const ProductCard = ({
       <div className="relative mb-4 overflow-hidden rounded-xl">
         {/* Image Slider */}
         <div className="relative">
-          {isVideoUrl(mediaList[currentImageIndex]) ? (
+          {isVideoUrl(validMediaList[currentImageIndex]) ? (
             <video
-              src={mediaList[currentImageIndex]}
+              src={validMediaList[currentImageIndex]}
               className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
               muted
               playsInline
@@ -151,9 +160,13 @@ const ProductCard = ({
             />
           ) : (
             <img
-              src={mediaList[currentImageIndex]}
+              src={validMediaList[currentImageIndex]}
               alt={`${name} - Image ${currentImageIndex + 1}`}
               className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
+              onError={(e) => {
+                console.error(`Failed to load image for ${name}:`, validMediaList[currentImageIndex]);
+                e.currentTarget.src = '/placeholder.svg';
+              }}
               key={`img-${currentImageIndex}`}
             />
           )}
@@ -166,7 +179,7 @@ const ProductCard = ({
 
           {/* Image Counter */}
           <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {currentImageIndex + 1}/{mediaList.length}
+            {currentImageIndex + 1}/{validMediaList.length}
           </div>
 
           {/* Slider Navigation */}
@@ -188,7 +201,7 @@ const ProductCard = ({
 
           {/* Media Indicators */}
           <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {mediaList.map((_, index) => (
+            {validMediaList.map((_, index) => (
               <button
                 key={index}
                 onClick={(e) => selectImage(index, e)}
