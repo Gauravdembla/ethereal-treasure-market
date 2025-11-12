@@ -5,7 +5,7 @@ export type CompanyDetails = {
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
-const toApiUrl = (path: string) => `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+const toApiUrl = (path: string) => `${API_BASE_URL}${(path && typeof path === 'string' && path.startsWith("/")) ? path : `/${path}`}`;
 
 async function getCompanyDetails(userId: string): Promise<CompanyDetails | null> {
   const res = await fetch(toApiUrl(`user-profiles/${encodeURIComponent(userId)}`), { credentials: "include" });

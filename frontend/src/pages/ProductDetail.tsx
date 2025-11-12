@@ -526,7 +526,10 @@ const ProductDetail = () => {
     return imgUrls.length > 0 ? imgUrls : [primaryImage];
   };
 
-  const isVideoUrl = (url: string) => /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+  const isVideoUrl = (url: string | undefined | null) => {
+    if (!url || typeof url !== 'string') return false;
+    return /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+  };
 
 
   const getRelatedImages = (p: Product) => {

@@ -1,8 +1,8 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
 const toApiUrl = (path: string) => {
-  if (path.startsWith("http")) return path;
-  return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  if (path && typeof path === 'string' && path.startsWith("http")) return path;
+  return `${API_BASE_URL}${(path && typeof path === 'string' && path.startsWith("/")) ? path : `/${path}`}`;
 };
 
 const handleResponse = async (response: Response) => {

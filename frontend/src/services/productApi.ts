@@ -5,7 +5,7 @@ const API_ORIGIN = API_BASE_URL.replace(/\/?api\/?$/, "");
 
 // Ensure media URLs like "/uploads/..." point to the backend origin instead of the frontend (8080)
 const toAssetUrl = (url?: string): string | undefined => {
-  if (!url) return url;
+  if (!url || typeof url !== 'string') return url;
   if (url.startsWith("/uploads")) return `${API_ORIGIN}${url}`;
   return url;
 };
