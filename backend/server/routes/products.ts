@@ -223,6 +223,10 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+const isDuplicateKeyError = (error: unknown) => {
+  return typeof error === "object" && error !== null && "code" in error && (error as any).code === 11000;
+};
+
 router.post("/", async (req, res, next) => {
   try {
     const payload = normalizePayload(req.body);
@@ -234,6 +238,13 @@ router.post("/", async (req, res, next) => {
     const product = await ProductModel.create(payload);
     res.status(201).json(mapProductDocument(product.toJSON()));
   } catch (error: unknown) {
+    if (isDuplicateKeyError(error)) {
+      return next(
+        new createHttpError.Conflict(
+          `A product with this SKU (${(error as any).keyValue?.sku ?? "unknown"}) already exists. Please use a unique SKU.`
+        )
+      );
+    }
     next(error);
   }
 });
@@ -270,6 +281,13 @@ router.put("/:id", async (req, res, next) => {
     res.json(result);
   } catch (error: any) {
     console.error("PUT /api/products/:id failed:", error?.message || error, error?.stack);
+    if (isDuplicateKeyError(error)) {
+      return next(
+        new createHttpError.Conflict(
+          `A product with this SKU (${(error as any).keyValue?.sku ?? "unknown"}) already exists. Please use a unique SKU.`
+        )
+      );
+    }
     next(error);
   }
 });

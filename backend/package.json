@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --clear-screen=false server/index.ts",
-    "start": "node --loader tsx server/index.ts",
+    "dev": "tsx watch server/index.ts",
+    "start": "tsx server/index.ts",
     "init:mongo": "tsx server/scripts/initMongo.ts"
   },
   "dependencies": {
@@ -20,8 +20,8 @@
     "@types/express": "^5.0.3",
     "@types/http-errors": "^2.0.5",
     "@types/node": "^22.5.5",
+    "ts-node": "^10.9.2",
     "tsx": "^4.20.5",
     "typescript": "^5.5.3"
   }
 }
-
