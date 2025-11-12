@@ -13,17 +13,41 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (optional)
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Add server to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-      - name: SSH & run deploy script
+      - name: 📦 Install root dependencies
+        run: npm ci --no-optional
+
+      - name: 📦 Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci --no-optional
+
+      - name: 📦 Install backend dependencies
+        working-directory: ./backend
+        run: npm ci --no-optional
+
+      - name: 🏗️ Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: 📤 Deploy to server via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete --exclude='.git' --exclude='node_modules' --exclude='.env' --exclude='*.log'
+          path: ./
+          remote_path: ${{ secrets.APP_PATH || '/home/angelsonearthhub-aoeshop/htdocs/app' }}
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🔄 Restart backend service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -33,4 +57,33 @@ jobs:
             set -e
             APP_PATH="${{ secrets.APP_PATH || '/home/angelsonearthhub-aoeshop/htdocs/app' }}"
             cd "$APP_PATH"
-            ./bin/deploy.sh
+
+            # Install/update PM2 if needed
+            if ! command -v pm2 &> /dev/null; then
+              npm install -g pm2
+            fi
+
+            # Restart or start the backend
+            if pm2 describe ethereal-backend > /dev/null 2>&1; then
+              echo "Restarting existing PM2 process..."
+              pm2 restart ethereal-backend
+            else
+              echo "Starting new PM2 process..."
+              cd backend
+              pm2 start server/index.ts --name ethereal-backend --interpreter npx --interpreter-args "tsx"
+              cd ..
+            fi
+
+            pm2 save
+
+            # Show status
+            pm2 status
+
+            # Health check
+            echo "Waiting for backend to start..."
+            sleep 3
+            if curl -f http://localhost:4000/health > /dev/null 2>&1; then
+              echo "✅ Backend health check passed"
+            else
+              echo "⚠️ Backend health check failed (may still be starting)"
+            fi
