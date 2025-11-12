@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# Ethereal Treasure Market - Deployment Script
-# This script is called by GitHub Actions to deploy the application
+# Deployment script for aoeshoptest on Hostinger VPS
+# This script should be placed at ~/deploy_aoeshoptest.sh on the server
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "🚀 Starting Deployment"
+echo "🚀 Starting aoeshoptest Deployment"
 echo "=========================================="
 echo ""
 
-# Get the directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$(dirname "$SCRIPT_DIR")"
+# Configuration - Update these paths as needed
+APP_DIR="/home/aoeshoptest/htdocs/aoeshoptest.angelsonearthhub.com"
+PM2_APP_NAME="aoeshoptest-backend"
 
 echo "→ Application directory: $APP_DIR"
 cd "$APP_DIR"
@@ -21,11 +21,10 @@ cd "$APP_DIR"
 echo ""
 echo "→ Step 1: Pulling latest code from Git..."
 git fetch origin
-git reset --hard origin/main
-git clean -fd
+git reset --hard origin/main  # or origin/development
 echo "✓ Code updated"
 
-# Step 2: Clean npm cache and node_modules to avoid permission issues
+# Step 2: Clean old dependencies
 echo ""
 echo "→ Step 2: Cleaning old dependencies..."
 rm -rf node_modules
@@ -33,15 +32,22 @@ rm -rf frontend/node_modules
 rm -rf backend/node_modules
 echo "✓ Old dependencies cleaned"
 
-# Step 3: Install dependencies with clean slate
-# Use --no-optional to skip platform-specific packages (e.g., @rollup/rollup-darwin-arm64)
+# Step 3: Install dependencies (skip platform-specific optional packages)
 echo ""
 echo "→ Step 3: Installing dependencies..."
 export NPM_CONFIG_OPTIONAL=false
+
+# Try npm ci first (faster), fall back to npm install
 npm ci --no-optional || npm install --no-optional --legacy-peer-deps
-cd frontend && (npm ci --no-optional || npm install --no-optional --legacy-peer-deps)
-cd ../backend && (npm ci --no-optional || npm install --no-optional --legacy-peer-deps)
+
+cd frontend
+npm ci --no-optional || npm install --no-optional --legacy-peer-deps
 cd ..
+
+cd backend
+npm ci --no-optional || npm install --no-optional --legacy-peer-deps
+cd ..
+
 echo "✓ Dependencies installed"
 
 # Step 4: Build frontend
@@ -55,40 +61,26 @@ echo "✓ Frontend built"
 # Step 5: Restart backend with PM2
 echo ""
 echo "→ Step 5: Restarting backend..."
-if pm2 describe ethereal-backend > /dev/null 2>&1; then
+if pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1; then
     echo "  Restarting existing PM2 process..."
-    pm2 restart ethereal-backend
+    pm2 restart "$PM2_APP_NAME"
 else
     echo "  Starting new PM2 process..."
     cd backend
-    pm2 start server/index.ts --name "ethereal-backend" --interpreter tsx
+    pm2 start server/index.ts --name "$PM2_APP_NAME" --interpreter tsx
     cd ..
 fi
 pm2 save
 echo "✓ Backend restarted"
 
-# Step 6: Restart Nginx (if available)
-echo ""
-echo "→ Step 6: Restarting Nginx..."
-if command -v nginx > /dev/null 2>&1; then
-    if command -v systemctl > /dev/null 2>&1; then
-        sudo systemctl restart nginx || echo "  ⚠️  Could not restart Nginx (may need sudo)"
-    else
-        sudo service nginx restart || echo "  ⚠️  Could not restart Nginx (may need sudo)"
-    fi
-    echo "✓ Nginx restarted"
-else
-    echo "  ℹ️  Nginx not found, skipping..."
-fi
-
-# Step 7: Verification
+# Step 6: Verification
 echo ""
 echo "=========================================="
 echo "✅ Deployment Complete!"
 echo "=========================================="
 echo ""
 echo "→ Checking services..."
-pm2 status | grep ethereal-backend || echo "  ⚠️  Backend not found in PM2"
+pm2 status | grep "$PM2_APP_NAME" || echo "  ⚠️  Backend not found in PM2"
 
 echo ""
 echo "→ Testing backend health..."
@@ -103,5 +95,6 @@ echo ""
 echo "🎉 Deployment completed at $(date)"
 echo ""
 echo "To view logs:"
-echo "  pm2 logs ethereal-backend"
+echo "  pm2 logs $PM2_APP_NAME"
 echo ""
+
