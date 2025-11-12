@@ -16,6 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure jq is available
+        run: |
+          jq -V >/dev/null 2>&1 || {
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          }
+
       - name: Add VPS to known_hosts (prevent host key prompt)
         run: |
           mkdir -p ~/.ssh
@@ -35,24 +42,74 @@ jobs:
           DEPLOY_SCRIPT: ${{ secrets.DEPLOY_SCRIPT }}
 
       - name: Verify live version matches this commit
+        id: verify
         run: |
           set -euo pipefail
           WANT="${GITHUB_SHA::7}"
           echo "Expecting commit: $WANT"
 
-          # retry up to ~90s (30 x 3s) to allow PM2 reload to settle
+          LIVE=""
           for i in {1..30}; do
-            # cache-bust with a timestamp
             LIVE_JSON=$(curl -fsS "${LIVE_VERSION_URL}?t=$(date +%s)" || true)
-            LIVE=$(echo "$LIVE_JSON" | jq -r '.commit' 2>/dev/null || true)
-
+            LIVE=$(echo "$LIVE_JSON" | jq -r '.commit // empty' || true)
             echo "Attempt $i: live='$LIVE' raw=$LIVE_JSON"
             if [ "$LIVE" = "$WANT" ]; then
+              echo "live_commit=$LIVE" >> "$GITHUB_OUTPUT"
               echo "✅ Live version verified!"
               exit 0
             fi
             sleep 3
           done
 
-          echo "❌ Live version mismatch. Wanted '$WANT' but got '$LIVE'"
+          echo "live_commit=${LIVE:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "❌ Live version mismatch. Wanted '$WANT' but got '${LIVE:-none}'"
           exit 1
+
+      # ---------- Email notifications via Gmail (App Password) ----------
+      # SUCCESS
+      - name: Send SUCCESS email
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}   # e.g. gaurav262001@gmail.com
+          password: ${{ secrets.SMTP_PASSWORD }}   # Gmail App Password (16 chars)
+          from: "AOE Deploy Bot <${{ secrets.SMTP_FROM }}>"  # can be same as username
+          to: connect@gauravdembla.com
+          subject: "✅ aoeshop deploy SUCCESS — ${{ github.ref_name }} @ ${{ github.sha }}"
+          html_body: |
+            <h3>Deployment Succeeded</h3>
+            <ul>
+              <li><b>Repo:</b> ${{ github.repository }}</li>
+              <li><b>Branch:</b> ${{ github.ref_name }}</li>
+              <li><b>Commit:</b> ${{ github.sha }}</li>
+              <li><b>Live Commit:</b> ${{ steps.verify.outputs.live_commit }}</li>
+              <li><b>Run:</b> <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View in GitHub</a></li>
+              <li><b>Version API:</b> <a href="${{ env.LIVE_VERSION_URL }}">${{ env.LIVE_VERSION_URL }}</a></li>
+            </ul>
+
+      # FAILURE
+      - name: Send FAILURE email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          from: "AOE Deploy Bot <${{ secrets.SMTP_FROM }}>"
+          to: connect@gauravdembla.com
+          subject: "❌ aoeshop deploy FAILED — ${{ github.ref_name }} @ ${{ github.sha }}"
+          html_body: |
+            <h3>Deployment Failed</h3>
+            <ul>
+              <li><b>Repo:</b> ${{ github.repository }}</li>
+              <li><b>Branch:</b> ${{ github.ref_name }}</li>
+              <li><b>Commit:</b> ${{ github.sha }}</li>
+              <li><b>Live Commit (if any):</b> ${{ steps.verify.outputs.live_commit }}</li>
+              <li><b>Run:</b> <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View in GitHub</a></li>
+              <li><b>Version API:</b> <a href="${{ env.LIVE_VERSION_URL }}">${{ env.LIVE_VERSION_URL }}</a></li>
+            </ul>
