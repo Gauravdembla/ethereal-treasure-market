@@ -50,7 +50,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "server", "uplo
 // Health + Version routes
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.get("/version", (_req, res) => res.json({ commit }));
-
+app.get("/api/version", (_req, res) => res.json({ commit }));
 // ───────────────────────────────────────────────────────────────
 // API routes
 app.use("/api/products", productsRouter);
