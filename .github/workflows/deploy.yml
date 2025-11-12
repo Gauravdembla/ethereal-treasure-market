@@ -1,89 +1,32 @@
-name: Deploy to Hostinger (CloudPanel)
+name: 🚀 Auto Deploy aoeshop to Hostinger
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch: {}
-
-concurrency:
-  group: deploy-main
-  cancel-in-progress: true
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout (optional)
         uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Add VPS to known_hosts (prevent host key prompt)
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Hostinger VPS
+        uses: appleboy/ssh-action@v1.1.0
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: 📦 Install root dependencies
-        run: npm ci --no-optional
-
-      - name: 📦 Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci --no-optional
-
-      - name: 📦 Install backend dependencies
-        working-directory: ./backend
-        run: npm ci --no-optional
-
-      - name: 🏗️ Build frontend
-        working-directory: ./frontend
-        run: npm run build
-
-      - name: 📤 Deploy to server via rsync
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          switches: -avzr --delete --exclude='.git' --exclude='node_modules' --exclude='.env' --exclude='*.log'
-          path: ./
-          remote_path: ${{ secrets.APP_PATH || '/home/angelsonearthhub-aoeshop/htdocs/app' }}
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_user: ${{ secrets.SSH_USER }}
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: 🔄 Restart backend service
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            set -e
-            APP_PATH="${{ secrets.APP_PATH || '/home/angelsonearthhub-aoeshop/htdocs/app' }}"
-            cd "$APP_PATH"
-
-            # Install/update PM2 if needed
-            if ! command -v pm2 &> /dev/null; then
-              npm install -g pm2
-            fi
-
-            # Restart or start the backend
-            if pm2 describe ethereal-backend > /dev/null 2>&1; then
-              echo "Restarting existing PM2 process..."
-              pm2 restart ethereal-backend
-            else
-              echo "Starting new PM2 process..."
-              cd backend
-              pm2 start server/index.ts --name ethereal-backend --interpreter npx --interpreter-args "tsx"
-              cd ..
-            fi
-
-            pm2 save
-
-            # Show status
-            pm2 status
-
-            # Health check
-            echo "Waiting for backend to start..."
-            sleep 3
-            if curl -f http://localhost:4000/health > /dev/null 2>&1; then
-              echo "✅ Backend health check passed"
-            else
-              echo "⚠️ Backend health check failed (may still be starting)"
-            fi
+            echo "🔄 Deploying latest main branch to aoeshop..."
+            ${DEPLOY_SCRIPT:-/usr/local/bin/aoeshop-deploy}
+        env:
+          DEPLOY_SCRIPT: ${{ secrets.DEPLOY_SCRIPT }}
