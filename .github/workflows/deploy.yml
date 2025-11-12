@@ -1,4 +1,4 @@
-name: 🚀 Auto Deploy aoeshop to Hostinger
+name: "🚀 Auto Deploy aoeshop to Hostinger"
 
 on:
   push:
@@ -9,24 +9,50 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      LIVE_VERSION_URL: https://aoeshop.angelsonearthhub.com/api/version
 
     steps:
-      - name: Checkout (optional)
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Add VPS to known_hosts (prevent host key prompt)
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Deploy to Hostinger VPS
+      - name: Deploy to Hostinger VPS (via your script)
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
             echo "🔄 Deploying latest main branch to aoeshop..."
             ${DEPLOY_SCRIPT:-/usr/local/bin/aoeshop-deploy}
         env:
           DEPLOY_SCRIPT: ${{ secrets.DEPLOY_SCRIPT }}
+
+      - name: Verify live version matches this commit
+        run: |
+          set -euo pipefail
+          WANT="${GITHUB_SHA::7}"
+          echo "Expecting commit: $WANT"
+
+          # retry up to ~90s (30 x 3s) to allow PM2 reload to settle
+          for i in {1..30}; do
+            # cache-bust with a timestamp
+            LIVE_JSON=$(curl -fsS "${LIVE_VERSION_URL}?t=$(date +%s)" || true)
+            LIVE=$(echo "$LIVE_JSON" | jq -r '.commit' 2>/dev/null || true)
+
+            echo "Attempt $i: live='$LIVE' raw=$LIVE_JSON"
+            if [ "$LIVE" = "$WANT" ]; then
+              echo "✅ Live version verified!"
+              exit 0
+            fi
+            sleep 3
+          done
+
+          echo "❌ Live version mismatch. Wanted '$WANT' but got '$LIVE'"
+          exit 1
