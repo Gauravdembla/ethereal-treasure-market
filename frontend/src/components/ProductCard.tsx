@@ -79,7 +79,12 @@ const ProductCard = ({
 
   const isVideoUrl = (url: string | undefined | null) => {
     if (!url || typeof url !== 'string') return false;
-    return /\.(mp4|webm|mov)$/i.test(url) || url.startsWith('data:video');
+    try {
+      return /\.(mp4|webm|mov)$/i.test(url) || (typeof url === 'string' && url.startsWith('data:video'));
+    } catch (error) {
+      console.error('Error checking video URL:', error);
+      return false;
+    }
   };
 
   const handleAddToCart = () => {
@@ -148,26 +153,34 @@ const ProductCard = ({
       <div className="relative mb-4 overflow-hidden rounded-xl">
         {/* Image Slider */}
         <div className="relative">
-          {isVideoUrl(validMediaList[currentImageIndex]) ? (
-            <video
-              src={validMediaList[currentImageIndex]}
-              className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
-              muted
-              playsInline
-              loop
-              preload="metadata"
-              key={`vid-${currentImageIndex}`}
-            />
+          {validMediaList.length > 0 && validMediaList[currentImageIndex] ? (
+            isVideoUrl(validMediaList[currentImageIndex]) ? (
+              <video
+                src={validMediaList[currentImageIndex]}
+                className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
+                muted
+                playsInline
+                loop
+                preload="metadata"
+                key={`vid-${currentImageIndex}`}
+              />
+            ) : (
+              <img
+                src={validMediaList[currentImageIndex]}
+                alt={`${name} - Image ${currentImageIndex + 1}`}
+                className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
+                onError={(e) => {
+                  console.error(`Failed to load image for ${name}:`, validMediaList[currentImageIndex]);
+                  e.currentTarget.src = '/placeholder.svg';
+                }}
+                key={`img-${currentImageIndex}`}
+              />
+            )
           ) : (
             <img
-              src={validMediaList[currentImageIndex]}
-              alt={`${name} - Image ${currentImageIndex + 1}`}
+              src="/placeholder.svg"
+              alt={`${name} - Placeholder`}
               className="w-full aspect-video object-cover transition-all duration-500 group-hover:scale-110"
-              onError={(e) => {
-                console.error(`Failed to load image for ${name}:`, validMediaList[currentImageIndex]);
-                e.currentTarget.src = '/placeholder.svg';
-              }}
-              key={`img-${currentImageIndex}`}
             />
           )}
 
